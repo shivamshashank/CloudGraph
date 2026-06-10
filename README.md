@@ -45,6 +45,71 @@ multi-agent reasoning.
 
 ---
 
+# 🔬 Research Motivation
+
+Modern cloud-native systems generate massive volumes of logs, metrics, traces,
+deployment events, and infrastructure changes.
+
+Existing AIOps solutions typically rely on:
+
+- Rule-based correlation
+- Keyword search
+- Traditional vector-based retrieval
+
+These approaches often struggle to:
+
+- Understand service dependencies
+- Correlate infrastructure and application failures
+- Explain reasoning paths
+- Investigate multi-hop incident chains
+
+CloudGraph explores whether GraphRAG-powered knowledge graph retrieval and
+multi-agent reasoning can improve root cause analysis accuracy, explainability,
+and incident resolution performance within Kubernetes environments.
+
+---
+
+# 🎯 Research Questions
+
+### RQ1
+
+Can GraphRAG improve root cause analysis accuracy compared to traditional RAG?
+
+### RQ2
+
+Does multi-agent reasoning improve investigation quality compared to
+single-agent analysis?
+
+### RQ3
+
+Can knowledge graph retrieval reduce hallucinations during RCA generation?
+
+### RQ4
+
+Can GraphRAG-powered investigations reduce Mean Time To Resolution (MTTR)?
+
+---
+
+# 🧪 Research Hypotheses
+
+### H1
+
+GraphRAG achieves significantly higher RCA accuracy than traditional RAG.
+
+### H2
+
+GraphRAG combined with Multi-Agent Systems outperforms GraphRAG alone.
+
+### H3
+
+Knowledge graph retrieval reduces hallucination rates during incident analysis.
+
+### H4
+
+Confidence-aware agent voting improves recommendation quality and trust.
+
+---
+
 ## ✨ Core Features
 
 - 🧠 GraphRAG-Powered Root Cause Analysis
@@ -57,6 +122,47 @@ multi-agent reasoning.
 - 🔐 Security-Aware Investigations
 - 🌐 Multi-Cloud Ready
 - 📚 Incident Memory & Knowledge Base
+
+---
+
+# 🏆 Research Contributions
+
+CloudGraph contributes the following research innovations:
+
+## Contribution 1
+
+### Temporal Incident Knowledge Graph
+
+A dynamic knowledge graph that captures infrastructure relationships, deployment
+history, service dependencies, and incident evolution over time.
+
+## Contribution 2
+
+### GraphRAG-Powered Incident Retrieval
+
+Graph-based retrieval enables multi-hop reasoning across cloud resources,
+services, deployments, alerts, and traces.
+
+## Contribution 3
+
+### Confidence-Aware Multi-Agent Investigation
+
+Specialized agents independently investigate incidents and produce weighted
+evidence scores used for consensus-driven RCA generation.
+
+## Contribution 4
+
+### Explainable Root Cause Analysis
+
+Every recommendation can be traced back through graph relationships,
+observability evidence, and agent reasoning.
+
+## Contribution 5
+
+### Reproducible Cloud Incident Benchmark
+
+A benchmark dataset containing realistic Kubernetes incident scenarios for
+GraphRAG evaluation.
 
 ---
 
@@ -206,7 +312,67 @@ Analyzes:
 
 ## Root Cause Agent
 
-Combines evidence from all agents.
+Responsibilities:
+
+- Evidence Fusion
+- Root Cause Ranking
+- Hypothesis Validation
+- Confidence Estimation
+
+## Consensus Engine
+
+Aggregates findings from all agents using:
+
+- Weighted Voting
+- Confidence Scoring
+- Temporal Correlation
+
+---
+
+# 🧪 Experimental Dataset
+
+CloudGraph is evaluated using a reproducible incident benchmark dataset.
+
+## Incident Categories
+
+### Kubernetes
+
+- CrashLoopBackOff
+- ImagePullBackOff
+- OOMKilled
+- Node Failures
+
+### Networking
+
+- DNS Failures
+- Service Discovery Issues
+- Network Partitions
+
+### Security
+
+- RBAC Misconfigurations
+- Secret Rotation Failures
+- IAM Errors
+
+### Deployments
+
+- Faulty Releases
+- Configuration Drift
+- Terraform Errors
+
+### Observability
+
+- Missing Metrics
+- Alert Storms
+- Trace Breakage
+
+Target Dataset Size:
+
+- 100+ Incidents
+- 500+ Services
+- 10,000+ Events
+- 100,000+ Graph Relationships
+- Evidence Correlation
 
 ## Recommendation Agent
 
@@ -214,7 +380,148 @@ Generates:
 
 - RCA Report
 - Confidence Score
-- Fix Recommendation
+- Evidence Chain
+- Remediation Plan
+- Risk Assessment
+
+---
+
+# 🕸️ GraphRAG Investigation Pipeline
+
+CloudGraph transforms raw observability telemetry into explainable root cause
+analysis through a multi-stage GraphRAG and multi-agent reasoning pipeline.
+
+<img src="docs/images/graphrag-investigation-pipeline.png" alt="GraphRAG Investigation Pipeline">
+
+---
+
+## 🔄 Investigation Workflow
+
+### Stage 1 — Data Collection
+
+CloudGraph continuously ingests:
+
+- 📜 Application Logs
+- 📊 Metrics
+- 🔍 Distributed Traces
+- ☸️ Kubernetes Events
+- 🚀 Deployment History
+- 📂 Git Activity
+- 🛠 Infrastructure Changes
+
+---
+
+### Stage 2 — Knowledge Graph Construction
+
+Observability signals are transformed into graph entities.
+
+#### Nodes
+
+- Services
+- Pods
+- Deployments
+- Nodes
+- Databases
+- Metrics
+- Alerts
+- Traces
+- Commits
+- Incidents
+
+#### Relationships
+
+- CALLS
+- DEPENDS_ON
+- DEPLOYED_BY
+- GENERATES
+- AFFECTS
+- CONNECTS_TO
+- TRIGGERED_BY
+
+---
+
+### Stage 3 — GraphRAG Retrieval
+
+Unlike traditional vector retrieval, GraphRAG enables:
+
+- 🔍 Multi-Hop Reasoning
+- 🕸 Dependency Traversal
+- 📚 Context Expansion
+- ⚡ Incident Correlation
+- 🔗 Relationship-Aware Retrieval
+
+---
+
+### Stage 4 — Multi-Agent Investigation
+
+Specialized agents independently investigate incidents.
+
+| Agent               | Responsibility         |
+| ------------------- | ---------------------- |
+| 📈 Monitoring Agent | Metrics & Alerts       |
+| 📜 Log Agent        | Log Analysis           |
+| 🔍 Trace Agent      | Distributed Tracing    |
+| 🚀 Deployment Agent | Release Analysis       |
+| 🔐 Security Agent   | Security Investigation |
+
+---
+
+### Stage 5 — Evidence Fusion
+
+Agent outputs are combined through a consensus engine.
+
+Evidence scoring considers:
+
+- Confidence
+- Source Reliability
+- Graph Evidence Strength
+- Temporal Correlation
+- Cross-Agent Agreement
+
+---
+
+### Stage 6 — Root Cause Analysis
+
+The Root Cause Agent:
+
+- Correlates evidence
+- Ranks hypotheses
+- Computes confidence scores
+- Generates explainable RCA reports
+
+---
+
+### Stage 7 — Recommendation Generation
+
+The Recommendation Agent produces:
+
+- Root Cause Summary
+- Confidence Score
+- Evidence Chain
+- Impact Assessment
+- Remediation Plan
+- Rollback Recommendations
+
+---
+
+## 🏆 Key Research Innovations
+
+### 🧠 Temporal GraphRAG
+
+Captures infrastructure evolution and incident progression over time.
+
+### 🤖 Confidence-Aware Multi-Agent Reasoning
+
+Combines agent findings using weighted evidence aggregation.
+
+### 🔍 Explainable AI for AIOps
+
+Every RCA decision can be traced back to graph relationships, telemetry
+evidence, and agent reasoning.
+
+### 📊 Incident Intelligence Layer
+
+Transforms raw observability data into actionable operational knowledge.
 
 ---
 
@@ -443,28 +750,49 @@ Comparison Modes:
 
 ---
 
-# 🛣️ Roadmap
+# 🧪 Experimental Dataset
 
-## v1
+CloudGraph is evaluated using a reproducible incident benchmark dataset.
 
-- Knowledge Graph
-- GraphRAG
-- Incident Investigation
+## Incident Categories
 
-## v2
+### Kubernetes
 
-- Autonomous Remediation
-- Security Analysis
+- CrashLoopBackOff
+- ImagePullBackOff
+- OOMKilled
+- Node Failures
 
-## v3
+### Networking
 
-- Multi-Cloud Support
-- Graph Neural Networks
+- DNS Failures
+- Service Discovery Issues
+- Network Partitions
 
-## v4
+### Security
 
-- Self-Learning Incident Memory
-- Reinforcement Learning Agents
+- RBAC Misconfigurations
+- Secret Rotation Failures
+- IAM Errors
+
+### Deployments
+
+- Faulty Releases
+- Configuration Drift
+- Terraform Errors
+
+### Observability
+
+- Missing Metrics
+- Alert Storms
+- Trace Breakage
+
+Target Dataset Size:
+
+- 100+ Incidents
+- 500+ Services
+- 10,000+ Events
+- 100,000+ Graph Relationships
 
 ---
 
