@@ -36,12 +36,22 @@ It continuously ingests:
 - Metrics
 - Traces
 - Kubernetes Events
+- Kubernetes Object State
+- Alerts
+- Runtime Security Events
 - Git Commits
+- Pull Requests
 - Terraform Changes
 - Deployment History
 
 and constructs a real-time knowledge graph that powers GraphRAG retrieval and
 multi-agent reasoning.
+
+CloudGraph is designed to collect this data from open-source observability and
+cloud-native tools such as OpenTelemetry, Prometheus, Grafana Loki, Grafana
+Tempo, kube-state-metrics, node_exporter, Alertmanager, Argo CD, Falco, and
+GitHub/GitLab webhooks. The full Week 1 data strategy is documented in
+`docs/week-1/data-collection-strategy.md`.
 
 ---
 
@@ -115,6 +125,7 @@ Confidence-aware agent voting improves recommendation quality and trust.
 - 🧠 GraphRAG-Powered Root Cause Analysis
 - ☸️ Kubernetes-Native Architecture
 - 🤖 Multi-Agent Investigation Workflow
+- 🖥️ Unified AIOps Dashboard & Visualization
 - 📊 Full Observability Integration
 - 🔍 Explainable AI Decisions
 - ⚡ Incident Correlation Engine
@@ -223,6 +234,38 @@ GraphRAG evaluation.
 - Tempo
 - OpenTelemetry
 - Alertmanager
+- kube-state-metrics
+- node_exporter
+- Falco
+- Argo CD Notifications
+
+## Open-Source Data Collection Layer
+
+CloudGraph can collect both historical and live continuous data from
+open-source systems:
+
+| Data | Open-Source Source | Example Evidence |
+| --- | --- | --- |
+| Logs | OpenTelemetry Collector, Loki, Promtail / Alloy | Exceptions, warnings, retries, kubelet/container logs |
+| Metrics | Prometheus, kube-state-metrics, node_exporter | CPU, memory, pod status, restart count, latency, error rate |
+| Traces | OpenTelemetry SDK/Collector, Tempo | Request paths, spans, dependency latency, failed calls |
+| Kubernetes Events | Kubernetes API/event stream | Scheduling failures, image pull errors, probe failures, restarts |
+| Alerts | Alertmanager | Fired/resolved alerts, severity, labels, affected service |
+| Deployments | Argo CD notifications/webhooks | Sync status, health state, degraded apps, rollbacks |
+| Git Activity | GitHub/GitLab webhooks | Commits, pull requests, changed files, release timestamps |
+| Infrastructure Changes | Terraform/OpenTofu output and state | IAM, network, database, cluster, and configuration changes |
+| Security Events | Falco | Runtime anomalies, suspicious process/file/network activity |
+
+Live continuous ingestion can be implemented using a mix of pull, push, stream,
+and batch modes:
+
+- Pull: query Prometheus, Loki, Tempo, Kubernetes API, and Git APIs on a
+  schedule.
+- Push: receive webhooks from Alertmanager, Argo CD, GitHub/GitLab, Falco, and
+  CI/CD systems.
+- Stream: forward telemetry through OpenTelemetry Collector and log collectors.
+- Batch: import historical incident datasets for repeatable dissertation
+  experiments.
 
 ## Knowledge Graph Layer
 
@@ -266,6 +309,21 @@ Vector Database:
 - Llama 3
 - LangGraph
 - LangChain
+
+## Frontend Layer
+
+A web-based dashboard that serves as the central interface for CloudGraph. It
+provides:
+
+- **Live Observability**: Visualizes incoming logs, metrics, and traces.
+- **Incident History**: Stores and displays past incidents and their
+  resolutions.
+- **Graph Visualization**: Shows the knowledge graph updating in real-time as
+  investigations proceed.
+- **Agent Monitoring**: Displays the status and findings of individual agents.
+
+- React / Vue / Svelte
+- D3.js / Vis.js (for graph visualization)
 
 ---
 
@@ -532,6 +590,7 @@ cloudgraph/
 
 ├── agents/
 ├── backend/
+├── frontend/
 ├── graph/
 ├── retrieval/
 ├── observability/
