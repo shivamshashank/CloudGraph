@@ -12,6 +12,24 @@
 - ✅ Dissertation Report
 - ✅ Final Demonstration
 
+## GitHub Branch Strategy
+
+| #  | Branch Name                             | Roadmap Target | Key Scope & Deliverables                                                                                                                           |
+| -- | --------------------------------------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1  | `research/rq-methodology-design`        | Week 1         | Formulating research questions (RQ1–RQ4), hypotheses (H1–H4), high-level system architecture, graph schema, and dissertation outline.              |
+| 2  | `infra/aws-eks-terraform`               | Week 2         | Provisioning AWS EKS, configuring VPC, subnets, security groups, IAM roles for service accounts (IRSA), and setting up Terraform.                  |
+| 3  | `infra/k8s-observability-stack`         | Week 2         | Setting up ArgoCD and Helm pipelines; deploying Prometheus, Grafana, Loki, Tempo, and configuring the OpenTelemetry collector.                     |
+| 4  | `feature/neo4j-graph-schema`            | Week 3         | Setting up Neo4j databases (via Docker/Helm) and defining Cypher schemas, node models, and relationship structures.                                |
+| 5  | `feature/graph-ingestion-pipeline`      | Week 3         | Writing ingestion controllers to parse Kubernetes events, logs, metrics, traces, and git commits directly into the graph.                          |
+| 6  | `feature/qdrant-embedding-pipeline`     | Week 4         | Spinning up the Qdrant vector database, writing text chunking/embedding scripts, and configuring hybrid vector-keyword retrieval.                  |
+| 7  | `feature/graphrag-traversal-api`        | Week 4         | Coding multi-hop graph traversal algorithms, local context expansion, ranking, and setting up the search/query FastAPI endpoints.                  |
+| 8  | `feature/multi-agent-langgraph`         | Week 5         | Building monitoring, log, trace, deployment, and security agents as LangGraph nodes, along with their workflow message orchestration.              |
+| 9  | `feature/agent-consensus-engine`        | Week 5         | Developing the evidence fusion layer, including confidence scoring, weighted voting, and cross-agent correlation mechanisms.                       |
+| 10 | `feature/rca-recommendation-engine`     | Week 6         | Implementing the Root Cause Agent to rank hypotheses, generate explainable graph reasoning paths, and propose remediation tasks.                   |
+| 11 | `evaluation/incident-benchmark-dataset` | Week 7         | Automating the generation of 100+ failure scenarios (CrashLoopBackOff, networking, security) and evaluating performance (precision, recall, MTTR). |
+| 12 | `feature/ui-dashboard`                  | Week 7         | Building a web-based UI to visualize incidents, display investigation results, render the knowledge graph, and show live observability data.       |
+| 13 | `docs/dissertation-release-v1`          | Week 8         | Conducting end-to-end integration/performance testing, packaging final API docs, screenshots, and compiling dissertation deliverables.             |
+
 ---
 
 # Week 1 — Research & System Design
@@ -27,31 +45,35 @@
 
 ### Research
 
-- [ ] Review GraphRAG papers
-- [ ] Review AIOps literature
-- [ ] Review Multi-Agent Systems
-- [ ] Review RCA techniques
-- [ ] Review Knowledge Graph approaches
+- [x] Review GraphRAG papers — `docs/week-1/literature-review.md`
+- [x] Review AIOps literature — `docs/week-1/literature-review.md`
+- [x] Review Multi-Agent Systems — `docs/week-1/literature-review.md`
+- [x] Review RCA techniques — `docs/week-1/research-methodology.md`
+- [x] Review Knowledge Graph approaches — `docs/week-1/architecture-design.md`
+- [x] Define open-source data collection points — `docs/week-1/data-collection-strategy.md`
 
 ### Documentation
 
-- [ ] Define RQ1–RQ4
-- [ ] Define hypotheses H1–H4
-- [ ] Define evaluation metrics
-- [ ] Create dissertation outline
+- [x] Define RQ1–RQ4 — `docs/week-1/research-methodology.md`
+- [x] Define hypotheses H1–H4 — `docs/week-1/research-methodology.md`
+- [x] Define evaluation metrics — `docs/week-1/research-methodology.md`
+- [x] Create dissertation outline — `docs/week-1/dissertation-evidence.md`
 
 ### Design
 
-- [ ] High-Level Architecture
-- [ ] Graph Schema Design
-- [ ] Agent Design
-- [ ] AWS Deployment Design
+- [x] High-Level Architecture — `docs/week-1/architecture-design.md`
+- [x] Graph Schema Design — `docs/week-1/architecture-design.md`
+- [x] Agent Design — `docs/week-1/architecture-design.md`
+- [x] AWS Deployment Design — `docs/week-1/architecture-design.md`
+- [x] Live Continuous Data Design — `docs/week-1/data-collection-strategy.md`
 
 ### Deliverables
 
-- [ ] Literature Review
-- [ ] Architecture Diagrams
-- [ ] Research Methodology
+- [x] Literature Review — `docs/week-1/literature-review.md`
+- [x] Architecture Diagrams — `docs/week-1/architecture-design.md`
+- [x] Research Methodology — `docs/week-1/research-methodology.md`
+- [x] Open-Source Data Collection Strategy — `docs/week-1/data-collection-strategy.md`
+- [x] Task Evidence Matrix — `docs/week-1/task-evidence-matrix.md`
 
 ---
 
