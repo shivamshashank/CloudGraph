@@ -43,3 +43,35 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: neo4j-database
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: 'https://helm.neo4j.com/neo4j'
+    chart: neo4j
+    targetRevision: 5.18.0
+    helm:
+      values: |
+        neo4j:
+          password: "cloudgraph_dev_password"
+          edition: "community"
+          acceptLicenseAgreement: "yes"
+        volumes:
+          data:
+            mode: defaultStorageClass
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: cloudgraph
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
