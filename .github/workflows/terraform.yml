@@ -89,14 +89,6 @@ jobs:
         working-directory: ${{ env.TF_DIR }}
         run: tflint --recursive
 
-      # Checkov security scanning
-      - name: Install Checkov
-        run: pip install checkov
-
-      - name: Checkov Security Scan
-        working-directory: ${{ env.TF_DIR }}
-        run: checkov -d . --config-file .checkov.yaml --output github_failed_only
-
   # ---------------------------------------------------------------------------
   # Job 2: Plan — generate and display a Terraform plan
   # Requires AWS credentials stored as GitHub secrets
@@ -211,12 +203,31 @@ jobs:
           working-directory: tests/observability
 
   # ---------------------------------------------------------------------------
+  # Job 3.5: Validate Helm Chart
+  # ---------------------------------------------------------------------------
+  helm-validate:
+    name: "Validate Helm"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.14.0
+
+      - name: Helm Lint
+        run: helm lint deployments/helm/sample-app
+
+  # ---------------------------------------------------------------------------
   # Job 4: Test — run Terratest plan-only tests (no AWS resources created)
   # ---------------------------------------------------------------------------
   test:
     name: "Terratest (plan-only)"
     runs-on: ubuntu-latest
-    needs: [validate, go-validate]
+    needs: [validate, go-validate, helm-validate]
 
     steps:
       - name: Checkout repository

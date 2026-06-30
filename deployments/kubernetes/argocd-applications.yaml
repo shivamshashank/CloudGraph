@@ -8,7 +8,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: 'https://github.com/your-org/cloudgraph.git' # Replace with actual repo URL in GitOps
+    repoURL: 'https://git.cs.bham.ac.uk/projects-2025-26/sxs2511.git'
     targetRevision: HEAD
     path: deployments/kubernetes/observability
   destination:
@@ -31,9 +31,9 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: 'https://github.com/your-org/cloudgraph.git' # Replace with actual repo URL in GitOps
+    repoURL: 'https://git.cs.bham.ac.uk/projects-2025-26/sxs2511.git'
     targetRevision: HEAD
-    path: deployments/kubernetes/sample-app
+    path: deployments/helm/sample-app
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: cloudgraph

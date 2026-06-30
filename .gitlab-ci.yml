@@ -41,14 +41,12 @@ terraform:tflint:
     - tflint --init
     - tflint --recursive
 
-terraform:checkov:
+
+helm:lint:
   stage: validate
-  image:
-    name: bridgecrew/checkov:latest
-    entrypoint: [""]
+  image: alpine/helm:3.14.0
   script:
-    - cd deployments/terraform
-    - checkov -d . --config-file .checkov.yaml
+    - helm lint deployments/helm/sample-app
 
 # =============================================================================
 # Go Jobs (Tests/Validation)

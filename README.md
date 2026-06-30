@@ -708,6 +708,37 @@ Verify:
 
 ```bash
 kubectl get pods -A
+kubectl get svc -n observability
+kubectl get svc -n cloudgraph
+```
+
+# Week 2 End-to-End Verification
+
+From the repository root, validate and verify the infrastructure and observability stack:
+
+```bash
+# Terraform plan-only validation for Week 2 modules
+cd tests/terraform
+go test -v -timeout 15m -run "TestVPCPlanValidation|TestVariableValidation|TestIAMPlanValidation|TestEKSPlanValidation" ./...
+
+# Observability stack health checks
+cd ../observability
+go test -v -timeout 5m ./...
+```
+
+If you have AWS access and want to deploy the stack end to end:
+
+```bash
+cd deployments/terraform
+terraform init
+terraform plan -var-file=../../environments/dev/terraform.tfvars
+terraform apply -var-file=../../environments/dev/terraform.tfvars
+
+# Update kubectl context for EKS
+aws eks update-kubeconfig --name cloudgraph-dev --region eu-west-2
+
+# Deploy Kubernetes manifests
+kubectl apply -f deployments/kubernetes/
 ```
 
 ---

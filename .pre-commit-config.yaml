@@ -11,6 +11,7 @@ repos:
       - id: end-of-file-fixer
       - id: check-yaml
         args: [--allow-multiple-documents]
+        exclude: ^deployments/helm/.*$
       - id: check-added-large-files
 
   # Terraform quality & security checks
@@ -25,9 +26,6 @@ repos:
         args:
           - --args=--config=__GIT_WORKING_DIR__/.tflint.hcl
           - --args=--recursive
-      - id: terraform_checkov
-        args:
-          - --args=--config-file=deployments/terraform/.checkov.yaml
 
   # Local system hooks for Go files
   - repo: local

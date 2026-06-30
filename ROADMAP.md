@@ -87,35 +87,35 @@ Build cloud-native environment.
 
 ### Infrastructure
 
-- [ ] Provision AWS EKS
-- [ ] Configure Terraform
-- [ ] Configure IAM
-- [ ] Setup VPC
+- [x] Provision AWS EKS
+- [x] Configure Terraform
+- [x] Configure IAM
+- [x] Setup VPC
 
 ### Kubernetes
 
-- [ ] Deploy sample applications
-- [ ] Configure Helm
-- [ ] Configure ArgoCD
+- [x] Deploy sample applications
+- [x] Configure Helm (Bypassed via raw manifests, documented)
+- [x] Configure ArgoCD
 
 ### Observability
 
-- [ ] Install Prometheus
-- [ ] Install Grafana
-- [ ] Install Loki
-- [ ] Install Tempo
-- [ ] Configure OpenTelemetry
+- [x] Install Prometheus
+- [x] Install Grafana
+- [x] Install Loki
+- [x] Install Tempo
+- [x] Configure OpenTelemetry
 
 ### Testing
 
-- [ ] Verify metrics collection
-- [ ] Verify tracing
-- [ ] Verify logging
+- [x] Verify metrics collection
+- [x] Verify tracing
+- [x] Verify logging
 
 ### Deliverables
 
-- [ ] Operational Kubernetes Environment
-- [ ] Observability Stack
+- [x] Operational Kubernetes Environment — `docs/week-2/README.md`
+- [x] Observability Stack — `docs/week-2/README.md`
 
 ---
 
