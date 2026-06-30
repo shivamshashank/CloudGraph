@@ -12,14 +12,6 @@
 # =============================================================================
 
 # -----------------------------------------------------------------------------
-# Data sources
-# -----------------------------------------------------------------------------
-
-# Current AWS account and region — used in ARNs
-data "aws_caller_identity" "current" {}
-data "aws_region" "current" {}
-
-# -----------------------------------------------------------------------------
 # CloudWatch Log Group for EKS Control Plane Logs
 # -----------------------------------------------------------------------------
 
@@ -77,11 +69,11 @@ resource "aws_eks_cluster" "this" {
   role_arn = aws_iam_role.cluster.arn
 
   vpc_config {
-    subnet_ids                = concat(var.private_subnet_ids, var.public_subnet_ids)
-    cluster_security_group_id = var.cluster_sg_id
-    endpoint_private_access   = true # Nodes communicate with API privately
-    endpoint_public_access    = var.cluster_endpoint_public_access
-    public_access_cidrs       = var.cluster_endpoint_public_access_cidrs
+    subnet_ids              = concat(var.private_subnet_ids, var.public_subnet_ids)
+    security_group_ids      = [var.cluster_sg_id]
+    endpoint_private_access = true # Nodes communicate with API privately
+    endpoint_public_access  = var.cluster_endpoint_public_access
+    public_access_cidrs     = var.cluster_endpoint_public_access_cidrs
   }
 
   # Enable control plane logging to CloudWatch
@@ -264,23 +256,4 @@ resource "aws_eks_addon" "vpc_cni" {
   tags = {
     Name = "${var.name_prefix}-addon-vpc-cni"
   }
-}
-
-# EBS CSI Driver — enables persistent volumes (PVC) backed by EBS
-resource "aws_eks_addon" "ebs_csi_driver" {
-  count = var.enable_ebs_csi_driver ? 1 : 0
-
-  cluster_name                = aws_eks_cluster.this.name
-  addon_name                  = "aws-ebs-csi-driver"
-  resolve_conflicts_on_create = "OVERWRITE"
-  resolve_conflicts_on_update = "OVERWRITE"
-
-  # IRSA role ARN is injected by the IAM module after cluster creation
-  # service_account_role_arn = var.ebs_csi_role_arn
-
-  tags = {
-    Name = "${var.name_prefix}-addon-ebs-csi"
-  }
-
-  depends_on = [aws_eks_node_group.this]
 }

@@ -22,14 +22,14 @@ on:
     branches:
       - infra/aws-eks-terraform
     paths:
-      - "infra/terraform/**"
+      - "deployments/terraform/**"
       - "tests/terraform/**"
       - ".github/workflows/terraform.yml"
   pull_request:
     branches:
       - main
     paths:
-      - "infra/terraform/**"
+      - "deployments/terraform/**"
       - "tests/terraform/**"
 
 # Prevent concurrent runs on the same branch (avoid plan/apply conflicts)
@@ -39,7 +39,7 @@ concurrency:
 
 env:
   TF_VERSION: "1.7.5"
-  TF_DIR: "infra/terraform"
+  TF_DIR: "deployments/terraform"
   GO_VERSION: "1.21"
 
 jobs:
@@ -188,20 +188,27 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
 
       - name: Go Format Check
-        working-directory: tests/terraform
-        run: diff -u <(echo -n) <(gofmt -d -s .)
+        run: |
+          diff -u <(echo -n) <(gofmt -d -s tests/terraform)
+          diff -u <(echo -n) <(gofmt -d -s tests/observability)
 
       - name: Go Imports Check
-        working-directory: tests/terraform
         run: |
           go install golang.org/x/tools/cmd/goimports@latest
-          diff -u <(echo -n) <($(go env GOPATH)/bin/goimports -d .)
+          diff -u <(echo -n) <($(go env GOPATH)/bin/goimports -d tests/terraform)
+          diff -u <(echo -n) <($(go env GOPATH)/bin/goimports -d tests/observability)
 
-      - name: Go Lint (golangci-lint)
+      - name: Go Lint - tests/terraform
         uses: golangci/golangci-lint-action@v3
         with:
           version: v1.55.2
           working-directory: tests/terraform
+
+      - name: Go Lint - tests/observability
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: v1.55.2
+          working-directory: tests/observability
 
   # ---------------------------------------------------------------------------
   # Job 4: Test — run Terratest plan-only tests (no AWS resources created)
@@ -226,7 +233,7 @@ jobs:
           terraform_version: ${{ env.TF_VERSION }}
           terraform_wrapper: false # Required for Terratest
 
-      - name: Download Go dependencies
+      - name: Download Go dependencies (terraform)
         working-directory: tests/terraform
         run: go mod download
 
@@ -237,3 +244,11 @@ jobs:
         env:
           # Use local backend for plan-only tests
           TF_CLI_ARGS: "-backend=false"
+
+      - name: Download Go dependencies (observability)
+        working-directory: tests/observability
+        run: go mod download
+
+      - name: Run observability verification tests
+        working-directory: tests/observability
+        run: go test -v -timeout 5m ./...

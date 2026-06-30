@@ -26,6 +26,8 @@ package test
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -55,7 +57,7 @@ func TestVPCModule(t *testing.T) {
 
 	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
 		// Point at the VPC module directly for isolated unit testing
-		TerraformDir: "../../infra/terraform/modules/vpc",
+		TerraformDir: "../../deployments/terraform/modules/vpc",
 
 		Vars: map[string]interface{}{
 			"name_prefix":          namePrefix,
@@ -194,7 +196,7 @@ func TestSecurityGroupsModule(t *testing.T) {
 
 	// Security groups need a VPC — set up a minimal one first
 	vpcOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
-		TerraformDir: "../../infra/terraform/modules/vpc",
+		TerraformDir: "../../deployments/terraform/modules/vpc",
 		Vars: map[string]interface{}{
 			"name_prefix":          namePrefix,
 			"vpc_cidr":             "10.98.0.0/16",
@@ -213,7 +215,7 @@ func TestSecurityGroupsModule(t *testing.T) {
 
 	// Now test the security groups module
 	sgOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
-		TerraformDir: "../../infra/terraform/modules/security-groups",
+		TerraformDir: "../../deployments/terraform/modules/security-groups",
 		Vars: map[string]interface{}{
 			"name_prefix":  namePrefix,
 			"vpc_id":       vpcID,
@@ -263,7 +265,7 @@ func TestVPCPlanValidation(t *testing.T) {
 	t.Parallel()
 
 	terraformOptions := &terraform.Options{
-		TerraformDir: "../../infra/terraform/modules/vpc",
+		TerraformDir: "../../deployments/terraform/modules/vpc",
 		Vars: map[string]interface{}{
 			"name_prefix":          "cg-plan-test",
 			"vpc_cidr":             "10.97.0.0/16",
@@ -277,6 +279,8 @@ func TestVPCPlanValidation(t *testing.T) {
 		// Plan only — no AWS calls that create resources
 		PlanFilePath: "/tmp/cg-vpc-plan.tfplan",
 	}
+
+	writeDummyProvider(t, terraformOptions.TerraformDir)
 
 	// Init and Plan (no Apply)
 	terraform.Init(t, terraformOptions)
@@ -307,7 +311,7 @@ func TestVariableValidation(t *testing.T) {
 
 	// Intentionally invalid CIDR — should fail validation
 	terraformOptions := &terraform.Options{
-		TerraformDir: "../../infra/terraform",
+		TerraformDir: "../../deployments/terraform",
 		Vars: map[string]interface{}{
 			"environment": "invalid-env", // Only dev/staging/prod allowed
 		},
@@ -320,6 +324,30 @@ func TestVariableValidation(t *testing.T) {
 	require.Error(t, err, "Terraform plan should fail for invalid environment")
 	assert.Contains(t, err.Error(), "environment must be one of",
 		"Error message should reference the validation rule")
+}
+
+// writeDummyProvider writes a temporary override providers_test.tf file inside the
+// target TerraformDir directory, allowing terraform plan/validate commands to execute
+// offline without calling real AWS credentials APIs or local IMDS.
+func writeDummyProvider(t *testing.T, dir string) {
+	providerContent := `
+provider "aws" {
+  region                      = "eu-west-2"
+  skip_credentials_validation = true
+  skip_metadata_api_check     = true
+  skip_requesting_account_id  = true
+  access_key                  = "mock"
+  secret_key                  = "mock"
+}
+`
+	filePath := filepath.Join(dir, "providers_test.tf")
+	err := os.WriteFile(filePath, []byte(providerContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to write dummy provider: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Remove(filePath)
+	})
 }
 
 // =============================================================================

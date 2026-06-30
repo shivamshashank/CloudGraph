@@ -22,14 +22,14 @@ terraform:fmt:
   stage: validate
   image: hashicorp/terraform:1.7.5
   script:
-    - cd infra/terraform
+    - cd deployments/terraform
     - terraform fmt -check -recursive -diff
 
 terraform:validate:
   stage: validate
   image: hashicorp/terraform:1.7.5
   script:
-    - cd infra/terraform
+    - cd deployments/terraform
     - terraform init -backend=false
     - terraform validate
 
@@ -37,7 +37,7 @@ terraform:tflint:
   stage: validate
   image: ghcr.io/terraform-linters/tflint:v0.50.3
   script:
-    - cd infra/terraform
+    - cd deployments/terraform
     - tflint --init
     - tflint --recursive
 
@@ -47,7 +47,7 @@ terraform:checkov:
     name: bridgecrew/checkov:latest
     entrypoint: [""]
   script:
-    - cd infra/terraform
+    - cd deployments/terraform
     - checkov -d . --config-file .checkov.yaml
 
 # =============================================================================
@@ -58,8 +58,8 @@ go:fmt:
   stage: validate
   image: golang:1.21
   script:
-    - cd tests/terraform
-    - diff -u <(echo -n) <(gofmt -d -s .)
+    - cd tests/terraform && diff -u <(echo -n) <(gofmt -d -s .)
+    - cd ../observability && diff -u <(echo -n) <(gofmt -d -s .)
 
 go:imports:
   stage: validate
@@ -67,15 +67,15 @@ go:imports:
   before_script:
     - go install golang.org/x/tools/cmd/goimports@latest
   script:
-    - cd tests/terraform
-    - diff -u <(echo -n) <($(go env GOPATH)/bin/goimports -d .)
+    - cd tests/terraform && diff -u <(echo -n) <($(go env GOPATH)/bin/goimports -d .)
+    - cd ../observability && diff -u <(echo -n) <($(go env GOPATH)/bin/goimports -d .)
 
 go:lint:
   stage: validate
   image: golangci/golangci-lint:v1.55-alpine
   script:
-    - cd tests/terraform
-    - golangci-lint run --timeout 5m ./...
+    - cd tests/terraform && golangci-lint run --timeout 5m ./...
+    - cd ../observability && golangci-lint run --timeout 5m ./...
 
 # =============================================================================
 # Test Stage (Plan-Only Tests)
@@ -97,3 +97,6 @@ go:test:
     - cd tests/terraform
     - go mod download
     - go test -v -timeout 15m -run "TestVPCPlanValidation|TestVariableValidation|TestIAMPlanValidation|TestEKSPlanValidation" ./...
+    - cd ../observability
+    - go mod download
+    - go test -v -timeout 5m ./...

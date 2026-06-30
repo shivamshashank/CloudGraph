@@ -12,7 +12,7 @@ func TestEKSPlanValidation(t *testing.T) {
 	t.Parallel()
 
 	terraformOptions := &terraform.Options{
-		TerraformDir: "../../infra/terraform/modules/eks",
+		TerraformDir: "../../deployments/terraform/modules/eks",
 		Vars: map[string]interface{}{
 			"name_prefix":     "cg-eks-plan-test",
 			"cluster_name":    "cg-eks-plan-test",
@@ -45,6 +45,8 @@ func TestEKSPlanValidation(t *testing.T) {
 		},
 		PlanFilePath: "/tmp/cg-eks-plan.tfplan",
 	}
+
+	writeDummyProvider(t, terraformOptions.TerraformDir)
 
 	terraform.Init(t, terraformOptions)
 	planOutput := terraform.Plan(t, terraformOptions)

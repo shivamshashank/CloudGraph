@@ -12,7 +12,7 @@ func TestIAMPlanValidation(t *testing.T) {
 	t.Parallel()
 
 	terraformOptions := &terraform.Options{
-		TerraformDir: "../../infra/terraform/modules/iam",
+		TerraformDir: "../../deployments/terraform/modules/iam",
 		Vars: map[string]interface{}{
 			"name_prefix":                         "cg-iam-plan-test",
 			"cluster_name":                        "cg-iam-plan-test",
@@ -24,6 +24,8 @@ func TestIAMPlanValidation(t *testing.T) {
 		},
 		PlanFilePath: "/tmp/cg-iam-plan.tfplan",
 	}
+
+	writeDummyProvider(t, terraformOptions.TerraformDir)
 
 	terraform.Init(t, terraformOptions)
 	planOutput := terraform.Plan(t, terraformOptions)

@@ -10,6 +10,7 @@ repos:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
+        args: [--allow-multiple-documents]
       - id: check-added-large-files
 
   # Terraform quality & security checks
@@ -26,7 +27,7 @@ repos:
           - --args=--recursive
       - id: terraform_checkov
         args:
-          - --args=--config-file=infra/terraform/.checkov.yaml
+          - --args=--config-file=deployments/terraform/.checkov.yaml
 
   # Local system hooks for Go files
   - repo: local

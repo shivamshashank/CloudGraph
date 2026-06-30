@@ -144,3 +144,23 @@ module "iam" {
   enable_aws_load_balancer_controller = var.enable_aws_load_balancer_controller
   enable_ebs_csi_driver               = var.enable_ebs_csi_driver
 }
+
+# -----------------------------------------------------------------------------
+# EKS Addons with IRSA configuration
+# Break the circular dependency between EKS and IAM by declaring the addon here
+# -----------------------------------------------------------------------------
+
+resource "aws_eks_addon" "ebs_csi_driver" {
+  count = var.enable_ebs_csi_driver ? 1 : 0
+
+  cluster_name                = module.eks.cluster_name
+  addon_name                  = "aws-ebs-csi-driver"
+  resolve_conflicts_on_create = "OVERWRITE"
+  resolve_conflicts_on_update = "OVERWRITE"
+
+  service_account_role_arn = var.enable_irsa ? module.iam.ebs_csi_driver_role_arn : null
+
+  tags = {
+    Name = "${local.name_prefix}-addon-ebs-csi"
+  }
+}

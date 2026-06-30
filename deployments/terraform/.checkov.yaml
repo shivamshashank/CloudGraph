@@ -1,4 +1,6 @@
 compact: true
+skip-path:
+  - deployments/kubernetes
 skip-check:
   - CKV_AWS_39
   - CKV_AWS_58
