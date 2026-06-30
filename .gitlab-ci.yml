@@ -1,0 +1,100 @@
+# =============================================================================
+# CloudGraph — GitLab CI/CD Pipeline
+# =============================================================================
+
+stages:
+  - validate
+  - test
+
+# Default cache configuration to speed up pipeline execution
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - .terraform/
+    - .tflint.d/
+    - tests/terraform/.go-cache/
+
+# =============================================================================
+# Terraform Jobs
+# =============================================================================
+
+terraform:fmt:
+  stage: validate
+  image: hashicorp/terraform:1.7.5
+  script:
+    - cd deployments/terraform
+    - terraform fmt -check -recursive -diff
+
+terraform:validate:
+  stage: validate
+  image: hashicorp/terraform:1.7.5
+  script:
+    - cd deployments/terraform
+    - terraform init -backend=false
+    - terraform validate
+
+terraform:tflint:
+  stage: validate
+  image: ghcr.io/terraform-linters/tflint:v0.50.3
+  script:
+    - cd deployments/terraform
+    - tflint --init
+    - tflint --recursive
+
+
+helm:lint:
+  stage: validate
+  image: alpine/helm:3.14.0
+  script:
+    - helm lint deployments/helm/sample-app
+
+# =============================================================================
+# Go Jobs (Tests/Validation)
+# =============================================================================
+
+go:fmt:
+  stage: validate
+  image: golang:1.21
+  script:
+    - cd tests/terraform && diff -u <(echo -n) <(gofmt -d -s .)
+    - cd ../observability && diff -u <(echo -n) <(gofmt -d -s .)
+
+go:imports:
+  stage: validate
+  image: golang:1.21
+  before_script:
+    - go install golang.org/x/tools/cmd/goimports@latest
+  script:
+    - cd tests/terraform && diff -u <(echo -n) <($(go env GOPATH)/bin/goimports -d .)
+    - cd ../observability && diff -u <(echo -n) <($(go env GOPATH)/bin/goimports -d .)
+
+go:lint:
+  stage: validate
+  image: golangci/golangci-lint:v1.55-alpine
+  script:
+    - cd tests/terraform && golangci-lint run --timeout 5m ./...
+    - cd ../observability && golangci-lint run --timeout 5m ./...
+
+# =============================================================================
+# Test Stage (Plan-Only Tests)
+# =============================================================================
+
+go:test:
+  stage: test
+  image: golang:1.21
+  variables:
+    TF_VERSION: "1.7.5"
+    TF_CLI_ARGS: "-backend=false"
+  before_script:
+    - apt-get update && apt-get install -y unzip wget
+    - wget -q https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip
+    - unzip terraform_${TF_VERSION}_linux_amd64.zip
+    - mv terraform /usr/local/bin/
+    - terraform --version
+  script:
+    - cd tests/terraform
+    - go mod download
+    - go test -v -timeout 15m -run "TestVPCPlanValidation|TestVariableValidation|TestIAMPlanValidation|TestEKSPlanValidation" ./...
+    - cd ../observability
+    - go mod download
+    - go test -v -timeout 5m ./...

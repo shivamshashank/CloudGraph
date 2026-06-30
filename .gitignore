@@ -1,1 +1,84 @@
+# =============================================================================
+# CloudGraph — Git Ignore Configurations
+# =============================================================================
+
+# System files
 *.DS_Store
+Thumbs.db
+
+# =============================================================================
+# Terraform/HCL Files
+# =============================================================================
+# Local .terraform directories (contains downloaded modules & providers)
+**/.terraform/
+
+# Terraform lock files
+# (Usually tracked, but if dynamic/multi-platform issues persist, some teams ignore it.
+# We keep it tracked, but ignore local backend/plugins lock overrides if any)
+# !.terraform.lock.hcl
+
+# State files & backups
+*.tfstate
+*.tfstate.backup
+*.tfstate.*.backup
+*.tfstate.lock.info
+
+# Variables files (contain credentials / secrets)
+*.tfvars
+*.tfvars.json
+*.env
+.env.*
+
+# Plan files
+*.tfplan
+*.tfplan.*
+
+# Crash logs
+crash.log
+crash.*.log
+
+# Override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# CLI Configuration
+.terraform.rc
+terraform.rc
+
+# =============================================================================
+# Go (Terratest) Files
+# =============================================================================
+# Compiled test binaries (e.g., terraform.test)
+*.test
+**/*.test
+
+# Compiled executables
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test coverage & profile reports
+*.out
+*.cover
+*.coverprofile
+coverage.txt
+
+# Go workspace files
+go.work
+go.work.sum
+
+# =============================================================================
+# Linter & Security Tool Caches
+# =============================================================================
+# TFLint local cache directory
+.tflint.d/
+**/.tflint.d/
+
+# Checkov local outputs (if any)
+.checkov/
+checkov_report.xml
+checkov_report.json

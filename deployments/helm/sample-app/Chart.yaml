@@ -1,0 +1,6 @@
+apiVersion: v2
+name: sample-app
+description: A Helm chart for deploying the CloudGraph sample microservice application
+type: application
+version: 0.1.0
+appVersion: "1.8.0"
