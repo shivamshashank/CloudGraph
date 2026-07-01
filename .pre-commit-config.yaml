@@ -26,14 +26,14 @@ repos:
     hooks:
       - id: golangci-lint
         name: golangci-lint
-        entry: golangci-lint run ./tests/observability/...
+        entry: bash -c 'cd tests/observability && golangci-lint run ./...'
         language: system
         types: [go]
         pass_filenames: false
 
       - id: go-vet
         name: go-vet
-        entry: go vet ./tests/observability/...
+        entry: bash -c 'cd tests/observability && go vet ./...'
         language: system
         types: [go]
         pass_filenames: false
