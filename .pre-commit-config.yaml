@@ -24,13 +24,6 @@ repos:
   # ===================================================================
   - repo: local
     hooks:
-      - id: golangci-lint
-        name: golangci-lint
-        entry: bash -c 'cd tests/observability && golangci-lint run ./...'
-        language: system
-        types: [go]
-        pass_filenames: false
-
       - id: go-vet
         name: go-vet
         entry: bash -c 'cd tests/observability && go vet ./...'
@@ -43,6 +36,13 @@ repos:
     hooks:
       - id: go-fmt
       - id: go-mod-tidy
+
+  - repo: https://github.com/golangci/golangci-lint
+    rev: v1.64.5
+    hooks:
+      - id: golangci-lint
+        entry: bash -c 'cd tests/observability && golangci-lint run ./...'
+        pass_filenames: false
 
   # ===================================================================
   # Python

@@ -11,7 +11,7 @@ env:
 
 jobs:
   build-and-test:
-    name: Build & Test (Go 1.23)
+    name: Build & Test (Go & Python)
     runs-on: ubuntu-latest
 
     steps:
