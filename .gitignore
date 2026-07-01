@@ -7,50 +7,20 @@
 Thumbs.db
 
 # =============================================================================
-# Terraform/HCL Files
+# Infrastructure and local artifacts
 # =============================================================================
-# Local .terraform directories (contains downloaded modules & providers)
-**/.terraform/
-
-# Terraform lock files
-# (Usually tracked, but if dynamic/multi-platform issues persist, some teams ignore it.
-# We keep it tracked, but ignore local backend/plugins lock overrides if any)
-# !.terraform.lock.hcl
-
-# State files & backups
-*.tfstate
-*.tfstate.backup
-*.tfstate.*.backup
-*.tfstate.lock.info
-
 # Variables files (contain credentials / secrets)
-*.tfvars
-*.tfvars.json
 *.env
 .env.*
-
-# Plan files
-*.tfplan
-*.tfplan.*
 
 # Crash logs
 crash.log
 crash.*.log
 
-# Override files
-override.tf
-override.tf.json
-*_override.tf
-*_override.tf.json
-
-# CLI Configuration
-.terraform.rc
-terraform.rc
-
 # =============================================================================
-# Go (Terratest) Files
+# Go test artifacts
 # =============================================================================
-# Compiled test binaries (e.g., terraform.test)
+# Compiled test binaries
 *.test
 **/*.test
 
@@ -82,3 +52,17 @@ go.work.sum
 .checkov/
 checkov_report.xml
 checkov_report.json
+
+# =============================================================================
+# Python / Virtual Environment Files
+# =============================================================================
+.venv/
+venv/
+ENV/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

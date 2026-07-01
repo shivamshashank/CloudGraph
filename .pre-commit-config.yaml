@@ -1,48 +1,94 @@
-# =============================================================================
-# CloudGraph — Local Pre-commit Hooks Configuration
-# =============================================================================
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
 
 repos:
-  # General file hygiene checks
+  # ===================================================================
+  # Standard Hooks
+  # ===================================================================
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v4.6.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
         args: [--allow-multiple-documents]
-        exclude: ^deployments/helm/.*$
+        exclude: ^deployments/helm/
+      - id: check-json
+      - id: check-toml
+      - id: check-merge-conflict
       - id: check-added-large-files
+      - id: detect-private-key
 
-  # Terraform quality & security checks
-  - repo: https://github.com/antonbabenko/pre-commit-terraform
-    rev: v1.86.0
-    hooks:
-      - id: terraform_fmt
-        args:
-          - --args=-recursive
-      - id: terraform_validate
-      - id: terraform_tflint
-        args:
-          - --args=--config=__GIT_WORKING_DIR__/.tflint.hcl
-          - --args=--recursive
-
-  # Local system hooks for Go files
+  # ===================================================================
+  # Go
+  # ===================================================================
   - repo: local
     hooks:
-      - id: go-fmt
-        name: Go Format (gofmt)
-        entry: gofmt -w
+      - id: go-vet
+        name: go-vet
+        entry: bash -c 'cd tests/observability && go vet ./...'
         language: system
-        files: \.go$
-      - id: go-imports
-        name: Go Imports (goimports)
-        entry: goimports -w
-        language: system
-        files: \.go$
-      - id: golangci-lint
-        name: Go Lint (golangci-lint)
-        entry: bash -c 'cd tests/terraform && golangci-lint run ./...'
-        language: system
-        files: \.go$
+        types: [go]
         pass_filenames: false
+
+  - repo: https://github.com/dnephin/pre-commit-golang
+    rev: v0.5.1
+    hooks:
+      - id: go-fmt
+      - id: go-mod-tidy
+
+  - repo: https://github.com/golangci/golangci-lint
+    rev: v1.64.5
+    hooks:
+      - id: golangci-lint
+        entry: bash -c 'cd tests/observability && golangci-lint run ./...'
+        pass_filenames: false
+
+  # ===================================================================
+  # Python
+  # ===================================================================
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.5.5
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+
+  # ===================================================================
+  # Configuration & YAML
+  # ===================================================================
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.35.1
+    hooks:
+      - id: yamllint
+        args:
+          - -d
+          - "{extends: default, rules: {line-length: disable, document-start: disable, truthy: disable}}"
+        exclude: ^deployments/helm/
+
+  # ===================================================================
+  # Documentation & Scripts (Markdown, Shell)
+  # ===================================================================
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.41.0
+    hooks:
+      - id: markdownlint
+        args: [--fix]
+
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.10.0.1
+    hooks:
+      - id: shellcheck
+
+  # ===================================================================
+  # Security
+  # ===================================================================
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.4
+    hooks:
+      - id: gitleaks
+        name: Detect hardcoded secrets
+
+ci:
+  autofix_commit_msg: "chore(pre-commit): auto-format and fix"
+  autoupdate_commit_msg: "chore(pre-commit): update hooks"

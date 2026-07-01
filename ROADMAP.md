@@ -17,13 +17,13 @@
 | #  | Branch Name                             | Roadmap Target | Key Scope & Deliverables                                                                                                                           |
 | -- | --------------------------------------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1  | `research/rq-methodology-design`        | Week 1         | Formulating research questions (RQ1–RQ4), hypotheses (H1–H4), high-level system architecture, graph schema, and dissertation outline.              |
-| 2  | `infra/aws-eks-terraform`               | Week 2         | Provisioning AWS EKS, configuring VPC, subnets, security groups, IAM roles for service accounts (IRSA), and setting up Terraform.                  |
-| 3  | `infra/k8s-observability-stack`         | Week 2         | Setting up ArgoCD and Helm pipelines; deploying Prometheus, Grafana, Loki, Tempo, and configuring the OpenTelemetry collector.                     |
+| 2  | `infra/k8s-deployment`                  | Week 2         | Provisioning a Kubernetes deployment baseline with cluster-ready manifests and deployment validation.                  |
+| 3  | `infra/k8s-observability-stack`         | Week 2         | Setting up ArgoCD and Helm pipelines; deploying Prometheus, Grafana, Loki, and configuring the OpenTelemetry collector.                     |
 | 4  | `feature/neo4j-graph-schema`            | Week 3         | Setting up Neo4j databases (via Docker/Helm) and defining Cypher schemas, node models, and relationship structures.                                |
-| 5  | `feature/graph-ingestion-pipeline`      | Week 3         | Writing ingestion controllers to parse Kubernetes events, logs, metrics, traces, and git commits directly into the graph.                          |
+| 5  | `feature/graph-ingestion-pipeline`      | Week 3         | Writing ingestion controllers to parse Kubernetes events, logs, metrics, and git commits directly into the graph.                          |
 | 6  | `feature/qdrant-embedding-pipeline`     | Week 4         | Spinning up the Qdrant vector database, writing text chunking/embedding scripts, and configuring hybrid vector-keyword retrieval.                  |
 | 7  | `feature/graphrag-traversal-api`        | Week 4         | Coding multi-hop graph traversal algorithms, local context expansion, ranking, and setting up the search/query FastAPI endpoints.                  |
-| 8  | `feature/multi-agent-langgraph`         | Week 5         | Building monitoring, log, trace, deployment, and security agents as LangGraph nodes, along with their workflow message orchestration.              |
+| 8  | `feature/multi-agent-langgraph`         | Week 5         | Building monitoring, log, deployment, and security agents as LangGraph nodes, along with their workflow message orchestration.              |
 | 9  | `feature/agent-consensus-engine`        | Week 5         | Developing the evidence fusion layer, including confidence scoring, weighted voting, and cross-agent correlation mechanisms.                       |
 | 10 | `feature/rca-recommendation-engine`     | Week 6         | Implementing the Root Cause Agent to rank hypotheses, generate explainable graph reasoning paths, and propose remediation tasks.                   |
 | 11 | `evaluation/incident-benchmark-dataset` | Week 7         | Automating the generation of 100+ failure scenarios (CrashLoopBackOff, networking, security) and evaluating performance (precision, recall, MTTR). |
@@ -88,7 +88,6 @@ Build cloud-native environment.
 ### Infrastructure
 
 - [x] Provision AWS EKS
-- [x] Configure Terraform
 - [x] Configure IAM
 - [x] Setup VPC
 
@@ -103,7 +102,6 @@ Build cloud-native environment.
 - [x] Install Prometheus
 - [x] Install Grafana
 - [x] Install Loki
-- [x] Install Tempo
 - [x] Configure OpenTelemetry
 
 ### Testing
@@ -129,34 +127,33 @@ Build graph ingestion pipeline.
 
 ### Neo4j
 
-- [ ] Deploy Neo4j
-- [ ] Create graph schema
-- [ ] Design node models
-- [ ] Design relationships
+- [x] Deploy Neo4j
+- [x] Create graph schema
+- [x] Design node models
+- [x] Design relationships
 
 ### Data Ingestion
 
-- [ ] Metrics ingestion
-- [ ] Logs ingestion
-- [ ] Traces ingestion
-- [ ] Deployment ingestion
-- [ ] Git ingestion
+- [x] Metrics ingestion
+- [x] Logs ingestion
+- [x] Deployment ingestion
+- [x] Git ingestion
 
 ### Graph Construction
 
-- [ ] Entity linking
-- [ ] Dependency mapping
-- [ ] Service relationship generation
+- [x] Entity linking
+- [x] Dependency mapping
+- [x] Service relationship generation
 
 ### Testing
 
-- [ ] Graph validation
-- [ ] Query performance testing
-- [ ] Relationship accuracy testing
+- [x] Graph validation
+- [x] Query performance testing
+- [x] Relationship accuracy testing
 
 ### Deliverables
 
-- [ ] Dynamic Knowledge Graph
+- [x] Dynamic Knowledge Graph
 
 ---
 
@@ -210,7 +207,7 @@ Develop investigation agents.
 
 - [ ] Monitoring Agent
 - [ ] Log Agent
-- [ ] Trace Agent
+- [ ] Investigation Agent
 - [ ] Deployment Agent
 - [ ] Security Agent
 

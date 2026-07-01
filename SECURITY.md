@@ -28,12 +28,12 @@ security updates, dependency patches, and insect fixes.
 To report a vulnerability:
 
 1. **Email Us:** Send a detailed report to
-   **shivamshashank@users.noreply.github.com**.
+   **<shivamshashank@users.noreply.github.com>**.
 2. **GitHub Security Advisory:** Alternatively, if you have permissions, you can
    draft a security advisory privately via the repository's "Security" tab on
    GitHub.
 
-### What to Include in Your Report:
+### What to Include in Your Report
 
 - A detailed description of the vulnerability and its potential impact.
 - Steps to reproduce the issue (including any sample payloads, configurations,

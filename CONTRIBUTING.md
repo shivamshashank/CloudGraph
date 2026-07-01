@@ -43,15 +43,20 @@ To set up a local development environment, you will need:
 
 1. Fork the CloudGraph repository on GitHub.
 2. Clone your fork locally:
+
    ```bash
    git clone https://github.com/YOUR-USERNAME/CloudGraph.git
    cd CloudGraph
    ```
+
 3. Add the upstream repository:
+
    ```bash
    git remote add upstream https://github.com/shivamshashank/CloudGraph.git
    ```
+
 4. Install the pre-commit hooks to automatically lint your code:
+
    ```bash
    ./scripts/setup-hooks.sh
    ```
@@ -86,14 +91,19 @@ Before committing, ensure your code complies with standard Go styling and lint
 guidelines:
 
 - **Format Code:**
+
   ```bash
   gofmt -w .
   ```
+
 - **Run Vet:**
+
   ```bash
   go vet ./...
   ```
+
 - **Run Linter:** (We use `golangci-lint`)
+
   ```bash
   golangci-lint run
   ```
@@ -104,14 +114,19 @@ We expect all code changes to be accompanied by appropriate unit tests or
 integration tests:
 
 - **Run all tests:**
+
   ```bash
   go test ./...
   ```
+
 - **Run tests with coverage:**
+
   ```bash
   go test ./... -cover
   ```
+
 - **Generate HTML coverage report:**
+
   ```bash
   go test ./... -coverprofile=coverage.out
   go tool cover -html=coverage.out
@@ -137,9 +152,11 @@ for clean, readable history:
 When your changes are ready, submit a Pull Request:
 
 1. Push your branch to your fork:
+
    ```bash
    git push origin branch-name
    ```
+
 2. Navigate to the
    [CloudGraph repository](https://github.com/shivamshashank/CloudGraph) on
    GitHub.

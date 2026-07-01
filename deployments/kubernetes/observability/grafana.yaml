@@ -22,29 +22,6 @@ data:
         type: loki
         access: proxy
         url: http://loki:3100
-        jsonData:
-          derivedFields:
-            - datasourceUid: Tempo
-              matcherRegex: "trace_id=(\\w+)"
-              name: TraceID
-              url: "$${__value.raw}"
-
-      # Tempo datasource
-      - name: Tempo
-        type: tempo
-        access: proxy
-        url: http://tempo:3200
-        jsonData:
-          nodeGraph:
-            enabled: true
-          lokiSearch:
-            datasourceUid: Loki
-          tracesToLogs:
-            datasourceUid: Loki
-            tags: ["job", "instance", "pod", "namespace"]
-            mappedTags: [{key: "service.name", value: "job"}]
-            mapToTags: true
-            mapToMonitoredLabel: false
 ---
 apiVersion: apps/v1
 kind: Deployment
