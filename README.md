@@ -1,3 +1,5 @@
+<div align="center">
+
 # 🚀 CloudGraph
 
 ### GraphRAG-Powered Multi-Agent Root Cause Analysis for Cloud-Native Systems
@@ -7,9 +9,18 @@ GraphRAG, Multi-Agent Systems, Kubernetes Observability, and Large Language
 Models to automatically investigate incidents, identify root causes, and
 generate remediation recommendations across cloud-native environments.
 
----
+<br />
 
-## 🏷️ Technology Stack
+[![CI](https://img.shields.io/github/actions/workflow/status/shivamshashank/CloudGraph/ci.yml?branch=main&label=CI&logo=githubactions&style=flat-square)](https://github.com/shivamshashank/CloudGraph/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/actions/workflow/status/shivamshashank/CloudGraph/release.yml?branch=main&label=Release&logo=githubactions&style=flat-square)](https://github.com/shivamshashank/CloudGraph/actions/workflows/release.yml)
+[![Codecov](https://img.shields.io/codecov/c/github/shivamshashank/CloudGraph?logo=codecov&style=flat-square)](https://codecov.io/gh/shivamshashank/CloudGraph)
+[![Go Report Card](https://goreportcard.com/badge/github.com/shivamshashank/CloudGraph?https://img.shields.io/badge/go%20report-A+-brightgreen.svg?style=flat)](https://goreportcard.com/report/github.com/shivamshashank/CloudGraph)
+[![GitHub release](https://img.shields.io/github/v/release/shivamshashank/CloudGraph?style=flat-square)](https://github.com/shivamshashank/CloudGraph/releases)
+[![GitHub stars](https://img.shields.io/github/stars/shivamshashank/CloudGraph?style=flat-square)](https://github.com/shivamshashank/CloudGraph/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/shivamshashank/CloudGraph?style=flat-square)](https://github.com/shivamshashank/CloudGraph/network/members)
+[![License](https://img.shields.io/github/license/shivamshashank/CloudGraph?style=flat-square)](LICENSE)
+
+<br />
 
 ![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![Kubernetes](https://img.shields.io/badge/Kubernetes-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white)
@@ -23,7 +34,7 @@ generate remediation recommendations across cloud-native environments.
 ![LangGraph](https://img.shields.io/badge/LangGraph-Agentic_AI-1C3C3C?style=for-the-badge)
 ![Qdrant](https://img.shields.io/badge/Qdrant-DC244C?style=for-the-badge)
 
----
+</div>
 
 ## 📌 Overview
 
@@ -942,6 +953,6 @@ MIT License
 
 <div align="center">
 
-### ⭐ If CloudGraph helps you, please star the repository.
+### ⭐ If CloudGraph helps you, please star the repository
 
 </div>
