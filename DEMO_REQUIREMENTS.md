@@ -1,6 +1,7 @@
 # Demo Requirements for CloudGraph
 
 ## Overview
+
 This document summarizes the requirements for visually demoing CloudGraph locally or on AWS.
 
 It also clarifies whether the project uses Mixture of Experts (MoE).

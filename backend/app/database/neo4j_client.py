@@ -1,6 +1,7 @@
 import os
 from neo4j import GraphDatabase
 
+
 class Neo4jClient:
     def __init__(self):
         self.uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
@@ -10,7 +11,9 @@ class Neo4jClient:
 
     def connect(self):
         if not self.driver:
-            self.driver = GraphDatabase.driver(self.uri, auth=(self.user, self.password))
+            self.driver = GraphDatabase.driver(
+                self.uri, auth=(self.user, self.password)
+            )
 
     def close(self):
         if self.driver:
@@ -23,6 +26,7 @@ class Neo4jClient:
         with self.driver.session() as session:
             result = session.run(query, parameters or {})
             return [record.data() for record in result]
+
 
 # Global singleton client
 neo4j_client = Neo4jClient()

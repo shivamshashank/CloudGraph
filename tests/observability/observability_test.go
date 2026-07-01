@@ -37,7 +37,7 @@ func TestObservabilityEndpoints(t *testing.T) {
 				t.Skipf("Skipping check: endpoint %s is not reachable (%v). This is expected when run outside the Kubernetes cluster.", ep.name, err)
 				return
 			}
-			defer resp.Body.Close()
+			defer func() { _ = resp.Body.Close() }()
 
 			assert.Equal(t, http.StatusOK, resp.StatusCode, "Endpoint %s should return HTTP 200 OK", ep.name)
 		})

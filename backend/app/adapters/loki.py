@@ -1,7 +1,15 @@
 from app.database.neo4j_client import neo4j_client
 import uuid
 
-def ingest_loki_log(pod_id: str, pod_name: str, message: str, level: str, timestamp: int, container_name: str):
+
+def ingest_loki_log(
+    pod_id: str,
+    pod_name: str,
+    message: str,
+    level: str,
+    timestamp: int,
+    container_name: str,
+):
     """
     Ingests a log entry, identifies error patterns, and links the Log node to its Pod.
     """
@@ -26,6 +34,6 @@ def ingest_loki_log(pod_id: str, pod_name: str, message: str, level: str, timest
         "message": message,
         "level": level.upper(),
         "timestamp": int(timestamp),
-        "container_name": container_name
+        "container_name": container_name,
     }
     return neo4j_client.execute_query(query, params)

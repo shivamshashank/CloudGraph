@@ -113,16 +113,14 @@ module "security_groups" {
 module "eks" {
   source = "./modules/eks"
 
-  name_prefix           = local.name_prefix
-  cluster_name          = local.cluster_name
-  cluster_version       = var.cluster_version
-  private_subnet_ids    = module.vpc.private_subnet_ids
-  public_subnet_ids     = module.vpc.public_subnet_ids
-  cluster_sg_id         = module.security_groups.cluster_security_group_id
-  node_sg_id            = module.security_groups.node_security_group_id
-  node_groups           = var.node_groups
-  cluster_log_types     = var.cluster_log_types
-  enable_ebs_csi_driver = var.enable_ebs_csi_driver
+  name_prefix        = local.name_prefix
+  cluster_name       = local.cluster_name
+  cluster_version    = var.cluster_version
+  private_subnet_ids = module.vpc.private_subnet_ids
+  public_subnet_ids  = module.vpc.public_subnet_ids
+  cluster_sg_id      = module.security_groups.cluster_security_group_id
+  node_groups        = var.node_groups
+  cluster_log_types  = var.cluster_log_types
 
   cluster_endpoint_public_access       = var.cluster_endpoint_public_access
   cluster_endpoint_public_access_cidrs = var.cluster_endpoint_public_access_cidrs

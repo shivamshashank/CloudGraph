@@ -1,6 +1,17 @@
 from app.database.neo4j_client import neo4j_client
 
-def ingest_tempo_trace(pod_id: str, pod_name: str, span_id: str, trace_id: str, parent_span_id: str, service_name: str, duration: float, timestamp: int, status: str):
+
+def ingest_tempo_trace(
+    pod_id: str,
+    pod_name: str,
+    span_id: str,
+    trace_id: str,
+    parent_span_id: str,
+    service_name: str,
+    duration: float,
+    timestamp: int,
+    status: str,
+):
     """
     Ingests a distributed trace span and draws relationships between spans and services.
     """
@@ -36,6 +47,6 @@ def ingest_tempo_trace(pod_id: str, pod_name: str, span_id: str, trace_id: str, 
         "service_name": service_name,
         "duration": float(duration),
         "timestamp": int(timestamp),
-        "status": status
+        "status": status,
     }
     return neo4j_client.execute_query(query, params)

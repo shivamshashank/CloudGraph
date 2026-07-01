@@ -4,5 +4,10 @@
   "python.analysis.extraPaths": [
     "${workspaceFolder}/backend",
     "${workspaceFolder}/backend/tests"
-  ]
+  ],
+  "yaml.schemas": {
+    "kubernetes": [
+      "deployments/kubernetes/**/*.yaml"
+    ]
+  }
 }

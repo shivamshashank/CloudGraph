@@ -1,7 +1,15 @@
 from app.database.neo4j_client import neo4j_client
 import uuid
 
-def ingest_prometheus_metric(pod_id: str, pod_name: str, metric_name: str, value: float, timestamp: int, labels: dict):
+
+def ingest_prometheus_metric(
+    pod_id: str,
+    pod_name: str,
+    metric_name: str,
+    value: float,
+    timestamp: int,
+    labels: dict,
+):
     """
     Ingests a timeseries metric point and links it to its generating Pod in Neo4j.
     """
@@ -27,6 +35,6 @@ def ingest_prometheus_metric(pod_id: str, pod_name: str, metric_name: str, value
         "metric_name": metric_name,
         "value": float(value),
         "timestamp": int(timestamp),
-        "labels": str(labels)
+        "labels": str(labels),
     }
     return neo4j_client.execute_query(query, params)

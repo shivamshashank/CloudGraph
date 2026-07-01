@@ -19,20 +19,26 @@ This directory contains the Week 3 deliverables and verification details from `R
 ## Verification and Testing
 
 ### 1. Automated Integration Tests
+
 The test suite at [tests/test_graph.py](../../backend/tests/test_graph.py) contains mock-based and database-live tests to verify schema integrity:
+
 - **Health Verification**: Assures the REST health probe and Neo4j connectivity are functional.
 - **Payload Ingestion**: Asserts correct payload mapping and execution path responses.
 - **Uniqueness Constraints**: Verifies database-side schema definitions match requirements.
 - **Latency Benchmarks**: Runs traversal queries to assert that queries run within a 100ms budget.
 
 To run tests:
+
 ```bash
 PYTHONPATH=backend backend/.venv/bin/pytest
 ```
 
 ### 2. Manual Schema Verification
+
 Connect to the Neo4j Browser UI at [http://localhost:7474](http://localhost:7474) (Username: `neo4j`, Password: `cloudgraph_dev_password`) and run:
+
 ```cypher
 SHOW CONSTRAINTS;
 ```
+
 This confirms that the 9 constraint rules are correctly loaded.

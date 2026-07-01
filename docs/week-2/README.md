@@ -19,17 +19,23 @@ This directory contains the Week 2 deliverables and verification details from `R
 ## Verification and Testing
 
 ### 1. Terraform Plan Validation (Offline)
+
 Located in `tests/terraform/`, these tests initialize the modules with mock providers and validate resource declarations offline to ensure syntax, schema, and reference validity.
+
 - **VPC / SG Plan Test**: [vpc_test.go](../../tests/terraform/vpc_test.go)
 - **EKS Plan Test**: [eks_test.go](../../tests/terraform/eks_test.go)
 - **IAM / IRSA Plan Test**: [iam_test.go](../../tests/terraform/iam_test.go)
 
 ### 2. Helm Chart Validation
+
 Coded custom Helm chart for the microservice application.
+
 - Linting command: `helm lint deployments/helm/sample-app` (Passed with 0 errors)
 
 ### 3. Observability Endpoints Verification
+
 Located in [observability_test.go](../../tests/observability/observability_test.go), this test validates the responsiveness of:
+
 - Prometheus UI (`/-/healthy`)
 - Loki API (`/ready`)
 - Tempo API (`/ready`)

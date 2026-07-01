@@ -9,70 +9,70 @@ architecture, and evaluation plan.
    Karpukhin, Naman Goyal, Heinrich Kuttler, Mike Lewis, Wen-tau Yih, Tim
    Rocktaschel, Sebastian Riedel, and Douwe Kiela. "Retrieval-Augmented
    Generation for Knowledge-Intensive NLP Tasks." NeurIPS, 2020.
-   https://arxiv.org/abs/2005.11401
+   <https://arxiv.org/abs/2005.11401>
 
 2. Darren Edge, Ha Trinh, Newman Cheng, Joshua Bradley, Alex Chao, Apurva Mody,
    Steven Truitt, and Jonathan Larson. "From Local to Global: A Graph RAG
    Approach to Query-Focused Summarization." arXiv, 2024.
-   https://arxiv.org/abs/2404.16130
+   <https://arxiv.org/abs/2404.16130>
 
 3. Taicheng Guo, Xiuying Chen, Yaqi Wang, Ruidi Chang, Shichao Pei, Nitesh V.
    Chawla, Olaf Wiest, Xiangliang Zhang. "Large Language Model based
    Multi-Agents: A Survey of Progress and Challenges." arXiv, 2024.
-   https://arxiv.org/abs/2402.01680
+   <https://arxiv.org/abs/2402.01680>
 
 4. Shuai Liang, Pengfei Chen, Bozhe Tian, Gou Tan, Maohong Xu, Youjun Qu, Yahui
    Zhao, Yiduo Shang, and Chongkang Tan. "MetaRCA: A Generalizable Root Cause
    Analysis Framework for Cloud-Native Systems Powered by Meta Causal
    Knowledge." arXiv, 2026.
-   https://arxiv.org/abs/2603.02032
+   <https://arxiv.org/abs/2603.02032>
 
 5. Shengkun Cui, Rahul Krishna, Saurabh Jha, and Ravishankar K. Iyer. "Agentic
    Structured Graph Traversal for Root Cause Analysis of Code-related Incidents
    in Cloud Applications." arXiv, 2025.
-   https://arxiv.org/abs/2512.22113
+   <https://arxiv.org/abs/2512.22113>
 
 6. Fabien Chraim, Dominik Janzing, and John Evans. "Graphical Causal Reasoning
    for Root Cause Analysis in Cloud Networks." arXiv, 2026.
-   https://arxiv.org/abs/2606.13532
+   <https://arxiv.org/abs/2606.13532>
 
 ## Official Technical Documentation
 
 7. Kubernetes Documentation. "Overview."
-   https://kubernetes.io/docs/concepts/overview/
+   <https://kubernetes.io/docs/concepts/overview/>
 
 8. OpenTelemetry Documentation. "Signals."
-   https://opentelemetry.io/docs/concepts/signals/
+   <https://opentelemetry.io/docs/concepts/signals/>
 
 9. Neo4j Documentation. "Graph database."
-   https://neo4j.com/docs/getting-started/graph-database/
+   <https://neo4j.com/docs/getting-started/graph-database/>
 
 10. Qdrant Documentation. "Overview."
-    https://qdrant.tech/documentation/overview/
+    <https://qdrant.tech/documentation/overview/>
 
 11. Prometheus Documentation. "Overview."
-    https://prometheus.io/docs/introduction/overview/
+    <https://prometheus.io/docs/introduction/overview/>
 
 12. Grafana Loki Documentation.
-    https://grafana.com/docs/loki/latest/
+    <https://grafana.com/docs/loki/latest/>
 
 13. Grafana Tempo Documentation.
-    https://grafana.com/docs/tempo/latest/
+    <https://grafana.com/docs/tempo/latest/>
 
 14. Kubernetes kube-state-metrics. "Add-on agent to generate and expose cluster-level metrics."
-    https://github.com/kubernetes/kube-state-metrics
+    <https://github.com/kubernetes/kube-state-metrics>
 
 15. Prometheus node_exporter. "Exporter for machine metrics."
-    https://github.com/prometheus/node_exporter
+    <https://github.com/prometheus/node_exporter>
 
 16. Falco. "Cloud native runtime security."
-    https://falco.org/
+    <https://falco.org/>
 
 17. Argo CD Documentation. "Notifications Overview."
-    https://argo-cd.readthedocs.io/en/stable/operator-manual/notifications/
+    <https://argo-cd.readthedocs.io/en/stable/operator-manual/notifications/>
 
 18. Argo CD Documentation. "Git Webhook Configuration."
-    https://argo-cd.readthedocs.io/en/release-2.9/operator-manual/webhook/
+    <https://argo-cd.readthedocs.io/en/release-2.9/operator-manual/webhook/>
 
 ## How These Sources Map To CloudGraph
 

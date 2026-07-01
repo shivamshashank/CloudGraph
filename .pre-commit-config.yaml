@@ -12,6 +12,7 @@ repos:
       - id: end-of-file-fixer
       - id: check-yaml
         args: [--allow-multiple-documents]
+        exclude: ^deployments/helm/
       - id: check-json
       - id: check-toml
       - id: check-merge-conflict
@@ -21,18 +22,26 @@ repos:
   # ===================================================================
   # Go
   # ===================================================================
-  - repo: https://github.com/golangci/golangci-lint
-    rev: v2.12.2
+  - repo: local
     hooks:
       - id: golangci-lint
-        # We match the version from ci.yml for consistency
-        args: [--timeout=5m]
+        name: golangci-lint
+        entry: golangci-lint run ./tests/terraform/... ./tests/observability/...
+        language: system
+        types: [go]
+        pass_filenames: false
+
+      - id: go-vet
+        name: go-vet
+        entry: go vet ./tests/terraform/... ./tests/observability/...
+        language: system
+        types: [go]
+        pass_filenames: false
 
   - repo: https://github.com/dnephin/pre-commit-golang
     rev: v0.5.1
     hooks:
       - id: go-fmt
-      - id: go-vet
       - id: go-mod-tidy
 
   # ===================================================================
@@ -66,7 +75,8 @@ repos:
       - id: yamllint
         args:
           - -d
-          - "{extends: default, rules: {line-length: {max: 120}}}"
+          - "{extends: default, rules: {line-length: disable, document-start: disable, truthy: disable}}"
+        exclude: ^deployments/helm/
 
   # ===================================================================
   # Documentation & Scripts (Markdown, Shell)

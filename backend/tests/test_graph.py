@@ -7,6 +7,7 @@ from app.database.neo4j_client import neo4j_client
 
 client = TestClient(app)
 
+
 # Helper: check if live database is reachable
 def is_db_reachable():
     try:
@@ -15,14 +16,17 @@ def is_db_reachable():
     except Exception:
         return False
 
+
 # =============================================================================
 # 1. Integration Tests (Mocked if Offline, Real if Online)
 # =============================================================================
+
 
 def test_health_endpoint():
     response = client.get("/health")
     assert response.status_code == 200
     assert "status" in response.json()
+
 
 def test_ingest_metrics(monkeypatch):
     if not is_db_reachable():
@@ -36,12 +40,13 @@ def test_ingest_metrics(monkeypatch):
         "metric_name": "http_requests_total",
         "value": 150.0,
         "timestamp": int(time.time()),
-        "labels": {"status": "200"}
+        "labels": {"status": "200"},
     }
     response = client.post("/api/v1/telemetry/metrics", json=payload)
     assert response.status_code == 200
     assert response.json()["status"] == "success"
     assert "metric_id" in response.json()
+
 
 def test_ingest_logs(monkeypatch):
     if not is_db_reachable():
@@ -54,16 +59,18 @@ def test_ingest_logs(monkeypatch):
         "message": "database connection timeout",
         "level": "error",
         "timestamp": int(time.time()),
-        "container_name": "payment-container"
+        "container_name": "payment-container",
     }
     response = client.post("/api/v1/telemetry/logs", json=payload)
     assert response.status_code == 200
     assert response.json()["status"] == "success"
     assert "log_id" in response.json()
 
+
 # =============================================================================
 # 2. Schema Validation Tests (Active when Online, Skipped when Offline)
 # =============================================================================
+
 
 @pytest.mark.skipif(not is_db_reachable(), reason="Neo4j database is offline")
 def test_schema_constraints():
@@ -73,11 +80,16 @@ def test_schema_constraints():
     result = neo4j_client.execute_query("SHOW CONSTRAINTS")
     constraints = [r["name"] for r in result]
     expected = [
-        "service_name_unique", "pod_id_unique", "node_name_unique",
-        "deployment_name_unique", "incident_id_unique", "commit_sha_unique"
+        "service_name_unique",
+        "pod_id_unique",
+        "node_name_unique",
+        "deployment_name_unique",
+        "incident_id_unique",
+        "commit_sha_unique",
     ]
     for exp in expected:
         assert exp in constraints, f"Expected constraint {exp} was not found"
+
 
 @pytest.mark.skipif(not is_db_reachable(), reason="Neo4j database is offline")
 def test_graph_integrity():
@@ -93,9 +105,11 @@ def test_graph_integrity():
     # For a clean deployment, orphan count should start at 0 after linking
     assert result[0]["orphan_count"] >= 0
 
+
 # =============================================================================
 # 3. Latency Benchmarking (Active when Online, Skipped when Offline)
 # =============================================================================
+
 
 @pytest.mark.skipif(not is_db_reachable(), reason="Neo4j database is offline")
 def test_traversal_performance():
@@ -112,4 +126,6 @@ def test_traversal_performance():
     neo4j_client.execute_query(query)
     elapsed = time.perf_counter() - start_time
     # Assertion: database query returns under 100ms
-    assert elapsed < 0.100, f"Query took {elapsed:.3f}s, which is slower than 100ms threshold"
+    assert (
+        elapsed < 0.100
+    ), f"Query took {elapsed:.3f}s, which is slower than 100ms threshold"

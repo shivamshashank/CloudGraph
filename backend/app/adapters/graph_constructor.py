@@ -1,5 +1,6 @@
 from app.database.neo4j_client import neo4j_client
 
+
 def run_entity_linking():
     """
     Performs dynamic graph linking:
@@ -37,8 +38,9 @@ def run_entity_linking():
     return {
         "pods_to_nodes": node_links[0]["linked_count"] if node_links else 0,
         "pods_to_services": service_links[0]["linked_count"] if service_links else 0,
-        "deployments_to_pods": deploy_links[0]["linked_count"] if deploy_links else 0
+        "deployments_to_pods": deploy_links[0]["linked_count"] if deploy_links else 0,
     }
+
 
 def build_service_dependency_map():
     """
@@ -62,6 +64,7 @@ def build_service_dependency_map():
     result = neo4j_client.execute_query(query)
     return result[0]["relationships_created"] if result else 0
 
+
 def record_state_history(pod_id: str, new_status: str, timestamp: int):
     """
     Appends a state history change record to track the timeline of Kubernetes pod state transitions.
@@ -78,10 +81,6 @@ def record_state_history(pod_id: str, new_status: str, timestamp: int):
     SET p.status = $new_status
     RETURN h.id as history_id
     """
-    params = {
-        "pod_id": pod_id,
-        "new_status": new_status,
-        "timestamp": int(timestamp)
-    }
+    params = {"pod_id": pod_id, "new_status": new_status, "timestamp": int(timestamp)}
     result = neo4j_client.execute_query(query, params)
     return result[0]["history_id"] if result else None

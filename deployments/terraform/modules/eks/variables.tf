@@ -28,10 +28,6 @@ variable "cluster_sg_id" {
   type        = string
 }
 
-variable "node_sg_id" {
-  description = "Security group ID for EKS managed node groups."
-  type        = string
-}
 
 variable "node_groups" {
   description = "Map of EKS managed node group definitions."
@@ -55,10 +51,6 @@ variable "cluster_log_types" {
   type        = list(string)
 }
 
-variable "enable_ebs_csi_driver" {
-  description = "Whether to enable the EBS CSI driver add-on."
-  type        = bool
-}
 
 variable "cluster_endpoint_public_access" {
   description = "Whether the EKS API endpoint is publicly accessible."

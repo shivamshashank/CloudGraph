@@ -1,6 +1,9 @@
 from app.database.neo4j_client import neo4j_client
 
-def ingest_git_commit(sha: str, author: str, message: str, timestamp: int, changed_files: list):
+
+def ingest_git_commit(
+    sha: str, author: str, message: str, timestamp: int, changed_files: list
+):
     """
     Ingests Git commits, mapping changed files to index downstream configurations.
     """
@@ -17,11 +20,14 @@ def ingest_git_commit(sha: str, author: str, message: str, timestamp: int, chang
         "author": author,
         "message": message,
         "timestamp": int(timestamp),
-        "changed_files": changed_files
+        "changed_files": changed_files,
     }
     return neo4j_client.execute_query(query, params)
 
-def ingest_argocd_deployment(app_name: str, namespace: str, status: str, revision: str, timestamp: int):
+
+def ingest_argocd_deployment(
+    app_name: str, namespace: str, status: str, revision: str, timestamp: int
+):
     """
     Ingests ArgoCD deployment updates and correlates them with Git commit SHAs.
     """
@@ -42,6 +48,6 @@ def ingest_argocd_deployment(app_name: str, namespace: str, status: str, revisio
         "namespace": namespace,
         "status": status,
         "revision": revision,
-        "timestamp": int(timestamp)
+        "timestamp": int(timestamp),
     }
     return neo4j_client.execute_query(query, params)

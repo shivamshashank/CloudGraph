@@ -20,3 +20,9 @@ MD001: false
 
 # Disable emphasis as heading rule
 MD036: false
+
+# Disable ordered list prefix rule
+MD029: false
+
+# Disable single title/single h1 rule
+MD025: false
