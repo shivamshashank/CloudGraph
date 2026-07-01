@@ -1,0 +1,28 @@
+# markdownlint configuration
+# For more info: https://github.com/igorshubovych/markdownlint-cli#configuration
+
+default: true
+
+# Disable line length rule (often not strict for readmes and documentation)
+MD013: false
+
+# Disable inline HTML rule (needed for aligning badges, images, tables, etc.)
+MD033: false
+
+# Disable duplicate headings (some sections might reuse standard sub-headings)
+MD024: false
+
+# Disable first line h1 rule (files might start with HTML blocks/shields/badges)
+MD041: false
+
+# Disable heading increment rule (to allow customized layout structures)
+MD001: false
+
+# Disable emphasis as heading rule
+MD036: false
+
+# Disable ordered list prefix rule
+MD029: false
+
+# Disable single title/single h1 rule
+MD025: false

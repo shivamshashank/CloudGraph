@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.checkout.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.checkout.name }}
+    {{- include "sample-app.labels" . | nindent 4 }}
+spec:
+  ports:
+    - port: {{ .Values.checkout.port }}
+      targetPort: {{ .Values.checkout.port }}
+      name: http
+  selector:
+    app: {{ .Values.checkout.name }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.payment.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.payment.name }}
+    {{- include "sample-app.labels" . | nindent 4 }}
+spec:
+  ports:
+    - port: {{ .Values.payment.port }}
+      targetPort: {{ .Values.payment.port }}
+      name: http
+  selector:
+    app: {{ .Values.payment.name }}

@@ -1,0 +1,71 @@
+{{- if .Values.investigationEngine.enabled }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: investigation-engine
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "cloudgraph.labels" . | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: investigation-engine
+  labels:
+    {{- include "cloudgraph.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cloudgraph-discovery
+subjects:
+  - kind: ServiceAccount
+    name: investigation-engine
+    namespace: {{ .Values.global.namespace }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: investigation-engine
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "cloudgraph.labels" . | nindent 4 }}
+    app.kubernetes.io/component: investigation-engine
+spec:
+  replicas: {{ .Values.investigationEngine.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "cloudgraph.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: investigation-engine
+  template:
+    metadata:
+      labels:
+        {{- include "cloudgraph.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: investigation-engine
+    spec:
+      serviceAccountName: investigation-engine
+      containers:
+        - name: engine
+          image: "{{ .Values.investigationEngine.image.repository }}:{{ .Values.investigationEngine.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          env:
+            {{- range $key, $value := .Values.investigationEngine.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+            - name: NEO4J_HOST
+              value: "neo4j.{{ .Values.global.namespace }}.svc.cluster.local"
+            - name: REDIS_HOST
+              value: "redis-master.{{ .Values.global.namespace }}.svc.cluster.local"
+            - name: QDRANT_HOST
+              value: "qdrant.{{ .Values.global.namespace }}.svc.cluster.local"
+          resources:
+            {{- toYaml .Values.investigationEngine.resources | nindent 12 }}
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - ps aux | grep -q investigation-engine
+            initialDelaySeconds: 30
+            periodSeconds: 10
+{{- end }}

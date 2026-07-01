@@ -1,1 +1,68 @@
+# =============================================================================
+# CloudGraph — Git Ignore Configurations
+# =============================================================================
+
+# System files
 *.DS_Store
+Thumbs.db
+
+# =============================================================================
+# Infrastructure and local artifacts
+# =============================================================================
+# Variables files (contain credentials / secrets)
+*.env
+.env.*
+
+# Crash logs
+crash.log
+crash.*.log
+
+# =============================================================================
+# Go test artifacts
+# =============================================================================
+# Compiled test binaries
+*.test
+**/*.test
+
+# Compiled executables
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test coverage & profile reports
+*.out
+*.cover
+*.coverprofile
+coverage.txt
+
+# Go workspace files
+go.work
+go.work.sum
+
+# =============================================================================
+# Linter & Security Tool Caches
+# =============================================================================
+# TFLint local cache directory
+.tflint.d/
+**/.tflint.d/
+
+# Checkov local outputs (if any)
+.checkov/
+checkov_report.xml
+checkov_report.json
+
+# =============================================================================
+# Python / Virtual Environment Files
+# =============================================================================
+.venv/
+venv/
+ENV/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

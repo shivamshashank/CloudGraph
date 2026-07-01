@@ -1,0 +1,130 @@
+{{- if .Values.otelCollector.enabled }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: otel-collector
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "cloudgraph.labels" . | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: otel-collector
+  labels:
+    {{- include "cloudgraph.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources:
+      - namespaces
+      - pods
+      - nodes
+      - nodes/proxy
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources:
+      - deployments
+      - daemonsets
+      - replicasets
+      - statefulsets
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: otel-collector
+  labels:
+    {{- include "cloudgraph.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: otel-collector
+subjects:
+  - kind: ServiceAccount
+    name: otel-collector
+    namespace: {{ .Values.global.namespace }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector-config
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "cloudgraph.labels" . | nindent 4 }}
+data:
+  config.yaml: |
+    {{- toYaml .Values.otelCollector.config | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-collector
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "cloudgraph.labels" . | nindent 4 }}
+    app.kubernetes.io/component: otel-collector
+spec:
+  replicas: {{ .Values.otelCollector.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "cloudgraph.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: otel-collector
+  template:
+    metadata:
+      labels:
+        {{- include "cloudgraph.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: otel-collector
+    spec:
+      serviceAccountName: otel-collector
+      containers:
+        - name: otel-collector
+          image: "{{ .Values.otelCollector.image.repository }}:{{ .Values.otelCollector.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - name: otlp-grpc
+              containerPort: {{ .Values.otelCollector.service.ports.grpc }}
+              protocol: TCP
+            - name: otlp-http
+              containerPort: {{ .Values.otelCollector.service.ports.http }}
+              protocol: TCP
+            - name: prometheus
+              containerPort: {{ .Values.otelCollector.service.ports.prometheus }}
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /etc/otel/config.yaml
+              subPath: config.yaml
+          resources:
+            {{- toYaml .Values.otelCollector.resources | nindent 12 }}
+      volumes:
+        - name: config
+          configMap:
+            name: otel-collector-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-collector
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "cloudgraph.labels" . | nindent 4 }}
+    app.kubernetes.io/component: otel-collector
+spec:
+  type: {{ .Values.otelCollector.service.type }}
+  ports:
+    - name: otlp-grpc
+      port: {{ .Values.otelCollector.service.ports.grpc }}
+      targetPort: otlp-grpc
+      protocol: TCP
+    - name: otlp-http
+      port: {{ .Values.otelCollector.service.ports.http }}
+      targetPort: otlp-http
+      protocol: TCP
+    - name: prometheus
+      port: {{ .Values.otelCollector.service.ports.prometheus }}
+      targetPort: prometheus
+      protocol: TCP
+  selector:
+    {{- include "cloudgraph.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: otel-collector
+{{- end }}

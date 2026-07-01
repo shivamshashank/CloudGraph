@@ -32,5 +32,5 @@ temporal incident knowledge graph, GraphRAG retrieval, and confidence-aware
 multi-agent reasoning can improve explainable root cause analysis for
 Kubernetes-based cloud-native systems. It is also designed to collect live,
 continuous evidence from open-source tools such as OpenTelemetry, Prometheus,
-Loki, Tempo, kube-state-metrics, node_exporter, Alertmanager, Argo CD, Falco,
+Loki, kube-state-metrics, node_exporter, Alertmanager, Argo CD, Falco,
 and Git webhooks.

@@ -1,3 +1,5 @@
+<div align="center">
+
 # 🚀 CloudGraph
 
 ### GraphRAG-Powered Multi-Agent Root Cause Analysis for Cloud-Native Systems
@@ -7,14 +9,22 @@ GraphRAG, Multi-Agent Systems, Kubernetes Observability, and Large Language
 Models to automatically investigate incidents, identify root causes, and
 generate remediation recommendations across cloud-native environments.
 
----
+<br />
 
-## 🏷️ Technology Stack
+[![CI](https://img.shields.io/github/actions/workflow/status/shivamshashank/CloudGraph/ci.yml?branch=main&label=CI&logo=githubactions&style=flat-square)](https://github.com/shivamshashank/CloudGraph/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/actions/workflow/status/shivamshashank/CloudGraph/release.yml?branch=main&label=Release&logo=githubactions&style=flat-square)](https://github.com/shivamshashank/CloudGraph/actions/workflows/release.yml)
+[![Codecov](https://img.shields.io/codecov/c/github/shivamshashank/CloudGraph?logo=codecov&style=flat-square)](https://codecov.io/gh/shivamshashank/CloudGraph)
+[![Go Report Card](https://goreportcard.com/badge/github.com/shivamshashank/CloudGraph?https://img.shields.io/badge/go%20report-A+-brightgreen.svg?style=flat)](https://goreportcard.com/report/github.com/shivamshashank/CloudGraph)
+[![GitHub release](https://img.shields.io/github/v/release/shivamshashank/CloudGraph?style=flat-square)](https://github.com/shivamshashank/CloudGraph/releases)
+[![GitHub stars](https://img.shields.io/github/stars/shivamshashank/CloudGraph?style=flat-square)](https://github.com/shivamshashank/CloudGraph/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/shivamshashank/CloudGraph?style=flat-square)](https://github.com/shivamshashank/CloudGraph/network/members)
+[![License](https://img.shields.io/github/license/shivamshashank/CloudGraph?style=flat-square)](LICENSE)
+
+<br />
 
 ![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![Kubernetes](https://img.shields.io/badge/Kubernetes-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white)
 ![AWS](https://img.shields.io/badge/AWS-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white)
-![Terraform](https://img.shields.io/badge/Terraform-844FBA?style=for-the-badge&logo=terraform&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 ![Neo4j](https://img.shields.io/badge/Neo4j-4581C3?style=for-the-badge&logo=neo4j&logoColor=white)
 ![Prometheus](https://img.shields.io/badge/Prometheus-E6522C?style=for-the-badge&logo=prometheus&logoColor=white)
@@ -23,7 +33,7 @@ generate remediation recommendations across cloud-native environments.
 ![LangGraph](https://img.shields.io/badge/LangGraph-Agentic_AI-1C3C3C?style=for-the-badge)
 ![Qdrant](https://img.shields.io/badge/Qdrant-DC244C?style=for-the-badge)
 
----
+</div>
 
 ## 📌 Overview
 
@@ -34,22 +44,20 @@ It continuously ingests:
 
 - Logs
 - Metrics
-- Traces
 - Kubernetes Events
 - Kubernetes Object State
 - Alerts
 - Runtime Security Events
 - Git Commits
 - Pull Requests
-- Terraform Changes
 - Deployment History
 
 and constructs a real-time knowledge graph that powers GraphRAG retrieval and
 multi-agent reasoning.
 
 CloudGraph is designed to collect this data from open-source observability and
-cloud-native tools such as OpenTelemetry, Prometheus, Grafana Loki, Grafana
-Tempo, kube-state-metrics, node_exporter, Alertmanager, Argo CD, Falco, and
+cloud-native tools such as OpenTelemetry, Prometheus, Grafana Loki,
+kube-state-metrics, node_exporter, Alertmanager, Argo CD, Falco, and
 GitHub/GitLab webhooks. The full Week 1 data strategy is documented in
 `docs/week-1/data-collection-strategy.md`.
 
@@ -57,7 +65,7 @@ GitHub/GitLab webhooks. The full Week 1 data strategy is documented in
 
 # 🔬 Research Motivation
 
-Modern cloud-native systems generate massive volumes of logs, metrics, traces,
+Modern cloud-native systems generate massive volumes of logs, metrics,
 deployment events, and infrastructure changes.
 
 Existing AIOps solutions typically rely on:
@@ -231,7 +239,6 @@ GraphRAG evaluation.
 - Prometheus
 - Grafana
 - Loki
-- Tempo
 - OpenTelemetry
 - Alertmanager
 - kube-state-metrics
@@ -248,18 +255,16 @@ open-source systems:
 | --- | --- | --- |
 | Logs | OpenTelemetry Collector, Loki, Promtail / Alloy | Exceptions, warnings, retries, kubelet/container logs |
 | Metrics | Prometheus, kube-state-metrics, node_exporter | CPU, memory, pod status, restart count, latency, error rate |
-| Traces | OpenTelemetry SDK/Collector, Tempo | Request paths, spans, dependency latency, failed calls |
 | Kubernetes Events | Kubernetes API/event stream | Scheduling failures, image pull errors, probe failures, restarts |
 | Alerts | Alertmanager | Fired/resolved alerts, severity, labels, affected service |
 | Deployments | Argo CD notifications/webhooks | Sync status, health state, degraded apps, rollbacks |
 | Git Activity | GitHub/GitLab webhooks | Commits, pull requests, changed files, release timestamps |
-| Infrastructure Changes | Terraform/OpenTofu output and state | IAM, network, database, cluster, and configuration changes |
 | Security Events | Falco | Runtime anomalies, suspicious process/file/network activity |
 
 Live continuous ingestion can be implemented using a mix of pull, push, stream,
 and batch modes:
 
-- Pull: query Prometheus, Loki, Tempo, Kubernetes API, and Git APIs on a
+- Pull: query Prometheus, Loki, Kubernetes API, and Git APIs on a
   schedule.
 - Push: receive webhooks from Alertmanager, Argo CD, GitHub/GitLab, Falco, and
   CI/CD systems.
@@ -315,7 +320,7 @@ Vector Database:
 A web-based dashboard that serves as the central interface for CloudGraph. It
 provides:
 
-- **Live Observability**: Visualizes incoming logs, metrics, and traces.
+- **Live Observability**: Visualizes incoming logs and metrics.
 - **Incident History**: Stores and displays past incidents and their
   resolutions.
 - **Graph Visualization**: Shows the knowledge graph updating in real-time as
@@ -345,11 +350,10 @@ Analyzes:
 - System Logs
 - Error Patterns
 
-## Trace Agent
+## Investigation Agent
 
 Analyzes:
 
-- Distributed Traces
 - Latency Bottlenecks
 
 ## Deployment Agent
@@ -358,7 +362,7 @@ Analyzes:
 
 - Git Commits
 - CI/CD Events
-- Terraform Changes
+- Deployment Changes
 
 ## Security Agent
 
@@ -416,13 +420,13 @@ CloudGraph is evaluated using a reproducible incident benchmark dataset.
 
 - Faulty Releases
 - Configuration Drift
-- Terraform Errors
+- Rollout Errors
 
 ### Observability
 
 - Missing Metrics
 - Alert Storms
-- Trace Breakage
+- Telemetry Gaps
 
 Target Dataset Size:
 
@@ -461,11 +465,12 @@ CloudGraph continuously ingests:
 
 - 📜 Application Logs
 - 📊 Metrics
-- 🔍 Distributed Traces
+- � Metrics
+- 📜 Application Logs
 - ☸️ Kubernetes Events
 - 🚀 Deployment History
 - 📂 Git Activity
-- 🛠 Infrastructure Changes
+- 🛠 Configuration Changes
 
 ---
 
@@ -482,7 +487,7 @@ Observability signals are transformed into graph entities.
 - Databases
 - Metrics
 - Alerts
-- Traces
+- Logs
 - Commits
 - Incidents
 
@@ -518,8 +523,7 @@ Specialized agents independently investigate incidents.
 | ------------------- | ---------------------- |
 | 📈 Monitoring Agent | Metrics & Alerts       |
 | 📜 Log Agent        | Log Analysis           |
-| 🔍 Trace Agent      | Distributed Tracing    |
-| 🚀 Deployment Agent | Release Analysis       |
+|  Deployment Agent | Release Analysis       |
 | 🔐 Security Agent   | Security Investigation |
 
 ---
@@ -595,7 +599,6 @@ cloudgraph/
 ├── retrieval/
 ├── observability/
 ├── deployments/
-│   ├── terraform/
 │   ├── kubernetes/
 │   └── helm/
 ├── datasets/
@@ -631,7 +634,7 @@ Metrics:
 error_rate increased
 ```
 
-Trace:
+Signal chain:
 
 ```text
 checkout → payment → postgres
@@ -708,26 +711,24 @@ Verify:
 
 ```bash
 kubectl get pods -A
+kubectl get svc -n observability
+kubectl get svc -n cloudgraph
 ```
 
----
+# Week 2 End-to-End Verification
 
-# 🏗️ Terraform Deployment
+From the repository root, validate and verify the observability and deployment stack:
 
 ```bash
-cd deployments/terraform
-
-terraform init
-terraform plan
-terraform apply
+cd tests/observability
+go test -v -timeout 5m ./...
 ```
 
-Resources:
+For a local deployment, use the Kubernetes-first install flow:
 
-- EKS Cluster
-- VPC
-- IAM
-- Monitoring Stack
+```bash
+curl -fsSL https://raw.githubusercontent.com/shivamshashank/CloudGraph/main/install.sh | bash
+```
 
 ---
 
@@ -838,13 +839,13 @@ CloudGraph is evaluated using a reproducible incident benchmark dataset.
 
 - Faulty Releases
 - Configuration Drift
-- Terraform Errors
+- Rollout Errors
 
 ### Observability
 
 - Missing Metrics
 - Alert Storms
-- Trace Breakage
+- Telemetry Gaps
 
 Target Dataset Size:
 
@@ -911,6 +912,6 @@ MIT License
 
 <div align="center">
 
-### ⭐ If CloudGraph helps you, please star the repository.
+### ⭐ If CloudGraph helps you, please star the repository
 
 </div>

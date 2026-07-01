@@ -1,0 +1,78 @@
+# =============================================================================
+# CloudGraph — GitLab CI/CD Pipeline
+# =============================================================================
+
+stages:
+  - validate
+  - test
+
+# Default cache configuration to speed up pipeline execution
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - .venv/
+    - .ruff_cache/
+
+# =============================================================================
+# Helm / Kubernetes Jobs
+# =============================================================================
+
+helm:lint:
+  stage: validate
+  image: alpine/helm:3.14.0
+  script:
+    - helm lint deployments/helm/sample-app
+
+# =============================================================================
+# Go Jobs (Tests/Validation)
+# =============================================================================
+
+go:fmt:
+  stage: validate
+  image: golang:1.21
+  script:
+    - cd tests/observability && diff -u <(echo -n) <(gofmt -d -s .)
+
+go:imports:
+  stage: validate
+  image: golang:1.21
+  before_script:
+    - go install golang.org/x/tools/cmd/goimports@latest
+  script:
+    - cd tests/observability && diff -u <(echo -n) <($(go env GOPATH)/bin/goimports -d .)
+
+go:lint:
+  stage: validate
+  image: golangci/golangci-lint:v1.55-alpine
+  script:
+    - cd tests/observability && golangci-lint run --timeout 5m ./...
+
+# =============================================================================
+# Test Stage
+# =============================================================================
+
+go:test:
+  stage: test
+  image: golang:1.21
+  script:
+    - cd tests/observability
+    - go mod download
+    - go test -v -timeout 5m ./...
+
+python:lint:
+  stage: validate
+  image: python:3.11
+  script:
+    - cd backend
+    - python -m venv .venv
+    - .venv/bin/pip install -r requirements.txt
+    - .venv/bin/python -m py_compile app/main.py app/database/neo4j_client.py app/adapters/*.py
+
+python:test:
+  stage: test
+  image: python:3.11
+  script:
+    - cd backend
+    - python -m venv .venv
+    - .venv/bin/pip install -r requirements.txt
+    - .venv/bin/python -m pytest -v
