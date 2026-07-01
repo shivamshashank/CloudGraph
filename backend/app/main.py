@@ -1,11 +1,10 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List
 from app.database.neo4j_client import neo4j_client
 from app.adapters.prometheus import ingest_prometheus_metric
 from app.adapters.loki import ingest_loki_log
-from app.adapters.tempo import ingest_tempo_trace
 from app.adapters.webhooks import ingest_git_commit, ingest_argocd_deployment
 from app.adapters.graph_constructor import (
     run_entity_linking,
@@ -59,18 +58,6 @@ class LogPayload(BaseModel):
     container_name: str
 
 
-class TracePayload(BaseModel):
-    pod_id: str
-    pod_name: str
-    span_id: str
-    trace_id: str
-    parent_span_id: Optional[str] = ""
-    service_name: str
-    duration: float
-    timestamp: int
-    status: str
-
-
 class GitCommitPayload(BaseModel):
     sha: str
     author: str
@@ -120,25 +107,6 @@ def post_log(payload: LogPayload):
             payload.container_name,
         )
         return {"status": "success", "log_id": result[0]["log_id"]}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/api/v1/telemetry/traces")
-def post_trace(payload: TracePayload):
-    try:
-        result = ingest_tempo_trace(
-            payload.pod_id,
-            payload.pod_name,
-            payload.span_id,
-            payload.trace_id,
-            payload.parent_span_id,
-            payload.service_name,
-            payload.duration,
-            payload.timestamp,
-            payload.status,
-        )
-        return {"status": "success", "span_id": result[0]["span_id"]}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

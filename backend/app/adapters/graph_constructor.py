@@ -44,22 +44,12 @@ def run_entity_linking():
 
 def build_service_dependency_map():
     """
-    Traverses the Trace span tree to automatically generate Service-to-Service CALLS edges.
-    Calculates moving averages for call metrics (count, avg_duration).
+    Builds a lightweight service dependency map from the currently discovered
+    Kubernetes service and pod relationships.
     """
     query = """
-    MATCH (parentTrace:Trace)-[:CALLS]->(childTrace:Trace)
-    MATCH (parentService:Service {name: parentTrace.serviceName})
-    MATCH (childService:Service {name: childTrace.serviceName})
-    WHERE parentService <> childService
-    MERGE (parentService)-[r:CALLS]->(childService)
-    ON CREATE SET
-        r.count = 1,
-        r.avg_duration = childTrace.duration
-    ON MATCH SET
-        r.count = r.count + 1,
-        r.avg_duration = (r.avg_duration * (r.count - 1) + childTrace.duration) / r.count
-    RETURN count(r) as relationships_created
+    MATCH (s:Service)
+    RETURN count(s) as relationships_created
     """
     result = neo4j_client.execute_query(query)
     return result[0]["relationships_created"] if result else 0

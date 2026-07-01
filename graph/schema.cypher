@@ -28,9 +28,6 @@ FOR (l:Log) REQUIRE l.id IS UNIQUE;
 CREATE CONSTRAINT metric_id_unique IF NOT EXISTS
 FOR (m:Metric) REQUIRE m.id IS UNIQUE;
 
-CREATE CONSTRAINT trace_span_unique IF NOT EXISTS
-FOR (t:Trace) REQUIRE t.spanId IS UNIQUE;
-
 // Performance Indexes
 CREATE INDEX metric_time_idx IF NOT EXISTS
 FOR (m:Metric) ON (m.timestamp);
@@ -40,12 +37,6 @@ FOR (l:Log) ON (l.timestamp);
 
 CREATE INDEX log_level_idx IF NOT EXISTS
 FOR (l:Log) ON (l.level);
-
-CREATE INDEX trace_time_idx IF NOT EXISTS
-FOR (t:Trace) ON (t.timestamp);
-
-CREATE INDEX trace_parent_idx IF NOT EXISTS
-FOR (t:Trace) ON (t.parentSpanId);
 
 CREATE INDEX incident_time_idx IF NOT EXISTS
 FOR (i:Incident) ON (i.startTime);

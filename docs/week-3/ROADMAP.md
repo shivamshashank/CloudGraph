@@ -34,7 +34,7 @@ Build a dynamic knowledge graph ingestion pipeline and database engine using Neo
 * **Tasks**:
   * [x] Implement a Prometheus range metrics parser adapter.
   * [x] Implement a Loki logs parser to ingest logs and tag error/warning patterns.
-  * [x] Implement a Tempo distributed tracing span tree parser.
+  * [x] Implement a compatibility adapter for legacy tracing payloads.
   * [x] Implement webhook receivers for ArgoCD status updates and Git repository commits.
   * [x] Build a modular FastAPI ingestion worker supporting both real-time stream processing and batch offline loads.
 

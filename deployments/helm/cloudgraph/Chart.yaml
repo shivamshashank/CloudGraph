@@ -1,0 +1,55 @@
+apiVersion: v2
+name: cloudgraph
+description: |
+  CloudGraph - GraphRAG-Powered AI AIOps Platform
+
+  CloudGraph is an AI-powered AIOps platform that combines Knowledge Graphs,
+  GraphRAG, Multi-Agent Systems, Kubernetes Observability, and Large Language
+  Models to automatically investigate incidents, identify root causes, and
+  generate remediation recommendations across cloud-native environments.
+
+  This Helm chart deploys:
+  - CloudGraph API
+  - Investigation Engine
+  - Agent Orchestrator
+  - OpenTelemetry Collector
+  - Neo4j (Knowledge Graph Database)
+  - Qdrant (Vector Database)
+  - Redis (Cache & Message Queue)
+  - CloudGraph UI
+  - RBAC & CRDs
+
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+
+keywords:
+  - observability
+  - aioops
+  - root-cause-analysis
+  - incident-management
+  - kubernetes
+  - graphrag
+  - ai
+
+home: https://github.com/shivamshashank/CloudGraph
+sources:
+  - https://github.com/shivamshashank/CloudGraph
+
+maintainers:
+  - name: CloudGraph Team
+    email: team@cloudgraph.dev
+
+dependencies:
+  - name: neo4j
+    version: ">=5.0.0"
+    repository: https://helm.neo4j.com/neo4j
+    condition: neo4j.enabled
+  - name: redis
+    version: ">=17.0.0"
+    repository: https://charts.bitnami.com/bitnami
+    condition: redis.enabled
+  - name: qdrant
+    version: ">=0.1.0"
+    repository: https://qdrant.github.io/qdrant-helm
+    condition: qdrant.enabled

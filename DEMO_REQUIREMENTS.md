@@ -16,7 +16,7 @@ What the project does use:
 
 - Multi-agent investigation workflows
 - GraphRAG retrieval with knowledge graph and vector search
-- Specialized agents for logs, traces, deployments, monitoring, and security
+- Specialized agents for logs, deployments, monitoring, and security
 
 Why this is not MoE:
 
@@ -39,7 +39,7 @@ Why this is not MoE:
   - Prometheus
   - Grafana
   - Loki
-  - Tempo / OpenTelemetry collector
+  - OpenTelemetry collector
 - Optional LLM access:
   - Local LLM runtime, or
   - Hosted LLM API such as OpenAI, Anthropic, or others
@@ -57,14 +57,14 @@ Use one or more of the following:
 
 - Kubernetes application logs via Loki or another log collector
 - Prometheus metrics
-- OpenTelemetry traces through Tempo or collector
+- OpenTelemetry telemetry through the collector
 - Kubernetes events
 - Synthetic log files or manually generated incident logs
 
 ### Demo flow
 
 1. Start the local k8s/containers.
-2. Deploy a sample app that emits logs, metrics, and traces.
+2. Deploy a sample app that emits logs and metrics.
 3. Ingest observability data into CloudGraph.
 4. Build the knowledge graph in Neo4j.
 5. Execute GraphRAG retrieval and multi-agent investigation.
@@ -87,7 +87,7 @@ Use one or more of the following:
 
 - Prometheus + Grafana in-cluster or managed service
 - Loki or CloudWatch Logs ingestion
-- Tempo or AWS X-Ray / OpenTelemetry tracing
+- OpenTelemetry-based telemetry ingestion
 - CloudWatch metrics and alarms
 - Optional AWS-managed Prometheus / Grafana
 
@@ -101,9 +101,9 @@ Use one or more of the following:
 
 - CloudWatch Logs / CloudWatch Metrics
 - Kubernetes application logs
-- OpenTelemetry traces
+- OpenTelemetry telemetry
 - Git commit and deployment history from source control
-- Terraform state/changes if using infra-as-code
+- Deployment history and configuration changes if using GitOps
 
 ### Optional supporting infrastructure
 
@@ -135,7 +135,7 @@ Use one or more of the following:
 - Use EKS for the app and observability stack
 - Deploy Neo4j/Qdrant in the cluster or on dedicated EC2 instances
 - Use CloudWatch and OpenTelemetry for real cloud observability data
-- Show the complete flow from logs/metrics/traces to RCA output
+- Show the complete flow from logs and metrics to RCA output
 
 ---
 

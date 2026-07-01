@@ -56,9 +56,6 @@ architecture, and evaluation plan.
 12. Grafana Loki Documentation.
     <https://grafana.com/docs/loki/latest/>
 
-13. Grafana Tempo Documentation.
-    <https://grafana.com/docs/tempo/latest/>
-
 14. Kubernetes kube-state-metrics. "Add-on agent to generate and expose cluster-level metrics."
     <https://github.com/kubernetes/kube-state-metrics>
 
@@ -86,7 +83,6 @@ architecture, and evaluation plan.
 | OpenTelemetry | Defines telemetry signals: logs, metrics, traces, and related instrumentation. |
 | Prometheus | Supports live metric scraping and time-series evidence collection. |
 | Loki | Supports log aggregation and log-based incident evidence. |
-| Tempo | Supports distributed trace storage and request path analysis. |
 | kube-state-metrics | Supports Kubernetes object-state metrics for pods, deployments, nodes, and jobs. |
 | node_exporter | Supports host-level infrastructure metrics. |
 | Falco | Supports runtime security event collection. |

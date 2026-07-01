@@ -26,14 +26,14 @@ repos:
     hooks:
       - id: golangci-lint
         name: golangci-lint
-        entry: golangci-lint run ./tests/terraform/... ./tests/observability/...
+        entry: golangci-lint run ./tests/observability/...
         language: system
         types: [go]
         pass_filenames: false
 
       - id: go-vet
         name: go-vet
-        entry: go vet ./tests/terraform/... ./tests/observability/...
+        entry: go vet ./tests/observability/...
         language: system
         types: [go]
         pass_filenames: false
@@ -55,20 +55,8 @@ repos:
       - id: ruff-format
 
   # ===================================================================
-  # Infrastructure & Configuration (Terraform, YAML)
+  # Configuration & YAML
   # ===================================================================
-  - repo: https://github.com/antonbabenko/pre-commit-terraform
-    rev: v1.92.0
-    hooks:
-      - id: terraform_fmt
-      - id: terraform_validate
-      - id: terraform_tflint
-        args:
-          - --args=--only=terraform_deprecated_interpolation
-          - --args=--only=terraform_deprecated_index
-          - --args=--only=terraform_unused_declarations
-          - --args=--only=terraform_comment_syntax
-
   - repo: https://github.com/adrienverge/yamllint
     rev: v1.35.1
     hooks:

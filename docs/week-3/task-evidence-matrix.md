@@ -8,7 +8,7 @@ This file maps every checked Week 3 roadmap task to a concrete repository artifa
 | --- | --- | --- |
 | Deploy Neo4j | [docker-compose.yml](../../docker-compose.yml) | Set up local Neo4j Docker Compose configuration with Bolt (7687) and Browser UI (7474) ports, and APOC plugins enabled. |
 | Create graph schema | [graph/schema.cypher](../../graph/schema.cypher) | Defined schema configurations including node unique requirements and secondary indices on timestamps. |
-| Design node models | [app/main.py](../../backend/app/main.py#L34-L74) | Coded Pydantic payloads matching Service, Pod, Node, Deployment, Metric, Log, Trace, Commit, and Incident schemas. |
+| Design node models | [app/main.py](../../backend/app/main.py#L34-L74) | Coded Pydantic payloads matching Service, Pod, Node, Deployment, Metric, Log, Commit, and Incident schemas. |
 | Design relationships | [app/adapters/](../../backend/app/adapters/) | Implemented relationship creation logic for `BELONGS_TO`, `RUNS_ON`, `MANAGES`, `GENERATES`, `TRIGGERED_BY`, `CALLS`, and `HAS_STATE_HISTORY` in Neo4j adapter routines. |
 
 ## Data Ingestion & Telemetry Parser
@@ -17,7 +17,7 @@ This file maps every checked Week 3 roadmap task to a concrete repository artifa
 | --- | --- | --- |
 | Metrics ingestion | [adapters/prometheus.py](../../backend/app/adapters/prometheus.py) | Created handler to parse Prometheus range-based metrics, ingest points, and relate metrics to Pods. |
 | Logs ingestion | [adapters/loki.py](../../backend/app/adapters/loki.py) | Coded Loki logs adapter parsing log bodies, mapping log levels, and creating generates relations. |
-| Traces ingestion | [adapters/tempo.py](../../backend/app/adapters/tempo.py) | Implemented Tempo trace span compiler connecting nested spans into tree links. |
+| Legacy tracing placeholder | [adapters/tempo.py](../../backend/app/adapters/tempo.py) | Retained as a compatibility placeholder for older graph concepts. |
 | Deployment ingestion | [adapters/webhooks.py](../../backend/app/adapters/webhooks.py) | Created receiver parsing status revisions, syncing deployment configurations, and matching Git triggers. |
 | Git ingestion | [adapters/webhooks.py](../../backend/app/adapters/webhooks.py) | Wrote Git repository commit receiver extracting SHAs, metadata, and files list. |
 
@@ -26,7 +26,7 @@ This file maps every checked Week 3 roadmap task to a concrete repository artifa
 | Roadmap Task | Evidence File | What Was Completed |
 | --- | --- | --- |
 | Entity linking | [adapters/graph_constructor.py](../../backend/app/adapters/graph_constructor.py#L3-L41) | Created runtime mapping scripts linking Pods to underlying Node hosts, and mapping Pods to parent Services/Deployments. |
-| Dependency mapping | [adapters/graph_constructor.py](../../backend/app/adapters/graph_constructor.py#L43-L63) | Built trace call tree parser correlating downstream connections to generate dependency metrics. |
+| Dependency mapping | [adapters/graph_constructor.py](../../backend/app/adapters/graph_constructor.py#L43-L63) | Built service dependency mapping logic from runtime relationships. |
 | Service relationship generation | [adapters/graph_constructor.py](../../backend/app/adapters/graph_constructor.py#L65-L87) | Wrote temporal indexing logic to keep historical records of kubernetes configuration status transitions. |
 
 ## Testing & QA

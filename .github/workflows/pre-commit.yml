@@ -19,4 +19,3 @@ jobs:
 
       - name: Run Pre-Commit Hooks
         uses: pre-commit/action@v3.0.1
-        # The action handles caching and installing all necessary tools (Go, Terraform, etc.)
