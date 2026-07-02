@@ -1,126 +1,84 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/bash
+set -e
 
-# CloudGraph installation script
-# Installs the CloudGraph CLI via curl so the `cloudgraph` command works immediately.
-
-CLOUDGRAPH_VERSION="${CLOUDGRAPH_VERSION:-0.1.0}"
-CLOUDGRAPH_REPO_URL="${CLOUDGRAPH_REPO_URL:-https://raw.githubusercontent.com/shivamshashank/CloudGraph/main}"
-CLOUDGRAPH_INSTALL_DIR="${CLOUDGRAPH_INSTALL_DIR:-}"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
+# Colors for terminal output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
-NC='\033[0m'
+NC='\033[0m' # No Color
 
-print_header() {
-    echo -e "${BLUE}===================================================${NC}"
-    echo -e "${BLUE}$1${NC}"
-    echo -e "${BLUE}===================================================${NC}"
-}
+echo -e "${BLUE}===================================================${NC}"
+echo -e "${BLUE}        CloudGraph CLI Installer (Linux Only)       ${NC}"
+echo -e "${BLUE}===================================================${NC}"
 
-print_success() {
-    echo -e "${GREEN}✓ $1${NC}"
-}
+# Ensure running on Linux
+OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+if [ "$OS" != "linux" ]; then
+    echo -e "${RED}✗ Error: CloudGraph is only supported on Linux.${NC}"
+    exit 1
+fi
 
-print_error() {
-    echo -e "${RED}✗ $1${NC}"
-}
-
-print_info() {
-    echo -e "${BLUE}ℹ $1${NC}"
-}
-
-command_exists() {
-    command -v "$1" >/dev/null 2>&1
-}
-
-resolve_install_dir() {
-    if [[ -n "$CLOUDGRAPH_INSTALL_DIR" ]]; then
-        mkdir -p "$CLOUDGRAPH_INSTALL_DIR"
-        echo "$CLOUDGRAPH_INSTALL_DIR"
-        return 0
-    fi
-
-    if [[ -w /usr/local/bin ]]; then
-        echo "/usr/local/bin"
-    else
-        mkdir -p "$HOME/.local/bin"
-        echo "$HOME/.local/bin"
-    fi
-}
-
-ensure_shell_path() {
-    local install_dir="$1"
-    local profile_file=""
-
-    if [[ "$install_dir" != "$HOME/.local/bin" ]]; then
-        return 0
-    fi
-
-    if [[ -f "$HOME/.zshrc" ]]; then
-        profile_file="$HOME/.zshrc"
-    elif [[ -f "$HOME/.bashrc" ]]; then
-        profile_file="$HOME/.bashrc"
-    elif [[ -f "$HOME/.profile" ]]; then
-        profile_file="$HOME/.profile"
-    else
-        profile_file="$HOME/.zshrc"
-    fi
-
-    # shellcheck disable=SC2016
-    local export_line='export PATH="$HOME/.local/bin:$PATH"'
-    if ! grep -Fq "$export_line" "$profile_file" 2>/dev/null; then
-        echo "$export_line" >> "$profile_file"
-        print_info "Added $install_dir to $profile_file"
-    fi
-}
-
-install_cloudgraph_cli() {
-    print_header "Installing CloudGraph CLI"
-
-    if ! command_exists curl; then
-        print_error "curl is required"
+# Detect CPU Architecture
+ARCH=$(uname -m)
+case "$ARCH" in
+    x86_64|amd64)
+        BINARY_ARCH="amd64"
+        ;;
+    aarch64|arm64)
+        BINARY_ARCH="arm64"
+        ;;
+    *)
+        echo -e "${RED}✗ Error: Unsupported architecture: $ARCH. Only AMD64 and ARM64 are supported.${NC}"
         exit 1
-    fi
+        ;;
+esac
 
-    local install_dir
-    install_dir=$(resolve_install_dir)
-    local target="$install_dir/cloudgraph"
-    local local_script="$SCRIPT_DIR/cloudgraph"
+# Define version and download URL
+VERSION="v0.1.0"
+DOWNLOAD_URL="https://github.com/shivamshashank/CloudGraph/releases/download/${VERSION}/cloudgraph-linux-${BINARY_ARCH}"
 
-    if [[ -f "$local_script" ]]; then
-        print_info "Using local CloudGraph CLI script from $local_script"
-        cp "$local_script" "$target"
-    else
-        print_info "Downloading CloudGraph CLI to $target"
-        curl -fsSL "${CLOUDGRAPH_REPO_URL%/}/cloudgraph" -o "$target"
-    fi
+echo -e "${BLUE}ℹ Detected Architecture: ${BINARY_ARCH}${NC}"
+echo -e "${BLUE}ℹ Downloading CloudGraph ${VERSION}...${NC}"
 
-    chmod +x "$target"
+# Temp download path
+TMP_DIR=$(mktemp -d)
+TMP_BINARY="${TMP_DIR}/cloudgraph"
 
-    ensure_shell_path "$install_dir"
+# Download the release binary
+if command -v curl >/dev/null 2>&1; then
+    curl -sSfL "$DOWNLOAD_URL" -o "$TMP_BINARY"
+elif command -v wget >/dev/null 2>&1; then
+    wget -qO "$TMP_BINARY" "$DOWNLOAD_URL"
+else
+    echo -e "${RED}✗ Error: Either curl or wget is required to download the binary.${NC}"
+    exit 1
+fi
 
-    print_success "CloudGraph CLI installed"
-}
+# Check download succeeded
+if [ ! -f "$TMP_BINARY" ] || [ ! -s "$TMP_BINARY" ]; then
+    echo -e "${RED}✗ Error: Failed to download the binary. Please verify the network connection or version release exists.${NC}"
+    exit 1
+fi
 
-print_summary() {
-    print_header "Installation Complete"
-    echo ""
-    echo "CloudGraph CLI is ready. Try:"
-    echo "  cloudgraph --help"
-    echo "  cloudgraph version"
-    echo "  cloudgraph health http://localhost:8000"
-    echo ""
-}
+# Setup installation directory
+INSTALL_DIR="/usr/local/bin"
+TARGET_PATH="${INSTALL_DIR}/cloudgraph"
 
-main() {
-    print_header "CloudGraph Installation"
-    print_info "Version: $CLOUDGRAPH_VERSION"
-    echo ""
-    install_cloudgraph_cli
-    print_summary
-}
+echo -e "${BLUE}ℹ Installing cloudgraph to ${TARGET_PATH}...${NC}"
 
-main "$@"
+# Move to target path and make executable
+if [ -w "$INSTALL_DIR" ]; then
+    mv "$TMP_BINARY" "$TARGET_PATH"
+    chmod +x "$TARGET_PATH"
+else
+    echo -e "${BLUE}ℹ Root privileges required to write to ${INSTALL_DIR}. Using sudo...${NC}"
+    sudo mv "$TMP_BINARY" "$TARGET_PATH"
+    sudo chmod +x "$TARGET_PATH"
+fi
+
+# Cleanup temp dir
+rm -rf "$TMP_DIR"
+
+echo -e "${GREEN}✓ CloudGraph CLI installed successfully!${NC}"
+echo -e "${GREEN}✓ You can now run: sudo cloudgraph deploy${NC}"
+echo -e "${BLUE}===================================================${NC}"

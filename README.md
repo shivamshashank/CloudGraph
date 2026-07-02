@@ -724,10 +724,11 @@ cd tests/observability
 go test -v -timeout 5m ./...
 ```
 
-For a local deployment, use the Kubernetes-first install flow:
+For a local deployment, install the CLI and deploy:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/shivamshashank/CloudGraph/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/shivamshashank/CloudGraph/main/install.sh | sudo bash
+sudo cloudgraph deploy
 ```
 
 ---

@@ -1,59 +1,80 @@
 # CloudGraph Installation Guide
 
+> [!IMPORTANT]
+> CloudGraph is supported **exclusively on Linux** (both AMD64 and ARM64 architectures).
+
 ## Overview
 
-CloudGraph can be installed locally with a single command. The installation script now:
+CloudGraph is deployed and managed via the `cloudgraph` CLI. The CLI supports:
 
-- Installs the CloudGraph CLI through curl
-- Makes the `cloudgraph` command available immediately
-- Prepares the environment for direct API usage
+- Native single-command installation on Linux.
+- Automated single-command deployment (`cloudgraph deploy`) of Kubernetes (kubeadm), Helm, and the CloudGraph Core stack.
+- Automated uninstallation (`cloudgraph uninstall`) for clean teardown.
 
 ## Quick Start
 
-### Option 1: Using curl (Recommended)
+### Option 1: Curl Installer (Recommended)
+
+To download and install the pre-compiled `cloudgraph` Linux binary matching your CPU architecture (AMD64/ARM64) from GitHub Releases:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/shivamshashank/CloudGraph/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/shivamshashank/CloudGraph/main/install.sh | sudo bash
 ```
 
-### Option 2: Direct script execution
+Once installed, proceed directly to deploying the stack:
+
+```bash
+sudo cloudgraph deploy
+```
+
+---
+
+### Option 2: Build From Source (Development)
+
+If you have Go (1.23+) installed on your Linux machine, you can compile the CLI directly:
 
 ```bash
 git clone https://github.com/shivamshashank/CloudGraph.git
 cd CloudGraph
-./install.sh
+go build -o cloudgraph ./cmd/cloudgraph
+sudo ./cloudgraph deploy
 ```
 
-### Option 3: Using the CLI directly
+---
+
+### Option 3: Go Install (Global Path)
 
 ```bash
-cloudgraph --help
-cloudgraph version
-cloudgraph health http://localhost:8000
+go install github.com/shivamshashank/CloudGraph@latest
 ```
+
+This installs `cloudgraph` directly to your `$GOPATH/bin` (or `$HOME/go/bin`).
 
 ## Prerequisites
 
-The installation script requires:
+The deployment command requires:
 
+- **Go**: Version 1.23+ (only if compiling from source)
 - **kubectl**: Kubernetes command-line tool
-- **curl**: Required for installing the CloudGraph CLI
 
 For an existing cluster, no other prerequisites are needed.
 
 ## Installation Methods
 
-### 1. Local install
+### 1. Automated Script Installation
 
 ```bash
-./install.sh
+curl -fsSL https://raw.githubusercontent.com/shivamshashank/CloudGraph/main/install.sh | sudo bash
+sudo cloudgraph deploy
 ```
 
-The script will:
+The deploy command will:
 
-1. ✓ Install the CloudGraph CLI through curl
-2. ✓ Make the `cloudgraph` command available
-3. ✓ Prepare the environment for direct API usage
+1. ✓ Configure kubeconfig access
+2. ✓ Prompt to install kubeadm and initialize a cluster (if no cluster is detected)
+3. ✓ Install Rancher Local Path storage provisioner and Ingress NGINX controller
+4. ✓ Check Helm and deploy the CloudGraph stack
+5. ✓ Wait for all deployments to be healthy
 
 ### 2. Existing environment
 

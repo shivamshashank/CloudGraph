@@ -84,7 +84,7 @@ cloudgraphUI:
     targetPort: 3000
 
   ingress:
-    enabled: false
+    enabled: true
     className: nginx
     annotations: {}
     hosts:
@@ -100,7 +100,7 @@ otelCollector:
   replicaCount: 1
 
   image:
-    repository: otel/opentelemetry-collector-k8s
+    repository: otel/opentelemetry-collector-contrib
     tag: "0.104.0"
 
   service:

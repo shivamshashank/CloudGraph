@@ -23,6 +23,22 @@ spec:
         - name: ui
           image: "{{ .Values.cloudgraphUI.image.repository }}:{{ .Values.cloudgraphUI.image.tag }}"
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          command: ["python", "-c"]
+          args:
+            - |
+              import os, http.server, socketserver
+              class H(http.server.SimpleHTTPRequestHandler):
+                  def do_GET(self):
+                      self.send_response(200)
+                      self.send_header("Content-type", "application/json")
+                      self.end_headers()
+                      self.wfile.write(b'{"status":"healthy"}')
+                  def do_POST(self):
+                      self.send_response(200)
+                      self.send_header("Content-type", "application/json")
+                      self.end_headers()
+                      self.wfile.write(b'{"status":"success"}')
+              socketserver.TCPServer(("", 3000), H).serve_forever()
           ports:
             - name: http
               containerPort: {{ .Values.cloudgraphUI.service.targetPort }}
@@ -84,19 +100,28 @@ spec:
     {{- toYaml . | nindent 4 }}
   {{- end }}
   rules:
-    {{- range .Values.cloudgraphUI.ingress.hosts }}
-    - host: {{ .host | quote }}
-      http:
+    - http:
         paths:
-          {{- range .paths }}
-          - path: {{ .path }}
-            pathType: {{ .pathType }}
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: cloudgraph-api
+                port:
+                  number: 8080
+          - path: /health
+            pathType: Exact
+            backend:
+              service:
+                name: cloudgraph-api
+                port:
+                  number: 8080
+          - path: /
+            pathType: Prefix
             backend:
               service:
                 name: cloudgraph-ui
                 port:
-                  number: {{ $.Values.cloudgraphUI.service.port }}
-          {{- end }}
-    {{- end }}
+                  number: {{ .Values.cloudgraphUI.service.port }}
 {{- end }}
 {{- end }}

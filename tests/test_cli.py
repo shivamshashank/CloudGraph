@@ -1,14 +1,32 @@
-import os
 import subprocess
 from pathlib import Path
+import pytest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
+@pytest.fixture(scope="module", autouse=True)
+def build_cli():
+    # Build the CLI before running tests
+    import shutil
+
+    go_path = shutil.which("go") or "/opt/homebrew/bin/go"
+    subprocess.run(
+        [go_path, "build", "-o", "cloudgraph", "./cmd/cloudgraph"],
+        cwd=REPO_ROOT,
+        check=True,
+    )
+    yield
+    # Clean up after tests run
+    binary = REPO_ROOT / "cloudgraph"
+    if binary.exists():
+        binary.unlink()
+
+
 def test_cloudgraph_help_prints_usage():
     result = subprocess.run(
-        ["bash", str(REPO_ROOT / "cloudgraph"), "--help"],
+        ["./cloudgraph", "--help"],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -22,7 +40,7 @@ def test_cloudgraph_help_prints_usage():
 
 def test_cloudgraph_version_prints_version():
     result = subprocess.run(
-        ["bash", str(REPO_ROOT / "cloudgraph"), "version"],
+        ["./cloudgraph", "version"],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -31,22 +49,3 @@ def test_cloudgraph_version_prints_version():
 
     assert result.returncode == 0
     assert "cloudgraph" in result.stdout.lower()
-
-
-def test_install_script_uses_local_cloudgraph_when_present(tmp_path):
-    env = os.environ.copy()
-    env["CLOUDGRAPH_INSTALL_DIR"] = str(tmp_path)
-    env["CLOUDGRAPH_REPO_URL"] = "https://example.invalid"
-
-    result = subprocess.run(
-        ["bash", str(REPO_ROOT / "install.sh")],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-        env=env,
-        check=False,
-    )
-
-    assert result.returncode == 0
-    assert (tmp_path / "cloudgraph").exists()
-    assert "CloudGraph CLI installed" in result.stdout
