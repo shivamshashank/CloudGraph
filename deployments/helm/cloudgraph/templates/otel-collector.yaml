@@ -80,6 +80,8 @@ spec:
         - name: otel-collector
           image: "{{ .Values.otelCollector.image.repository }}:{{ .Values.otelCollector.image.tag }}"
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          args:
+            - "--config=/etc/otel/config.yaml"
           ports:
             - name: otlp-grpc
               containerPort: {{ .Values.otelCollector.service.ports.grpc }}

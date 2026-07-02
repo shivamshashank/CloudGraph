@@ -1,6 +1,6 @@
 1. Get the CloudGraph UI URL:
 {{- if .Values.cloudgraphUI.ingress.enabled }}
-  URL: {{ .Values.cloudgraphUI.ingress.hosts | first | .host }}
+  URL: http://{{ (first .Values.cloudgraphUI.ingress.hosts).host }}
 {{- else }}
   kubectl port-forward -n {{ .Values.global.namespace }} svc/cloudgraph-ui 3000:3000
   Then access: http://localhost:3000
@@ -17,11 +17,11 @@
   kubectl logs -n {{ .Values.global.namespace }} deployment/investigation-engine -f
 
 5. Access Neo4j Browser:
-  kubectl port-forward -n {{ .Values.global.namespace }} svc/neo4j 7474:7474
+  kubectl port-forward -n {{ .Values.global.namespace }} svc/cloudgraph 7474:7474
   Then access: http://localhost:7474
 
 6. Get Neo4j password:
-  kubectl get secret -n {{ .Values.global.namespace }} neo4j -o jsonpath='{.data.password}' | base64 -d
+  kubectl get secret -n {{ .Values.global.namespace }} cloudgraph-neo4j-auth -o jsonpath='{.data.neo4j-password}' | base64 -d
 
 Thank you for installing CloudGraph! 🚀
 Documentation: https://github.com/shivamshashank/CloudGraph/docs

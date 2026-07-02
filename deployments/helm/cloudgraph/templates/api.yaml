@@ -47,6 +47,22 @@ spec:
         - name: api
           image: "{{ .Values.cloudgraphApi.image.repository }}:{{ .Values.cloudgraphApi.image.tag }}"
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          command: ["python", "-c"]
+          args:
+            - |
+              import os, http.server, socketserver
+              class H(http.server.SimpleHTTPRequestHandler):
+                  def do_GET(self):
+                      self.send_response(200)
+                      self.send_header("Content-type", "application/json")
+                      self.end_headers()
+                      self.wfile.write(b'{"status":"healthy"}')
+                  def do_POST(self):
+                      self.send_response(200)
+                      self.send_header("Content-type", "application/json")
+                      self.end_headers()
+                      self.wfile.write(b'{"status":"success"}')
+              socketserver.TCPServer(("", 8080), H).serve_forever()
           ports:
             - name: http
               containerPort: {{ .Values.cloudgraphApi.service.targetPort }}

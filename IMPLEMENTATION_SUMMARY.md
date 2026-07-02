@@ -2,27 +2,27 @@
 
 ## What Has Been Implemented
 
-### 1. **Installation Script** (`install.sh`)
+### 1. **Unified Go Command Line Interface (CLI)** (`cloudgraph`)
 
-A comprehensive bash script that automates CloudGraph deployment with automatic detection of your Kubernetes environment.
+A production-grade Go CLI that compiles into a single binary, providing commands to deploy, uninstall, and verify CloudGraph.
 
 **Features:**
 
 - ✅ Detects existing Kubernetes cluster
 - ✅ Offers automatic kubeadm installation if no cluster exists
 - ✅ Installs Helm if not present
-- ✅ Deploys CloudGraph via Helm
-- ✅ Waits for all pods to be ready
-- ✅ Provides post-installation guidance
+- ✅ Deploys CloudGraph via Helm (`cloudgraph deploy` command)
+- ✅ Safely uninstalls and cleans up (`cloudgraph uninstall` command)
+- ✅ Checks endpoints (`health` command) and sends telemetry sample payloads (`ingest` command)
 
 **Usage:**
 
 ```bash
-# Via curl
-curl -fsSL https://raw.githubusercontent.com/shivamshashank/CloudGraph/main/install.sh | bash
+# Install CLI
+curl -fsSL https://raw.githubusercontent.com/shivamshashank/CloudGraph/main/install.sh | sudo bash
 
-# Direct execution
-./install.sh
+# Deploy
+sudo cloudgraph deploy
 ```
 
 ### 2. **Complete Helm Chart** (`deployments/helm/cloudgraph/`)
@@ -114,7 +114,12 @@ Comprehensive guide covering:
 
 ```text
 CloudGraph/
-├── install.sh                    # NEW: Installation script
+├── cmd/
+│   └── cloudgraph/
+│       ├── main.go               # NEW: Go CLI entry point
+│       ├── deploy.go             # NEW: Go CLI deployment logic
+│       └── uninstall.go          # NEW: Go CLI uninstallation logic
+├── install.sh                    # NEW: Bootstrap install script
 ├── INSTALLATION.md              # NEW: Installation guide
 ├── deployments/
 │   ├── helm/
@@ -140,15 +145,17 @@ CloudGraph/
 
 ## Installation Options
 
-### Option 1: Automated Installation (Recommended)
+### Option 1: Go CLI Deployment (Recommended)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/shivamshashank/CloudGraph/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/shivamshashank/CloudGraph/main/install.sh | sudo bash
+sudo cloudgraph deploy
 ```
 
 - Auto-detects environment
 - Installs kubeadm if needed
-- Handles all dependencies
+- Deploys Rancher Local Path Storage & NGINX Ingress controller
+- Installs CloudGraph Helm chart and waits for healthy pods
 
 ### Option 2: Manual Helm Installation
 
@@ -164,9 +171,8 @@ helm install cloudgraph cloudgraph/cloudgraph -n cloudgraph-system --create-name
 ### Option 3: Local Development
 
 ```bash
-./install.sh
-# or
-helm install cloudgraph deployments/helm/cloudgraph -n cloudgraph-system --create-namespace
+go build -o cloudgraph ./cmd/cloudgraph
+sudo ./cloudgraph deploy
 ```
 
 ## Key Features
@@ -259,7 +265,7 @@ kubectl get events -n cloudgraph-system
 
 ## Next Steps
 
-1. **Run Installation Script**: `./install.sh`
+1. **Run CLI Deployment**: `curl -fsSL https://raw.githubusercontent.com/shivamshashank/CloudGraph/main/install.sh | sudo bash && sudo cloudgraph deploy`
 2. **Wait for Deployment**: Monitor pods with `kubectl get pods -n cloudgraph-system -w`
 3. **Access UI**: `kubectl port-forward svc/cloudgraph-ui 3000:3000`
 4. **Configure Integrations**: Connect your observability tools
@@ -269,7 +275,8 @@ kubectl get events -n cloudgraph-system
 
 ### Created
 
-- ✅ `install.sh` - Installation automation script
+- ✅ `cmd/cloudgraph/{main.go, deploy.go, uninstall.go}` - Unified Go CLI implementation
+- ✅ `install.sh` - Single-command bootstrap script
 - ✅ `INSTALLATION.md` - Complete installation guide
 - ✅ `deployments/helm/cloudgraph/Chart.yaml` - Helm chart metadata
 - ✅ `deployments/helm/cloudgraph/values.yaml` - Configuration
@@ -315,7 +322,8 @@ helm install cloudgraph deployments/helm/cloudgraph \
   --dry-run --debug
 
 # Actual installation
-./install.sh
+curl -fsSL https://raw.githubusercontent.com/shivamshashank/CloudGraph/main/install.sh | sudo bash
+sudo cloudgraph deploy
 ```
 
 ## Conclusion

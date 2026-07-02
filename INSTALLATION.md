@@ -1,106 +1,88 @@
 # CloudGraph Installation Guide
 
+> [!IMPORTANT]
+> CloudGraph is supported **exclusively on Linux** (both AMD64 and ARM64 architectures).
+
 ## Overview
 
-CloudGraph can be installed on any Kubernetes cluster using a single command. The installation script automatically:
+CloudGraph is deployed and managed via the `cloudgraph` CLI. The CLI supports:
 
-- Detects your Kubernetes environment
-- Installs kubeadm if needed
-- Deploys CloudGraph and all dependencies via Helm
-- Configures RBAC and service discovery
+- Native single-command installation on Linux.
+- Automated single-command deployment (`cloudgraph deploy`) of Kubernetes (kubeadm), Helm, and the CloudGraph Core stack.
+- Automated uninstallation (`cloudgraph uninstall`) for clean teardown.
 
 ## Quick Start
 
-### Option 1: Using curl (Recommended)
+### Option 1: Curl Installer (Recommended)
+
+To download and install the pre-compiled `cloudgraph` Linux binary matching your CPU architecture (AMD64/ARM64) from GitHub Releases:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/shivamshashank/CloudGraph/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/shivamshashank/CloudGraph/main/install.sh | sudo bash
 ```
 
-### Option 2: Direct script execution
+Once installed, proceed directly to deploying the stack:
+
+```bash
+sudo cloudgraph deploy
+```
+
+---
+
+### Option 2: Build From Source (Development)
+
+If you have Go (1.23+) installed on your Linux machine, you can compile the CLI directly:
 
 ```bash
 git clone https://github.com/shivamshashank/CloudGraph.git
 cd CloudGraph
-./install.sh
+go build -o cloudgraph ./cmd/cloudgraph
+sudo ./cloudgraph deploy
 ```
 
-### Option 3: Using Helm directly
+---
+
+### Option 3: Go Install (Global Path)
 
 ```bash
-# Add the CloudGraph Helm repository
-helm repo add cloudgraph https://charts.cloudgraph.dev
-helm repo update
-
-# Install CloudGraph
-helm install cloudgraph cloudgraph/cloudgraph \
-  --namespace cloudgraph-system \
-  --create-namespace
+go install github.com/shivamshashank/CloudGraph@latest
 ```
+
+This installs `cloudgraph` directly to your `$GOPATH/bin` (or `$HOME/go/bin`).
 
 ## Prerequisites
 
-The installation script requires:
+The deployment command requires:
 
+- **Go**: Version 1.23+ (only if compiling from source)
 - **kubectl**: Kubernetes command-line tool
-- **helm**: Kubernetes package manager (optional - script can install it)
 
 For an existing cluster, no other prerequisites are needed.
 
 ## Installation Methods
 
-### 1. Existing Kubernetes Cluster
-
-If you already have a Kubernetes cluster running:
+### 1. Automated Script Installation
 
 ```bash
-./install.sh
+curl -fsSL https://raw.githubusercontent.com/shivamshashank/CloudGraph/main/install.sh | sudo bash
+sudo cloudgraph deploy
 ```
 
-The script will:
+The deploy command will:
 
-1. ✓ Detect your cluster
-2. ✓ Verify kubectl connectivity
-3. ✓ Install Helm if needed
-4. ✓ Deploy CloudGraph with all components
-5. ✓ Wait for all pods to be ready
+1. ✓ Configure kubeconfig access
+2. ✓ Prompt to install kubeadm and initialize a cluster (if no cluster is detected)
+3. ✓ Install Rancher Local Path storage provisioner and Ingress NGINX controller
+4. ✓ Check Helm and deploy the CloudGraph stack
+5. ✓ Wait for all deployments to be healthy
 
-### 2. Bare Metal / On-Premise (Linux)
+### 2. Existing environment
 
-If you don't have a Kubernetes cluster:
+If you already have the API running, you can skip the installer and use the CLI directly:
 
 ```bash
-./install.sh
+cloudgraph health http://localhost:8000
 ```
-
-When prompted, select option 1 to install kubeadm. The script will:
-
-1. ✓ Update system packages
-2. ✓ Install kubeadm, kubelet, and kubectl
-3. ✓ Initialize a Kubernetes cluster
-4. ✓ Install a CNI plugin (Flannel)
-5. ✓ Configure the master node
-6. ✓ Deploy CloudGraph
-
-### 3. macOS / Docker Desktop
-
-For macOS users with Docker Desktop:
-
-1. Enable Kubernetes in Docker Desktop settings
-2. Run the installation script:
-
-```bash
-./install.sh
-```
-
-### 4. Cloud Kubernetes Services
-
-CloudGraph works with any managed Kubernetes service:
-
-- **AWS EKS**: `helm install cloudgraph cloudgraph/cloudgraph ...`
-- **Azure AKS**: `helm install cloudgraph cloudgraph/cloudgraph ...`
-- **Google GKE**: `helm install cloudgraph cloudgraph/cloudgraph ...`
-- **DigitalOcean DOKS**: `helm install cloudgraph cloudgraph/cloudgraph ...`
 
 ## What Gets Installed
 
@@ -158,41 +140,19 @@ neo4j:
   neo4jPassword: "your-secure-password"
 ```
 
-Then install with custom values:
+Then use the CLI against your running API:
 
 ```bash
-helm install cloudgraph cloudgraph/cloudgraph \
-  --namespace cloudgraph-system \
-  --values values-custom.yaml
+cloudgraph health http://localhost:8000
 ```
 
 ## Verification
 
-After installation, verify CloudGraph is running:
+After installation, verify the CLI works:
 
 ```bash
-# Check all pods are ready
-kubectl get pods -n cloudgraph-system
-
-# Check deployment status
-kubectl get deployments -n cloudgraph-system
-
-# View recent events
-kubectl get events -n cloudgraph-system
-```
-
-Expected output:
-
-```text
-NAME                                READY   STATUS    RESTARTS   AGE
-cloudgraph-api-xxxxx                1/1     Running   0          2m
-investigation-engine-xxxxx          1/1     Running   0          2m
-agent-orchestrator-xxxxx            1/1     Running   0          2m
-cloudgraph-ui-xxxxx                 1/1     Running   0          2m
-otel-collector-xxxxx                1/1     Running   0          2m
-neo4j-xxxxx                         1/1     Running   0          3m
-redis-master-xxxxx                  1/1     Running   0          3m
-qdrant-xxxxx                        1/1     Running   0          3m
+cloudgraph --help
+cloudgraph version
 ```
 
 ## Access CloudGraph

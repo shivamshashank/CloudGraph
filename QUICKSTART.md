@@ -2,18 +2,19 @@
 
 **Everything you need to deploy CloudGraph in 3 minutes.**
 
-## 🚀 One-Command Installation
+## 🚀 Install and Deploy
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/shivamshashank/CloudGraph/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/shivamshashank/CloudGraph/main/install.sh | sudo bash
+sudo cloudgraph deploy
 ```
 
-That's it! The script will:
+That's it! The command will:
 
 1. ✅ Check for Kubernetes cluster
 2. ✅ Offer to install kubeadm if needed
-3. ✅ Install Helm if not present
-4. ✅ Deploy CloudGraph with all components
+3. ✅ Install Rancher Storage provisioner & Ingress controller
+4. ✅ Deploy the CloudGraph Helm chart
 5. ✅ Wait for everything to be ready
 
 ## 🔍 What Gets Installed
@@ -42,27 +43,14 @@ kubectl port-forward -n cloudgraph-system svc/cloudgraph-ui 3000:3000
 # Then visit: http://localhost:3000
 ```
 
-## 🔧 Manual Installation (Helm)
+## 🔧 Manual CLI Usage
 
-If you prefer manual installation:
-
-```bash
-# Add repository
-helm repo add cloudgraph https://charts.cloudgraph.dev
-helm repo update
-
-# Install
-helm install cloudgraph cloudgraph/cloudgraph \
-  --namespace cloudgraph-system \
-  --create-namespace
-```
-
-Or from local chart:
+If you prefer to use the CLI directly after installation:
 
 ```bash
-helm install cloudgraph ./deployments/helm/cloudgraph \
-  --namespace cloudgraph-system \
-  --create-namespace
+cloudgraph --help
+cloudgraph version
+cloudgraph health http://localhost:8000
 ```
 
 ## 📝 Environment Options
@@ -70,14 +58,14 @@ helm install cloudgraph ./deployments/helm/cloudgraph \
 ### Option 1: Existing Kubernetes Cluster
 
 ```bash
-./install.sh
-# Script detects cluster and deploys
+sudo ./cloudgraph deploy
+# Command detects cluster and deploys
 ```
 
 ### Option 2: Bare Metal (Linux)
 
 ```bash
-./install.sh
+sudo ./cloudgraph deploy
 # Select option 1 to install kubeadm
 ```
 
@@ -86,14 +74,14 @@ helm install cloudgraph ./deployments/helm/cloudgraph \
 ```bash
 # Enable Kubernetes in Docker Desktop settings
 # Then run:
-./install.sh
+sudo ./cloudgraph deploy
 ```
 
 ### Option 4: Cloud Providers (AWS/Azure/GCP)
 
 ```bash
 # Works with EKS, AKS, GKE, and others
-./install.sh
+sudo ./cloudgraph deploy
 ```
 
 ## 🔌 Access Methods
@@ -134,30 +122,16 @@ kubectl logs -n cloudgraph-system -f --all-containers=true
 
 ## 🛠️ Common Operations
 
-### Upgrade
+### Check the API
 
 ```bash
-helm upgrade cloudgraph cloudgraph/cloudgraph \
-  --namespace cloudgraph-system
+cloudgraph health http://localhost:8000
 ```
 
-### Rollback
+### Send a sample payload
 
 ```bash
-helm rollback cloudgraph -n cloudgraph-system
-```
-
-### Uninstall
-
-```bash
-helm uninstall cloudgraph -n cloudgraph-system
-```
-
-### Scale Components
-
-```bash
-kubectl scale deployment cloudgraph-api \
-  --replicas=3 -n cloudgraph-system
+cloudgraph ingest http://localhost:8000 /api/v1/telemetry/logs
 ```
 
 ## 📖 Documentation
@@ -205,7 +179,7 @@ kubectl describe pvc <pvc-name> -n cloudgraph-system
 
 ## 🎯 Next Steps
 
-1. **Installation**: Run `./install.sh`
+1. **Installation**: Run `curl -fsSL https://raw.githubusercontent.com/shivamshashank/CloudGraph/main/install.sh | sudo bash` and then deploy with `sudo cloudgraph deploy`
 2. **Verification**: Wait for all pods to be ready
 3. **Access UI**: Port-forward to UI and login
 4. **Configure**: Connect your observability tools
@@ -220,10 +194,11 @@ kubectl describe pvc <pvc-name> -n cloudgraph-system
 
 ---
 
-**Ready to go?** Run this command:
+**Ready to go?** Build and deploy:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/shivamshashank/CloudGraph/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/shivamshashank/CloudGraph/main/install.sh | sudo bash
+sudo cloudgraph deploy
 ```
 
-🚀 CloudGraph will be installed in minutes!
+🚀 CloudGraph will be deployed in minutes!
