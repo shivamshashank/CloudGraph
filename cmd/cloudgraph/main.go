@@ -76,9 +76,9 @@ Examples:
 }
 
 func showVersion() {
-	fmt.Printf("cloudgraph version %s\n", CloudGraphVersion)
-	fmt.Printf("build: %s\n", CloudGraphBuild)
-	fmt.Printf("commit: %s\n", CloudGraphCommit)
+	fmt.Printf("🏷️ version: %s\n", CloudGraphVersion)
+	fmt.Printf("🛠️ build: %s\n", CloudGraphBuild)
+	fmt.Printf("📌 commit: %s\n", CloudGraphCommit)
 }
 
 func runHealth(args []string) {
