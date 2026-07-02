@@ -109,8 +109,8 @@ jobs:
       - name: Build and Push API Image
         uses: docker/build-push-action@v5
         with:
-          context: ./api
-          file: ./api/Dockerfile
+          context: ./services/api
+          file: ./services/api/Dockerfile
           push: true
           tags: |
             ghcr.io/shivamshashank/cloudgraph-api:latest
@@ -119,8 +119,8 @@ jobs:
       - name: Build and Push UI Image
         uses: docker/build-push-action@v5
         with:
-          context: ./ui
-          file: ./ui/Dockerfile
+          context: ./services/ui
+          file: ./services/ui/Dockerfile
           push: true
           tags: |
             ghcr.io/shivamshashank/cloudgraph-ui:latest
@@ -129,8 +129,8 @@ jobs:
       - name: Build and Push Agent Orchestrator Image
         uses: docker/build-push-action@v5
         with:
-          context: ./agent-orchestrator
-          file: ./agent-orchestrator/Dockerfile
+          context: ./services/agent-orchestrator
+          file: ./services/agent-orchestrator/Dockerfile
           push: true
           tags: |
             ghcr.io/shivamshashank/cloudgraph-agent-orchestrator:latest
@@ -139,8 +139,8 @@ jobs:
       - name: Build and Push Investigation Engine Image
         uses: docker/build-push-action@v5
         with:
-          context: ./investigation-engine
-          file: ./investigation-engine/Dockerfile
+          context: ./services/investigation-engine
+          file: ./services/investigation-engine/Dockerfile
           push: true
           tags: |
             ghcr.io/shivamshashank/cloudgraph-investigation-engine:latest
