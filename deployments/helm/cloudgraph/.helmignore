@@ -3,10 +3,6 @@
 .gitignore
 .gitattributes
 .helmignore
-charts
-dist
-*.tar.gz
-*.tgz
 .DS_Store
 .env
 .vscode

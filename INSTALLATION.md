@@ -2,12 +2,11 @@
 
 ## Overview
 
-CloudGraph can be installed on any Kubernetes cluster using a single command. The installation script automatically:
+CloudGraph can be installed locally with a single command. The installation script now:
 
-- Detects your Kubernetes environment
-- Installs kubeadm if needed
-- Deploys CloudGraph and all dependencies via Helm
-- Configures RBAC and service discovery
+- Installs the CloudGraph CLI through curl
+- Makes the `cloudgraph` command available immediately
+- Prepares the environment for direct API usage
 
 ## Quick Start
 
@@ -25,17 +24,12 @@ cd CloudGraph
 ./install.sh
 ```
 
-### Option 3: Using Helm directly
+### Option 3: Using the CLI directly
 
 ```bash
-# Add the CloudGraph Helm repository
-helm repo add cloudgraph https://charts.cloudgraph.dev
-helm repo update
-
-# Install CloudGraph
-helm install cloudgraph cloudgraph/cloudgraph \
-  --namespace cloudgraph-system \
-  --create-namespace
+cloudgraph --help
+cloudgraph version
+cloudgraph health http://localhost:8000
 ```
 
 ## Prerequisites
@@ -43,15 +37,13 @@ helm install cloudgraph cloudgraph/cloudgraph \
 The installation script requires:
 
 - **kubectl**: Kubernetes command-line tool
-- **helm**: Kubernetes package manager (optional - script can install it)
+- **curl**: Required for installing the CloudGraph CLI
 
 For an existing cluster, no other prerequisites are needed.
 
 ## Installation Methods
 
-### 1. Existing Kubernetes Cluster
-
-If you already have a Kubernetes cluster running:
+### 1. Local install
 
 ```bash
 ./install.sh
@@ -59,48 +51,17 @@ If you already have a Kubernetes cluster running:
 
 The script will:
 
-1. ✓ Detect your cluster
-2. ✓ Verify kubectl connectivity
-3. ✓ Install Helm if needed
-4. ✓ Deploy CloudGraph with all components
-5. ✓ Wait for all pods to be ready
+1. ✓ Install the CloudGraph CLI through curl
+2. ✓ Make the `cloudgraph` command available
+3. ✓ Prepare the environment for direct API usage
 
-### 2. Bare Metal / On-Premise (Linux)
+### 2. Existing environment
 
-If you don't have a Kubernetes cluster:
+If you already have the API running, you can skip the installer and use the CLI directly:
 
 ```bash
-./install.sh
+cloudgraph health http://localhost:8000
 ```
-
-When prompted, select option 1 to install kubeadm. The script will:
-
-1. ✓ Update system packages
-2. ✓ Install kubeadm, kubelet, and kubectl
-3. ✓ Initialize a Kubernetes cluster
-4. ✓ Install a CNI plugin (Flannel)
-5. ✓ Configure the master node
-6. ✓ Deploy CloudGraph
-
-### 3. macOS / Docker Desktop
-
-For macOS users with Docker Desktop:
-
-1. Enable Kubernetes in Docker Desktop settings
-2. Run the installation script:
-
-```bash
-./install.sh
-```
-
-### 4. Cloud Kubernetes Services
-
-CloudGraph works with any managed Kubernetes service:
-
-- **AWS EKS**: `helm install cloudgraph cloudgraph/cloudgraph ...`
-- **Azure AKS**: `helm install cloudgraph cloudgraph/cloudgraph ...`
-- **Google GKE**: `helm install cloudgraph cloudgraph/cloudgraph ...`
-- **DigitalOcean DOKS**: `helm install cloudgraph cloudgraph/cloudgraph ...`
 
 ## What Gets Installed
 
@@ -158,41 +119,19 @@ neo4j:
   neo4jPassword: "your-secure-password"
 ```
 
-Then install with custom values:
+Then use the CLI against your running API:
 
 ```bash
-helm install cloudgraph cloudgraph/cloudgraph \
-  --namespace cloudgraph-system \
-  --values values-custom.yaml
+cloudgraph health http://localhost:8000
 ```
 
 ## Verification
 
-After installation, verify CloudGraph is running:
+After installation, verify the CLI works:
 
 ```bash
-# Check all pods are ready
-kubectl get pods -n cloudgraph-system
-
-# Check deployment status
-kubectl get deployments -n cloudgraph-system
-
-# View recent events
-kubectl get events -n cloudgraph-system
-```
-
-Expected output:
-
-```text
-NAME                                READY   STATUS    RESTARTS   AGE
-cloudgraph-api-xxxxx                1/1     Running   0          2m
-investigation-engine-xxxxx          1/1     Running   0          2m
-agent-orchestrator-xxxxx            1/1     Running   0          2m
-cloudgraph-ui-xxxxx                 1/1     Running   0          2m
-otel-collector-xxxxx                1/1     Running   0          2m
-neo4j-xxxxx                         1/1     Running   0          3m
-redis-master-xxxxx                  1/1     Running   0          3m
-qdrant-xxxxx                        1/1     Running   0          3m
+cloudgraph --help
+cloudgraph version
 ```
 
 ## Access CloudGraph

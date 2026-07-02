@@ -12,7 +12,7 @@ cloudgraphApi:
   replicaCount: 1
 
   image:
-    repository: cloudgraph/api
+    repository: ghcr.io/shivamshashank/cloudgraph-api
     tag: "latest"
 
   service:
@@ -38,7 +38,7 @@ investigationEngine:
   replicaCount: 1
 
   image:
-    repository: cloudgraph/investigation-engine
+    repository: ghcr.io/shivamshashank/cloudgraph-investigation-engine
     tag: "latest"
 
   resources:
@@ -58,7 +58,7 @@ agentOrchestrator:
   replicaCount: 1
 
   image:
-    repository: cloudgraph/agent-orchestrator
+    repository: ghcr.io/shivamshashank/cloudgraph-agent-orchestrator
     tag: "latest"
 
   resources:
@@ -75,7 +75,7 @@ cloudgraphUI:
   replicaCount: 1
 
   image:
-    repository: cloudgraph/ui
+    repository: ghcr.io/shivamshashank/cloudgraph-ui
     tag: "latest"
 
   service:
@@ -151,11 +151,12 @@ otelCollector:
           processors: [memory_limiter, batch]
           exporters: [prometheus, logging]
 
-# Neo4j - Knowledge Graph Database
 neo4j:
   enabled: true
-
+  acceptLicenseAgreement: "yes"
   neo4jPassword: "changeme"
+  neo4j:
+    name: "cloudgraph-neo4j"
 
   volumes:
     data:

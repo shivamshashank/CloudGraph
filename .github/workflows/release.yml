@@ -106,12 +106,42 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and Push Gateway Image
+      - name: Build and Push API Image
         uses: docker/build-push-action@v5
         with:
           context: ./api
           file: ./api/Dockerfile
           push: true
           tags: |
-            ghcr.io/shivamshashank/cloudgraph-gateway:latest
-            ghcr.io/shivamshashank/cloudgraph-gateway:${{ steps.next_version.outputs.next_tag }}
+            ghcr.io/shivamshashank/cloudgraph-api:latest
+            ghcr.io/shivamshashank/cloudgraph-api:${{ steps.next_version.outputs.next_tag }}
+
+      - name: Build and Push UI Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./ui
+          file: ./ui/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/shivamshashank/cloudgraph-ui:latest
+            ghcr.io/shivamshashank/cloudgraph-ui:${{ steps.next_version.outputs.next_tag }}
+
+      - name: Build and Push Agent Orchestrator Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./agent-orchestrator
+          file: ./agent-orchestrator/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/shivamshashank/cloudgraph-agent-orchestrator:latest
+            ghcr.io/shivamshashank/cloudgraph-agent-orchestrator:${{ steps.next_version.outputs.next_tag }}
+
+      - name: Build and Push Investigation Engine Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./investigation-engine
+          file: ./investigation-engine/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/shivamshashank/cloudgraph-investigation-engine:latest
+            ghcr.io/shivamshashank/cloudgraph-investigation-engine:${{ steps.next_version.outputs.next_tag }}
