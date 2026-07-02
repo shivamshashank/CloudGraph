@@ -47,18 +47,32 @@ jobs:
           git tag "${{ steps.next_version.outputs.next_tag }}"
           git push origin "${{ steps.next_version.outputs.next_tag }}"
 
-      - name: Package CLI Script
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Build CLI binaries
         run: |
           mkdir -p dist
-          cp cloudgraph dist/cloudgraph
-          # Dynamically set version tag inside the bash script
           TAG_NAME="${{ steps.next_version.outputs.next_tag }}"
-          sed -i 's/CLOUDGRAPH_VERSION:-0.1.0/CLOUDGRAPH_VERSION:-'"${TAG_NAME#v}"'/g' dist/cloudgraph
+          VERSION_STR="${TAG_NAME#v}"
+          COMMIT_SHA="${{ github.sha }}"
+
+          # Linux amd64
+          GOOS=linux GOARCH=amd64 go build \
+            -ldflags="-X main.CloudGraphVersion=${VERSION_STR} -X main.CloudGraphBuild=release -X main.CloudGraphCommit=${COMMIT_SHA}" \
+            -o dist/cloudgraph-linux-amd64 ./cmd/cloudgraph
+
+          # Linux arm64
+          GOOS=linux GOARCH=arm64 go build \
+            -ldflags="-X main.CloudGraphVersion=${VERSION_STR} -X main.CloudGraphBuild=release -X main.CloudGraphCommit=${COMMIT_SHA}" \
+            -o dist/cloudgraph-linux-arm64 ./cmd/cloudgraph
 
       - name: Generate SHA256 Checksums
         run: |
           cd dist
-          sha256sum cloudgraph > checksums.txt
+          sha256sum cloudgraph-linux-amd64 cloudgraph-linux-arm64 > checksums.txt
           cat checksums.txt
 
       - name: Publish GitHub Release
@@ -71,13 +85,15 @@ jobs:
 
             ### Downloads
 
-            - cloudgraph
+            - cloudgraph-linux-amd64
+            - cloudgraph-linux-arm64
 
             SHA256 checksums are provided in `checksums.txt`.
           draft: false
           prerelease: false
           files: |
-            dist/cloudgraph
+            dist/cloudgraph-linux-amd64
+            dist/cloudgraph-linux-arm64
             dist/checksums.txt
 
       - name: Log in to GitHub Container Registry
