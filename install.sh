@@ -34,7 +34,18 @@ case "$ARCH" in
 esac
 
 # Define version and download URL
-VERSION="v0.1.0"
+VERSION="${CLOUDGRAPH_VERSION:-}"
+if [ -z "$VERSION" ]; then
+    # Attempt to fetch latest release tag from GitHub API
+    API_RESPONSE=$(curl -s "https://api.github.com/repos/shivamshashank/CloudGraph/releases/latest")
+    LATEST_TAG=$(echo "$API_RESPONSE" | grep -o '"tag_name": "[^"]*' | grep -o '[^"]*$')
+    if [ -n "$LATEST_TAG" ]; then
+        VERSION="$LATEST_TAG"
+    else
+        # Fallback to hardcoded version if API call fails
+        VERSION="v1.0.3"
+    fi
+fi
 DOWNLOAD_URL="https://github.com/shivamshashank/CloudGraph/releases/download/${VERSION}/cloudgraph-linux-${BINARY_ARCH}"
 
 echo -e "${BLUE}ℹ Detected Architecture: ${BINARY_ARCH}${NC}"

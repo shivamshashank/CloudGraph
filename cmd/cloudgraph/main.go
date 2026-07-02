@@ -11,15 +11,18 @@ import (
 	"time"
 )
 
-const (
+var (
 	CloudGraphVersion = "0.1.0"
 	CloudGraphBuild   = "dev"
 	CloudGraphCommit  = "unknown"
-	Red               = "\033[0;31m"
-	Green             = "\033[0;32m"
-	Yellow            = "\033[1;33m"
-	Blue              = "\033[0;34m"
-	NC                = "\033[0m" // No Color
+)
+
+const (
+	Red    = "\033[0;31m"
+	Green  = "\033[0;32m"
+	Yellow = "\033[1;33m"
+	Blue   = "\033[0;34m"
+	NC     = "\033[0m" // No Color
 )
 
 func printHeader(msg string) {
@@ -73,9 +76,9 @@ Examples:
 }
 
 func showVersion() {
-	fmt.Printf("cloudgraph version %s\n", CloudGraphVersion)
-	fmt.Printf("build: %s\n", CloudGraphBuild)
-	fmt.Printf("commit: %s\n", CloudGraphCommit)
+	fmt.Printf("🏷️ version: %s\n", CloudGraphVersion)
+	fmt.Printf("🛠️ build: %s\n", CloudGraphBuild)
+	fmt.Printf("📌 commit: %s\n", CloudGraphCommit)
 }
 
 func runHealth(args []string) {

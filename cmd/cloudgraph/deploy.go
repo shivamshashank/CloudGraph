@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"os"
 	"os/exec"
@@ -13,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	cloudgraph "github.com/shivamshashank/CloudGraph"
 )
 
 func runCmd(name string, args ...string) error {
@@ -359,34 +362,124 @@ func createNamespace() {
 	printSuccess("Namespace 'cloudgraph-system' ready and configured for Helm")
 }
 
+func writeChartToTempDir() (string, error) {
+	tempDir, err := os.MkdirTemp("", "cloudgraph-chart-*")
+	if err != nil {
+		return "", err
+	}
+
+	err = fs.WalkDir(cloudgraph.ChartFS, "deployments/helm/cloudgraph", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		relPath, err := filepath.Rel("deployments/helm/cloudgraph", path)
+		if err != nil {
+			return err
+		}
+		destPath := filepath.Join(tempDir, relPath)
+
+		if d.IsDir() {
+			return os.MkdirAll(destPath, 0755)
+		}
+
+		data, err := fs.ReadFile(cloudgraph.ChartFS, path)
+		if err != nil {
+			return err
+		}
+
+		return os.WriteFile(destPath, data, 0644)
+	})
+
+	if err != nil {
+		_ = os.RemoveAll(tempDir)
+		return "", err
+	}
+
+	return tempDir, nil
+}
+
 func installCloudGraph() {
 	printHeader("Installing CloudGraph Core Stack")
 
 	chartPath := "./deployments/helm/cloudgraph"
+	isTemp := false
+	var tempDir string
+
 	if _, err := os.Stat(chartPath); err != nil {
 		chartPath = "/home/shivam_shashank/CloudGraph/deployments/helm/cloudgraph"
 	}
 
-	if _, err := os.Stat(chartPath); err == nil {
-		printInfo(fmt.Sprintf("Using local Helm chart from %s...", chartPath))
-		printInfo("Updating and building Helm chart dependencies...")
+	if _, err := os.Stat(chartPath); err != nil {
+		printInfo("Local Helm chart not found. Extracting embedded Helm chart...")
+		var extractErr error
+		tempDir, extractErr = writeChartToTempDir()
+		if extractErr != nil {
+			printError(fmt.Sprintf("Failed to extract embedded Helm chart: %v", extractErr))
+			os.Exit(1)
+		}
+		chartPath = tempDir
+		isTemp = true
+	}
 
-		// Add repositories
-		_ = exec.Command("helm", "repo", "add", "neo4j", "https://helm.neo4j.com/neo4j").Run()
-		_ = exec.Command("helm", "repo", "add", "bitnami", "https://charts.bitnami.com/bitnami").Run()
-		_ = exec.Command("helm", "repo", "add", "qdrant", "https://qdrant.github.io/qdrant-helm").Run()
-		_ = exec.Command("helm", "repo", "update").Run()
+	printInfo(fmt.Sprintf("Using Helm chart from %s...", chartPath))
+	printInfo("Updating and building Helm chart dependencies...")
 
-		_ = runCmdInDir(chartPath, "helm", "dependency", "update")
-		_ = runCmdInDir(chartPath, "helm", "dependency", "build")
+	if err := runCmd("helm", "repo", "add", "neo4j", "https://helm.neo4j.com/neo4j"); err != nil {
+		printError(fmt.Sprintf("Failed to add neo4j repo: %v", err))
+		if isTemp {
+			_ = os.RemoveAll(tempDir)
+		}
+		os.Exit(1)
+	}
+	if err := runCmd("helm", "repo", "add", "bitnami", "https://charts.bitnami.com/bitnami"); err != nil {
+		printError(fmt.Sprintf("Failed to add bitnami repo: %v", err))
+		if isTemp {
+			_ = os.RemoveAll(tempDir)
+		}
+		os.Exit(1)
+	}
+	if err := runCmd("helm", "repo", "add", "qdrant", "https://qdrant.github.io/qdrant-helm"); err != nil {
+		printError(fmt.Sprintf("Failed to add qdrant repo: %v", err))
+		if isTemp {
+			_ = os.RemoveAll(tempDir)
+		}
+		os.Exit(1)
+	}
+	if err := runCmd("helm", "repo", "update"); err != nil {
+		printError(fmt.Sprintf("Failed to update helm repos: %v", err))
+		if isTemp {
+			_ = os.RemoveAll(tempDir)
+		}
+		os.Exit(1)
+	}
 
-		printInfo("Installing local Helm chart...")
-		_ = runCmdInDir(chartPath, "helm", "upgrade", "--install", "cloudgraph", ".", "--namespace", "cloudgraph-system", "--create-namespace")
-	} else {
-		printInfo("Installing CloudGraph via online Helm repo...")
-		_ = exec.Command("helm", "repo", "add", "cloudgraph", "https://charts.cloudgraph.dev", "--force-update").Run()
-		_ = exec.Command("helm", "repo", "update").Run()
-		_ = runCmd("helm", "upgrade", "--install", "cloudgraph", "cloudgraph/cloudgraph", "--namespace", "cloudgraph-system", "--create-namespace")
+	if err := runCmdInDir(chartPath, "helm", "dependency", "update"); err != nil {
+		printError(fmt.Sprintf("Failed to update helm dependencies: %v", err))
+		if isTemp {
+			_ = os.RemoveAll(tempDir)
+		}
+		os.Exit(1)
+	}
+	if err := runCmdInDir(chartPath, "helm", "dependency", "build"); err != nil {
+		printError(fmt.Sprintf("Failed to build helm dependencies: %v", err))
+		if isTemp {
+			_ = os.RemoveAll(tempDir)
+		}
+		os.Exit(1)
+	}
+
+	printInfo("Installing Helm chart...")
+	if err := runCmdInDir(chartPath, "helm", "upgrade", "--install", "cloudgraph", ".", "--namespace", "cloudgraph-system", "--create-namespace"); err != nil {
+		printError(fmt.Sprintf("Helm installation failed: %v", err))
+		if isTemp {
+			_ = os.RemoveAll(tempDir)
+		}
+		os.Exit(1)
+	}
+
+	if isTemp {
+		_ = os.RemoveAll(tempDir)
 	}
 	printSuccess("CloudGraph deployed successfully")
 }
@@ -592,10 +685,11 @@ func runDeploy() {
 	}
 
 	if !hasCluster {
-		// If no cluster is detected, we warn if we don't seem to have root privileges
+		// If no cluster is detected, we require root privileges (sudo) to initialize a local cluster
 		isRoot := os.Getuid() == 0 || os.Geteuid() == 0 || os.Getenv("SUDO_UID") != ""
 		if !isRoot && os.Getenv("SKIP_ROOT_CHECK") != "true" {
-			printWarning(fmt.Sprintf("No active Kubernetes cluster detected and root privileges (sudo) were not detected. Local cluster initialization or system configuration may fail. (UID: %d, EUID: %d)", os.Getuid(), os.Geteuid()))
+			printError(fmt.Sprintf("No active Kubernetes cluster detected and root privileges (sudo) were not detected. Local cluster initialization requires root privileges. (UID: %d, EUID: %d)", os.Getuid(), os.Geteuid()))
+			os.Exit(1)
 		}
 		ensureKubeconfig()
 		_ = checkKubectl()
