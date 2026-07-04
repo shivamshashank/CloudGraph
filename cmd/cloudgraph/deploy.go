@@ -96,6 +96,8 @@ func ensureKubeconfig() {
 					dest := filepath.Join(kubeDir, "config")
 					if err := copyFile(adminConf, dest); err == nil {
 						_ = runCmd("chown", fmt.Sprintf("%s:%s", u.Uid, u.Gid), dest)
+						// Clear user's kubernetes cache to prevent stale API schema errors
+						_ = os.RemoveAll(filepath.Join(kubeDir, "cache"))
 						printSuccess(fmt.Sprintf("Configured kubectl access for user '%s' (no sudo needed)", sudoUser))
 					}
 				}
@@ -702,6 +704,9 @@ func runDeploy() {
 	} else {
 		printInfo("Active Kubernetes cluster detected. Skipping root privilege check.")
 	}
+
+	// Always ensure kubeconfig is configured for the non-root user (SUDO_USER) if we have the admin.conf file
+	ensureKubeconfig()
 
 	ensureLocalStorage()
 	ensureIngressController()

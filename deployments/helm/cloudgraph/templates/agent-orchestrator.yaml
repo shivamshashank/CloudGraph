@@ -49,11 +49,16 @@ spec:
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
           env:
             - name: NEO4J_HOST
-              value: "neo4j.{{ .Values.global.namespace }}.svc.cluster.local"
+              value: "cloudgraph.{{ .Values.global.namespace }}.svc.cluster.local"
+            - name: NEO4J_AUTH
+              valueFrom:
+                secretKeyRef:
+                  name: cloudgraph-neo4j-auth
+                  key: NEO4J_AUTH
             - name: REDIS_HOST
-              value: "redis-master.{{ .Values.global.namespace }}.svc.cluster.local"
+              value: "cloudgraph-redis-master.{{ .Values.global.namespace }}.svc.cluster.local"
             - name: QDRANT_HOST
-              value: "qdrant.{{ .Values.global.namespace }}.svc.cluster.local"
+              value: "cloudgraph-qdrant.{{ .Values.global.namespace }}.svc.cluster.local"
           resources:
             {{- toYaml .Values.agentOrchestrator.resources | nindent 12 }}
           livenessProbe:

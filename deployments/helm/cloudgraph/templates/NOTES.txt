@@ -1,6 +1,11 @@
 1. Get the CloudGraph UI URL:
 {{- if .Values.cloudgraphUI.ingress.enabled }}
-  URL: http://{{ (first .Values.cloudgraphUI.ingress.hosts).host }}
+  Exposed via Ingress:
+  URL: http://localhost/
+{{- else if eq .Values.cloudgraphUI.service.type "NodePort" }}
+  Exposed via NodePort:
+  URL: http://<server-public-ip>:{{ .Values.cloudgraphUI.service.nodePort }}
+  (If dynamically allocated, check your port via: kubectl get svc -n {{ .Values.global.namespace }} cloudgraph-ui)
 {{- else }}
   kubectl port-forward -n {{ .Values.global.namespace }} svc/cloudgraph-ui 3000:3000
   Then access: http://localhost:3000

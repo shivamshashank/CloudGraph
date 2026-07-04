@@ -47,22 +47,6 @@ spec:
         - name: api
           image: "{{ .Values.cloudgraphApi.image.repository }}:{{ .Values.cloudgraphApi.image.tag }}"
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
-          command: ["python", "-c"]
-          args:
-            - |
-              import os, http.server, socketserver
-              class H(http.server.SimpleHTTPRequestHandler):
-                  def do_GET(self):
-                      self.send_response(200)
-                      self.send_header("Content-type", "application/json")
-                      self.end_headers()
-                      self.wfile.write(b'{"status":"healthy"}')
-                  def do_POST(self):
-                      self.send_response(200)
-                      self.send_header("Content-type", "application/json")
-                      self.end_headers()
-                      self.wfile.write(b'{"status":"success"}')
-              socketserver.TCPServer(("", 8080), H).serve_forever()
           ports:
             - name: http
               containerPort: {{ .Values.cloudgraphApi.service.targetPort }}
@@ -73,11 +57,16 @@ spec:
               value: {{ $value | quote }}
             {{- end }}
             - name: NEO4J_HOST
-              value: "neo4j.{{ .Values.global.namespace }}.svc.cluster.local"
+              value: "cloudgraph.{{ .Values.global.namespace }}.svc.cluster.local"
+            - name: NEO4J_AUTH
+              valueFrom:
+                secretKeyRef:
+                  name: cloudgraph-neo4j-auth
+                  key: NEO4J_AUTH
             - name: REDIS_HOST
-              value: "redis-master.{{ .Values.global.namespace }}.svc.cluster.local"
+              value: "cloudgraph-redis-master.{{ .Values.global.namespace }}.svc.cluster.local"
             - name: QDRANT_HOST
-              value: "qdrant.{{ .Values.global.namespace }}.svc.cluster.local"
+              value: "cloudgraph-qdrant.{{ .Values.global.namespace }}.svc.cluster.local"
           resources:
             {{- toYaml .Values.cloudgraphApi.resources | nindent 12 }}
           livenessProbe:

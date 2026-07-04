@@ -23,22 +23,6 @@ spec:
         - name: ui
           image: "{{ .Values.cloudgraphUI.image.repository }}:{{ .Values.cloudgraphUI.image.tag }}"
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
-          command: ["python", "-c"]
-          args:
-            - |
-              import os, http.server, socketserver
-              class H(http.server.SimpleHTTPRequestHandler):
-                  def do_GET(self):
-                      self.send_response(200)
-                      self.send_header("Content-type", "application/json")
-                      self.end_headers()
-                      self.wfile.write(b'{"status":"healthy"}')
-                  def do_POST(self):
-                      self.send_response(200)
-                      self.send_header("Content-type", "application/json")
-                      self.end_headers()
-                      self.wfile.write(b'{"status":"success"}')
-              socketserver.TCPServer(("", 3000), H).serve_forever()
           ports:
             - name: http
               containerPort: {{ .Values.cloudgraphUI.service.targetPort }}
@@ -74,6 +58,9 @@ spec:
       targetPort: http
       protocol: TCP
       name: http
+      {{- if and (eq .Values.cloudgraphUI.service.type "NodePort") .Values.cloudgraphUI.service.nodePort }}
+      nodePort: {{ .Values.cloudgraphUI.service.nodePort }}
+      {{- end }}
   selector:
     {{- include "cloudgraph.selectorLabels" . | nindent 4 }}
     app.kubernetes.io/component: ui

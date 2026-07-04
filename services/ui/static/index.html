@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloudGraph - AI incident Investigation & Topology</title>
+    <!-- Modern Premium Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation & Control Panel -->
+        <aside class="sidebar">
+            <div class="brand">
+                <span class="logo-icon">⚡</span>
+                <h1>CloudGraph</h1>
+            </div>
+
+            <div class="section-title">Operations</div>
+            <div class="control-group">
+                <button id="btn-discover" class="btn btn-primary">
+                    <span class="btn-icon">🔍</span> Discover Cluster
+                </button>
+                <button id="btn-analyze" class="btn btn-secondary">
+                    <span class="btn-icon">🧠</span> Run AI Diagnosis
+                </button>
+                <button id="btn-reset" class="btn btn-danger">
+                    <span class="btn-icon">🗑️</span> Reset Topology
+                </button>
+            </div>
+
+            <div class="section-title">Cluster Metrics</div>
+            <div class="stats-panel">
+                <div class="stat-card">
+                    <span class="stat-num" id="stat-nodes">0</span>
+                    <span class="stat-label">Nodes</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-num" id="stat-pods">0</span>
+                    <span class="stat-label">Pods</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-num" id="stat-deployments">0</span>
+                    <span class="stat-label">Deployments</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-num" id="stat-services">0</span>
+                    <span class="stat-label">Services</span>
+                </div>
+            </div>
+
+            <div class="connection-status">
+                <div class="status-indicator">
+                    <span class="indicator-dot online" id="api-dot"></span>
+                    <span class="indicator-text">API: <strong id="api-status">Connecting...</strong></span>
+                </div>
+                <div class="status-indicator">
+                    <span class="indicator-dot online" id="db-dot"></span>
+                    <span class="indicator-text">Neo4j: <strong id="db-status">Connecting...</strong></span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Dashboard View -->
+        <main class="main-content">
+            <!-- Topology Visualizer -->
+            <section class="card topology-card">
+                <div class="card-header">
+                    <h2>Kubernetes Graph Topology Map</h2>
+                    <span class="card-subtitle">Real-time dependency and relationship rendering</span>
+                </div>
+                <div class="canvas-container">
+                    <svg id="topology-svg" width="100%" height="100%">
+                        <!-- Grid pattern for technical grid styling -->
+                        <defs>
+                            <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255, 255, 255, 0.03)" stroke-width="1"/>
+                            </pattern>
+                        </defs>
+                        <rect width="100%" height="100%" fill="url(#grid)" />
+                        <!-- Groups for nodes & edges -->
+                        <g id="edges-group"></g>
+                        <g id="nodes-group"></g>
+                    </svg>
+                    <div id="graph-loader" class="loader-overlay hidden">
+                        <div class="spinner"></div>
+                        <p>Scanning cluster assets...</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Diagnostics & Logs Panel Split -->
+            <div class="split-row">
+                <!-- Investigation Results -->
+                <section class="card diagnostic-card">
+                    <div class="card-header">
+                        <h2>Investigation Engine Output</h2>
+                        <span class="card-subtitle">AI root cause analysis and recommendations</span>
+                    </div>
+                    <div class="diagnostic-content" id="rca-output">
+                        <div class="empty-state">
+                            <span class="empty-icon">🛡️</span>
+                            <p>No investigations run yet. Trigger "Run AI Diagnosis" to begin analyzing anomalies.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Live Logs / Event Stream -->
+                <section class="card logs-card">
+                    <div class="card-header">
+                        <h2>Pod Telemetry Log Stream</h2>
+                        <span class="card-subtitle">In-cluster stdout/stderr telemetry</span>
+                    </div>
+                    <div class="logs-console" id="logs-feed">
+                        <div class="empty-state">
+                            <span class="empty-icon">📺</span>
+                            <p>Discover the cluster to stream live pod stdout logs.</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Node Info Tooltip/Popup -->
+    <div id="node-popup" class="popup-panel hidden">
+        <div class="popup-header">
+            <h3 id="popup-title">Pod Details</h3>
+            <button id="btn-close-popup" class="btn-close">&times;</button>
+        </div>
+        <div class="popup-body" id="popup-content"></div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

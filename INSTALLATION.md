@@ -157,31 +157,31 @@ cloudgraph version
 
 ## Access CloudGraph
 
-### Local Access (port-forward)
+### 1. Ingress Access (Recommended / Automated)
+
+Since the NGINX Ingress Controller is installed and configured automatically by `cloudgraph deploy`, the entire stack is exposed on port 80/443 of the host/VM network. You can access the UI and API directly in your browser without running any manual port-forwarding:
+
+- **Web UI:** [http://localhost/](http://localhost/) (or `http://<node-ip>/`)
+- **Backend API:** [http://localhost/api/](http://localhost/api/)
+
+---
+
+### 2. Manual Access (port-forward fallback)
+
+If Ingress is disabled, you can manually forward the service ports from the cluster:
+
+#### Web UI
 
 ```bash
-# Forward UI port
 kubectl port-forward -n cloudgraph-system svc/cloudgraph-ui 3000:3000
-
 # Access at http://localhost:3000
 ```
 
-### Ingress Access
-
-If you enabled Ingress in values.yaml:
+#### Backend API
 
 ```bash
-# Get the Ingress URL
-kubectl get ingress -n cloudgraph-system
-```
-
-### API Access
-
-```bash
-# Forward API port
 kubectl port-forward -n cloudgraph-system svc/cloudgraph-api 8080:8080
-
-# API available at http://localhost:8080
+# Access at http://localhost:8080
 ```
 
 ## Useful Commands
