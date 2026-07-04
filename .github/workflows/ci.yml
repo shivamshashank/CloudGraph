@@ -38,7 +38,7 @@ jobs:
       - name: Install Python Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r backend/requirements.txt pytest-cov
+          pip install -r services/api/requirements.txt pytest-cov
 
       - name: Run Go Unit Tests
         run: |
@@ -50,11 +50,11 @@ jobs:
 
       - name: Run Python Unit Tests
         run: |
-          PYTHONPATH=backend python -m pytest backend/tests --cov=backend/app --cov-report=xml:backend/coverage.xml
+          PYTHONPATH=services/api python -m pytest services/api/tests --cov=services/api/app --cov-report=xml:services/api/coverage.xml
 
       - name: Upload Coverage to Codecov
         uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: cli-coverage.out,tests/observability/coverage.out,backend/coverage.xml
+          files: cli-coverage.out,tests/observability/coverage.out,services/api/coverage.xml
           flags: unittests

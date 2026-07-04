@@ -592,22 +592,18 @@ Transforms raw observability data into actionable operational knowledge.
 ```text
 cloudgraph/
 
-├── agents/
-├── backend/
-├── frontend/
-├── graph/
-├── retrieval/
-├── observability/
+├── cmd/
 ├── deployments/
 │   ├── kubernetes/
 │   └── helm/
-├── datasets/
-├── experiments/
 ├── docs/
-│   └── images/
+├── graph/
+├── services/
+│   ├── api/                  # Python backend API
+│   ├── ui/                   # Web frontend
+│   ├── agent-orchestrator/   # Python Agent Orchestrator
+│   └── investigation-engine/ # Python Investigation Engine
 ├── tests/
-├── scripts/
-├── docker-compose.yml
 ├── README.md
 └── LICENSE
 ```
@@ -690,6 +686,7 @@ docker compose up -d
 ## Backend
 
 ```bash
+cd services/api
 uvicorn app.main:app --reload
 ```
 

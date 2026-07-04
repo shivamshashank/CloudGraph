@@ -209,7 +209,7 @@ kubectl logs -n cloudgraph-system -f --all-containers=true --timestamps=true
 kubectl port-forward -n cloudgraph-system svc/neo4j 7474:7474 7687:7687
 
 # Get Neo4j password
-kubectl get secret -n cloudgraph-system neo4j -o jsonpath='{.data.password}' | base64 -d
+kubectl get secret -n cloudgraph-system cloudgraph-neo4j-auth -o jsonpath='{.data.NEO4J_AUTH}' | base64 -d
 
 # Access Neo4j Browser at http://localhost:7474
 ```

@@ -26,7 +26,7 @@
   Then access: http://localhost:7474
 
 6. Get Neo4j password:
-  kubectl get secret -n {{ .Values.global.namespace }} cloudgraph-neo4j-auth -o jsonpath='{.data.neo4j-password}' | base64 -d
+  kubectl get secret -n {{ .Values.global.namespace }} cloudgraph-neo4j-auth -o jsonpath='{.data.NEO4J_AUTH}' | base64 -d
 
 Thank you for installing CloudGraph! 🚀
 Documentation: https://github.com/shivamshashank/CloudGraph/docs
