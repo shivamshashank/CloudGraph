@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnDiscover = document.getElementById('btn-discover');
     const btnAnalyze = document.getElementById('btn-analyze');
     const btnReset = document.getElementById('btn-reset');
+    const btnRetrieve = document.getElementById('btn-retrieve');
     const graphLoader = document.getElementById('graph-loader');
 
     // Stats Elements
@@ -23,6 +24,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Panels
     const rcaOutput = document.getElementById('rca-output');
     const logsFeed = document.getElementById('logs-feed');
+    const retrievalOutput = document.getElementById('retrieval-output');
+    const retrievalQuery = document.getElementById('retrieval-query');
     const nodePopup = document.getElementById('node-popup');
     const popupTitle = document.getElementById('popup-title');
     const popupContent = document.getElementById('popup-content');
@@ -53,6 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btnDiscover.addEventListener('click', runDiscovery);
     btnAnalyze.addEventListener('click', runInvestigation);
     btnReset.addEventListener('click', resetGraph);
+    btnRetrieve.addEventListener('click', runRetrieval);
     btnClosePopup.addEventListener('click', () => nodePopup.classList.add('hidden'));
 
     // SVG drag-and-pan support
@@ -187,6 +191,36 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (err) {
             rcaOutput.innerHTML = `<div class="empty-state"><p class="log-level-error">Investigation failed: ${err.message}</p></div>`;
+        }
+    }
+
+    async function runRetrieval() {
+        const query = retrievalQuery.value.trim();
+        if (!query) {
+            retrievalOutput.innerHTML = '<div class="empty-state"><p>Enter a term to retrieve evidence.</p></div>';
+            return;
+        }
+
+        retrievalOutput.innerHTML = `
+            <div class="empty-state">
+                <div class="spinner"></div>
+                <p>Retrieving graph evidence...</p>
+            </div>`;
+
+        try {
+            const res = await fetch(`${API_BASE}/api/v1/graphrag/retrieve`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query, namespace: 'cloudgraph-system' })
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                renderRetrieval(data);
+            } else {
+                retrievalOutput.innerHTML = `<div class="empty-state"><p class="log-level-error">${data.detail || 'Retrieval failed.'}</p></div>`;
+            }
+        } catch (err) {
+            retrievalOutput.innerHTML = `<div class="empty-state"><p class="log-level-error">${err.message}</p></div>`;
         }
     }
 
@@ -480,6 +514,34 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
         propsHtml += '</div>';
         popupContent.innerHTML = propsHtml;
+    }
+
+    function renderRetrieval(data) {
+        if (!data.results || data.results.length === 0) {
+            retrievalOutput.innerHTML = `<div class="empty-state"><p>${data.summary || 'No evidence found.'}</p></div>`;
+            return;
+        }
+
+        const html = `
+            <div class="retrieval-summary">${data.summary}</div>
+            <div class="retrieval-list">
+                ${data.results.map(item => `
+                    <div class="retrieval-item">
+                        <div class="retrieval-item-header">
+                            <span class="retrieval-label">${item.label}</span>
+                            <span class="retrieval-name">${item.name}</span>
+                        </div>
+                        <div class="retrieval-status">${item.status}</div>
+                        <div class="retrieval-related">
+                            ${item.related && item.related.length > 0 ? item.related.map(rel => `
+                                <span class="retrieval-chip">${rel.rel || 'RELATED_TO'} → ${rel.related_name || 'unknown'}</span>
+                            `).join('') : '<span class="retrieval-chip">No adjacent context</span>'}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        retrievalOutput.innerHTML = html;
     }
 
     // Render RCA report cards

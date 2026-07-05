@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 from fastapi.testclient import TestClient
 from app.main import app
 from app.database.neo4j_client import neo4j_client
+from app.services.semantic_store import SemanticVectorStore
 
 client = TestClient(app)
 
@@ -129,3 +130,97 @@ def test_traversal_performance():
     assert (
         elapsed < 0.100
     ), f"Query took {elapsed:.3f}s, which is slower than 100ms threshold"
+
+
+def test_graphrag_search_endpoint_returns_ranked_results(monkeypatch):
+    def fake_execute_query(query, params=None):
+        if "RETURN labels(n)" in query:
+            return [
+                {
+                    "labels": ["Pod"],
+                    "name": "checkout-pod",
+                    "status": "CrashLoopBackOff",
+                    "title": None,
+                }
+            ]
+        if "OPTIONAL MATCH" in query or "MATCH (n)-[r]-(m)" in query:
+            return [
+                {
+                    "rel": "BELONGS_TO",
+                    "related_name": "checkout-service",
+                    "related_labels": ["Service"],
+                },
+                {
+                    "rel": "RUNS_ON",
+                    "related_name": "node-1",
+                    "related_labels": ["Node"],
+                },
+            ]
+        return []
+
+    monkeypatch.setattr(neo4j_client, "execute_query", fake_execute_query)
+
+    response = client.post(
+        "/api/v1/graphrag/search",
+        json={"query": "checkout", "namespace": "cloudgraph-system"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "success"
+    assert body["query"] == "checkout"
+    assert body["results"]
+    assert body["results"][0]["evidence_chain"]
+
+
+def test_graphrag_retrieve_endpoint_returns_summary(monkeypatch):
+    def fake_execute_query(query, params=None):
+        if "RETURN labels(n)" in query:
+            return [
+                {
+                    "labels": ["Incident"],
+                    "name": None,
+                    "status": "Open",
+                    "title": "CrashLoopBackOff",
+                }
+            ]
+        if "OPTIONAL MATCH" in query or "MATCH (n)-[r]-(m)" in query:
+            return [
+                {
+                    "rel": "AFFECTED_BY",
+                    "related_name": "checkout-pod",
+                    "related_labels": ["Pod"],
+                }
+            ]
+        return []
+
+    monkeypatch.setattr(neo4j_client, "execute_query", fake_execute_query)
+
+    response = client.post(
+        "/api/v1/graphrag/retrieve",
+        json={"query": "crash", "namespace": "cloudgraph-system"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "success"
+    assert body["summary"]
+    assert body["results"]
+
+
+def test_semantic_vector_store_returns_semantically_similar_documents(tmp_path):
+    store = SemanticVectorStore(storage_path=str(tmp_path / "semantic.json"))
+    store.index_document(
+        "pod-1",
+        "checkout pod crashed with crashloopbackoff and restart loop",
+        {"label": "Pod", "name": "checkout-pod"},
+    )
+    store.index_document(
+        "pod-2",
+        "payment service responded normally and healthy",
+        {"label": "Service", "name": "payment-service"},
+    )
+
+    results = store.search("crashloopbackoff pod failure", limit=1)
+    assert results
+    assert results[0]["id"] == "pod-1"

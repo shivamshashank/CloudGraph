@@ -122,6 +122,26 @@
                     </div>
                 </section>
             </div>
+
+            <section class="card retrieval-card">
+                <div class="card-header">
+                    <h2>Relevant Evidence</h2>
+                    <span class="card-subtitle">Graph-backed context retrieval for investigation walkthroughs</span>
+                </div>
+                <div class="retrieval-panel">
+                    <div class="retrieval-controls">
+                        <input id="retrieval-query" type="text" placeholder="Search graph context (e.g. crash, checkout, timeout)" />
+                        <button id="btn-retrieve" class="btn btn-secondary">Retrieve Evidence</button>
+                    </div>
+                    <div id="retrieval-output" class="retrieval-output">
+                        <div class="empty-state">
+                            <span class="empty-icon">🧭</span>
+                            <p>Enter a query to retrieve graph evidence relevant to the incident.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            </div>
         </main>
     </div>
 

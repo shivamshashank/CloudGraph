@@ -525,6 +525,102 @@ body {
     margin-top: 2px;
 }
 
+/* Retrieval Panel Styling */
+.retrieval-card {
+    min-height: 220px;
+}
+
+.retrieval-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px 20px 20px;
+    flex: 1;
+    overflow: hidden;
+}
+
+.retrieval-controls {
+    display: flex;
+    gap: 10px;
+}
+
+.retrieval-controls input {
+    flex: 1;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background-color: rgba(255,255,255,0.04);
+    color: var(--text-main);
+    padding: 10px 12px;
+}
+
+.retrieval-output {
+    flex: 1;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background-color: rgba(5,7,15,0.65);
+    padding: 12px;
+}
+
+.retrieval-summary {
+    color: #c7d2fe;
+    font-size: 12px;
+    margin-bottom: 10px;
+}
+
+.retrieval-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.retrieval-item {
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 8px;
+    padding: 10px;
+    background-color: rgba(255,255,255,0.03);
+}
+
+.retrieval-item-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.retrieval-label {
+    color: var(--color-primary);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.retrieval-name {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.retrieval-status {
+    color: var(--text-muted);
+    font-size: 11px;
+    margin-bottom: 8px;
+}
+
+.retrieval-related {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.retrieval-chip {
+    background-color: rgba(99,102,241,0.14);
+    border: 1px solid rgba(99,102,241,0.2);
+    border-radius: 999px;
+    color: #c7d2fe;
+    font-size: 10px;
+    padding: 4px 8px;
+}
+
 /* RCA Report Styling */
 .rca-report {
     display: flex;

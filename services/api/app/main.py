@@ -14,6 +14,7 @@ from app.adapters.graph_constructor import (
     build_service_dependency_map,
     record_state_history,
 )
+from app.services.semantic_store import SemanticVectorStore
 
 
 @asynccontextmanager
@@ -26,6 +27,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="CloudGraph Ingestion Engine", version="1.0.0", lifespan=lifespan)
+semantic_store = SemanticVectorStore()
 
 # Configure CORS Middleware for UI interaction
 app.add_middleware(
@@ -198,6 +200,13 @@ def trigger_k8s_discovery(namespace: str = "cloudgraph-system"):
         from app.adapters.k8s_discovery import discover_cluster_topology
 
         result = discover_cluster_topology(namespace=namespace)
+        if result.get("status") == "success":
+            discovered = result.get("discovered", {})
+            semantic_store.index_document(
+                "cluster-discovery",
+                f"cluster discovery namespace {namespace} nodes {discovered.get('nodes')} pods {discovered.get('pods')} services {discovered.get('services')}",
+                {"label": "Cluster", "name": namespace, "status": "Discovered"},
+            )
         return result
     except Exception as e:
         import traceback
@@ -270,6 +279,16 @@ def get_graph_data():
 
 
 class InvestigationTrigger(BaseModel):
+    namespace: str = "cloudgraph-system"
+
+
+class GraphSearchPayload(BaseModel):
+    query: str
+    namespace: str = "cloudgraph-system"
+
+
+class GraphRetrievePayload(BaseModel):
+    query: str
     namespace: str = "cloudgraph-system"
 
 
@@ -378,6 +397,17 @@ def trigger_investigation(payload: InvestigationTrigger):
                     },
                 )
 
+                semantic_store.index_document(
+                    incident_id,
+                    f"incident {title} {cause} {recommendation}",
+                    {"label": "Incident", "name": title, "status": "Open"},
+                )
+                semantic_store.index_document(
+                    pod_id,
+                    f"pod {pod_name} status {pod_status} error logs {' '.join(error_msgs)}",
+                    {"label": "Pod", "name": pod_name, "status": pod_status},
+                )
+
                 investigations.append(
                     {
                         "id": incident_id,
@@ -406,6 +436,172 @@ def trigger_investigation(payload: InvestigationTrigger):
             )
 
         return {"status": "success", "results": investigations}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/v1/graphrag/search")
+def graphrag_search(payload: GraphSearchPayload):
+    try:
+        query = payload.query.strip()
+        if not query:
+            raise HTTPException(status_code=400, detail="Query cannot be empty")
+
+        search_query = """
+        MATCH (n)
+        WHERE any(label in labels(n) WHERE label IN ['Pod','Service','Deployment','Incident','Node','Commit'])
+          AND (
+            toLower(coalesce(n.name, '')) CONTAINS toLower($query)
+            OR toLower(coalesce(n.title, '')) CONTAINS toLower($query)
+            OR toLower(coalesce(n.status, '')) CONTAINS toLower($query)
+            OR toLower(coalesce(n.message, '')) CONTAINS toLower($query)
+          )
+        WITH n
+        RETURN labels(n) as labels, n.name as name, n.status as status, n.title as title, elementId(n) as id
+        ORDER BY CASE WHEN n.status IN ['CrashLoopBackOff', 'ERROR', 'Critical'] THEN 1 ELSE 2 END, n.name
+        LIMIT 5
+        """
+        raw_results = neo4j_client.execute_query(search_query, {"query": query})
+
+        semantic_hits = semantic_store.search(query, limit=5)
+        semantic_context = []
+        for hit in semantic_hits:
+            semantic_context.append(
+                {
+                    "type": "semantic",
+                    "label": hit["metadata"].get("label", "Node"),
+                    "name": hit["metadata"].get("name", hit["id"]),
+                    "score": round(hit["score"], 3),
+                    "text": hit["text"],
+                }
+            )
+
+        results = []
+        for record in raw_results:
+            node_labels = record.get("labels") or []
+            evidence_chain = [
+                {
+                    "type": "entity",
+                    "label": node_labels[0] if node_labels else "Node",
+                    "name": record.get("name") or record.get("title") or "unknown",
+                }
+            ]
+
+            related_query = """
+            MATCH (n)-[r]-(m)
+            WHERE elementId(n) = $node_id
+            RETURN type(r) as rel, coalesce(m.name, m.title, m.status, m.id) as related_name, labels(m) as related_labels
+            LIMIT 3
+            """
+            related = neo4j_client.execute_query(
+                related_query, {"node_id": record.get("id")}
+            )
+            for edge in related:
+                evidence_chain.append(
+                    {
+                        "type": "relation",
+                        "label": edge.get("rel") or "RELATED_TO",
+                        "name": edge.get("related_name") or "unknown",
+                    }
+                )
+
+            results.append(
+                {
+                    "id": record.get("id"),
+                    "label": node_labels[0] if node_labels else "Node",
+                    "name": record.get("name") or record.get("title") or "unknown",
+                    "status": record.get("status") or "Active",
+                    "evidence_chain": evidence_chain,
+                }
+            )
+
+        if semantic_context:
+            results = [
+                {
+                    "id": hit["id"],
+                    "label": hit["metadata"].get("label", "Node"),
+                    "name": hit["metadata"].get("name", hit["id"]),
+                    "status": hit["metadata"].get("status", "Active"),
+                    "evidence_chain": [
+                        {"type": "semantic", "label": "Embedding", "name": hit["text"]}
+                    ],
+                    "score": round(hit["score"], 3),
+                }
+                for hit in semantic_hits
+            ] + results
+
+        return {"status": "success", "query": query, "results": results}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/v1/graphrag/retrieve")
+def graphrag_retrieve(payload: GraphRetrievePayload):
+    try:
+        query = payload.query.strip()
+        if not query:
+            raise HTTPException(status_code=400, detail="Query cannot be empty")
+
+        retrieve_query = """
+        MATCH (n)
+        WHERE any(label in labels(n) WHERE label IN ['Pod','Service','Deployment','Incident','Node','Commit'])
+          AND (
+            toLower(coalesce(n.title, '')) CONTAINS toLower($query)
+            OR toLower(coalesce(n.name, '')) CONTAINS toLower($query)
+            OR toLower(coalesce(n.status, '')) CONTAINS toLower($query)
+          )
+        WITH n
+        RETURN labels(n) as labels, n.name as name, n.status as status, n.title as title, elementId(n) as id
+        LIMIT 5
+        """
+        raw_results = neo4j_client.execute_query(retrieve_query, {"query": query})
+
+        semantic_hits = semantic_store.search(query, limit=5)
+        results = []
+        for record in raw_results:
+            node_labels = record.get("labels") or []
+            related_query = """
+            MATCH (n)-[r]-(m)
+            WHERE elementId(n) = $node_id
+            RETURN type(r) as rel, coalesce(m.name, m.title, m.status, m.id) as related_name, labels(m) as related_labels
+            LIMIT 3
+            """
+            related = neo4j_client.execute_query(
+                related_query, {"node_id": record.get("id")}
+            )
+            results.append(
+                {
+                    "id": record.get("id"),
+                    "label": node_labels[0] if node_labels else "Node",
+                    "name": record.get("name") or record.get("title") or "unknown",
+                    "status": record.get("status") or "Active",
+                    "related": related,
+                }
+            )
+
+        if semantic_hits:
+            results = [
+                {
+                    "id": hit["id"],
+                    "label": hit["metadata"].get("label", "Node"),
+                    "name": hit["metadata"].get("name", hit["id"]),
+                    "status": hit["metadata"].get("status", "Active"),
+                    "related": [],
+                    "semantic_score": round(hit["score"], 3),
+                }
+                for hit in semantic_hits
+            ] + results
+
+        summary = (
+            f"Retrieved {len(results)} semantically ranked context entries for '{query}'."
+            if results
+            else f"No graph context found for '{query}'."
+        )
+        return {"status": "success", "summary": summary, "results": results}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
