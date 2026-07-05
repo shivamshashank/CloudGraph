@@ -106,6 +106,18 @@
                             <p>No investigations run yet. Trigger "Run AI Diagnosis" to begin analyzing anomalies.</p>
                         </div>
                     </div>
+                    <div class="retrieval-panel">
+                        <div class="retrieval-header">
+                            <h3>GraphRAG Search</h3>
+                            <span class="card-subtitle">Quickly search the current graph context</span>
+                        </div>
+                        <div class="retrieval-controls">
+                            <input id="graphrag-query" type="text" placeholder="Try: checkout, crash, timeout" />
+                            <button id="btn-search" class="btn btn-secondary">Search</button>
+                        </div>
+                        <div class="retrieval-subtext">Ranked graph matches with nearby context</div>
+                        <div id="graphrag-results" class="retrieval-results"></div>
+                    </div>
                 </section>
 
                 <!-- Live Logs / Event Stream -->

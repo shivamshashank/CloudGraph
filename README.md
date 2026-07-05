@@ -221,11 +221,13 @@ GraphRAG evaluation.
 
 ## Cloud Layer
 
-- AWS EKS
-- EC2
-- IAM
-- S3
-- CloudWatch
+> **Note:** CloudGraph is Kubernetes-native and runs on any Kubernetes distribution. **Current deployment uses Helm + kubeadm/Rancher** (not cloud-specific). Below is the full list of cloud-native services CloudGraph *can* integrate with, not all of which are actively deployed in the current implementation.
+
+- AWS EKS *(optional; Helm charts support any Kubernetes)*
+- EC2 *(not required; local nodes or any K8s worker)*
+- IAM *(integrable via Argo CD external secrets or external-secrets operator)*
+- S3 *(optional artifact storage)*
+- CloudWatch *(optional; currently using open-source Prometheus/Loki/OTel)*
 
 ## Kubernetes Layer
 

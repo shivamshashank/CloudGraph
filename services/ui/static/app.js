@@ -9,6 +9,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnRetrieve = document.getElementById('btn-retrieve');
     const graphLoader = document.getElementById('graph-loader');
 
+    // GraphRAG Search Elements
+    const graphragQuery = document.getElementById('graphrag-query');
+    const graphragResults = document.getElementById('graphrag-results');
+    const btnSearch = document.getElementById('btn-search');
+
+    // Relevant Evidence (Retrieval) Elements
+    const retrievalOutput = document.getElementById('retrieval-output');
+    const retrievalQuery = document.getElementById('retrieval-query');
+
     // Stats Elements
     const statNodes = document.getElementById('stat-nodes');
     const statPods = document.getElementById('stat-pods');
@@ -24,8 +33,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Panels
     const rcaOutput = document.getElementById('rca-output');
     const logsFeed = document.getElementById('logs-feed');
-    const retrievalOutput = document.getElementById('retrieval-output');
-    const retrievalQuery = document.getElementById('retrieval-query');
     const nodePopup = document.getElementById('node-popup');
     const popupTitle = document.getElementById('popup-title');
     const popupContent = document.getElementById('popup-content');
@@ -57,6 +64,20 @@ document.addEventListener('DOMContentLoaded', () => {
     btnAnalyze.addEventListener('click', runInvestigation);
     btnReset.addEventListener('click', resetGraph);
     btnRetrieve.addEventListener('click', runRetrieval);
+    btnSearch.addEventListener('click', runGraphSearch);
+
+    if (graphragQuery) {
+        graphragQuery.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') runGraphSearch();
+        });
+    }
+
+    if (retrievalQuery) {
+        retrievalQuery.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') runRetrieval();
+        });
+    }
+
     btnClosePopup.addEventListener('click', () => nodePopup.classList.add('hidden'));
 
     // SVG drag-and-pan support
@@ -194,6 +215,43 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // GraphRAG Search (Diagnostic Panel)
+    async function runGraphSearch() {
+        const query = graphragQuery.value.trim();
+        if (!query) {
+            graphragResults.innerHTML = '<div class="retrieval-result"><div class="retrieval-result-title">Enter a search term</div><div class="retrieval-result-detail">Try a pod, service, deployment, or incident keyword.</div></div>';
+            return;
+        }
+
+        graphragResults.innerHTML = '<div class="retrieval-result"><div class="retrieval-result-title">Searching graph context…</div></div>';
+        try {
+            const res = await fetch(`${API_BASE}/api/v1/graphrag/search`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query, namespace: 'cloudgraph-system' })
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                if (data.results.length === 0) {
+                    graphragResults.innerHTML = '<div class="retrieval-result"><div class="retrieval-result-title">No matches</div><div class="retrieval-result-detail">Try a broader term such as checkout, timeout, or crash.</div></div>';
+                } else {
+                    graphragResults.innerHTML = data.results.map(result => `
+                        <div class="retrieval-result">
+                            <div class="retrieval-result-title">${result.name}</div>
+                            <div class="retrieval-result-detail">${result.detail}</div>
+                            <div class="retrieval-context">
+                                ${result.context ? result.context.map(item => `<span class="retrieval-context-item">${item.relationship} → ${item.name}</span>`).join('') : ''}
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            }
+        } catch (err) {
+            graphragResults.innerHTML = `<div class="retrieval-result"><div class="retrieval-result-title">Search failed</div><div class="retrieval-result-detail">${err.message}</div></div>`;
+        }
+    }
+
+    // Relevant Evidence (Bottom Panel)
     async function runRetrieval() {
         const query = retrievalQuery.value.trim();
         if (!query) {
@@ -561,6 +619,16 @@ document.addEventListener('DOMContentLoaded', () => {
                    </div>`
                 : '';
 
+            const evidenceItems = Array.isArray(res.relevant_evidence) && res.relevant_evidence.length > 0
+                ? res.relevant_evidence.map(item => `
+                    <div class="evidence-item">
+                        <div class="evidence-item-title">${item.label}</div>
+                        <div class="evidence-item-detail">${item.detail}</div>
+                        ${item.messages ? `<div class="evidence-item-messages">${item.messages.map(msg => `<span class="evidence-msg">${msg}</span>`).join('')}</div>` : ''}
+                    </div>
+                `).join('')
+                : '<div class="evidence-item"><div class="evidence-item-title">No graph evidence returned yet</div><div class="evidence-item-detail">The current topology does not have additional evidence for this incident.</div></div>';
+
             rcaHtml += `
                 <div class="rca-header">
                     <span class="rca-badge ${severityClass}">${res.severity}</span>
@@ -573,6 +641,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
 
                 ${logsHtml}
+
+                <div class="rca-block">
+                    <div class="rca-block-title" style="color: #a5b4fc;">Relevant Evidence</div>
+                    <div class="evidence-list">
+                        ${evidenceItems}
+                    </div>
+                </div>
 
                 <div class="rca-block rca-remediation">
                     <div class="rca-block-title" style="color: #a5b4fc;">Remediation Recommendation</div>

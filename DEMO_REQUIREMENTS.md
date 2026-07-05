@@ -72,9 +72,11 @@ Use one or more of the following:
 
 ---
 
-## AWS demo requirements
+## AWS demo requirements *(Historical — Optional Path)*
 
-### Core AWS infrastructure
+> **Note:** This path is historical and optional. The current implementation uses **Helm + kubeadm/Rancher** for all deployments. See `INSTALLATION.md` and `QUICKSTART.md` for the current, tested deployment path. AWS EKS *can* run Helm charts, but the AWS-specific provisioning path below is **not actively tested or maintained**.
+
+### Core AWS infrastructure (Optional)
 
 - AWS EKS cluster
 - EC2 worker nodes (or managed node groups)

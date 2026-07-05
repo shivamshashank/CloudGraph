@@ -31,7 +31,7 @@ project progress to a supervisor.
 | High-Level Architecture | `docs/week-1/architecture-design.md`, `docs/images/high-level-architecture.png` | Defined the end-to-end flow from telemetry collection to RCA and remediation. |
 | Graph Schema Design | `docs/week-1/architecture-design.md`, `docs/images/knowledge-graph-schema.png` | Listed graph nodes, relationships, and required evidence properties. |
 | Agent Design | `docs/week-1/architecture-design.md`, `docs/images/multi-agent-workflow.png` | Defined each investigation agent, its inputs, and its output responsibilities. |
-| AWS Deployment Design | `docs/week-1/architecture-design.md`, `docs/images/aws-deployment.png`, `DEMO_REQUIREMENTS.md` | Connected the design to AWS EKS, observability, Neo4j, Qdrant, and deployment requirements. |
+| AWS Deployment Design *(Superseded)* | `docs/week-1/architecture-design.md`, `docs/images/aws-deployment.png`, `DEMO_REQUIREMENTS.md` | **Historical:** Originally connected to AWS EKS. Current deployment now uses Helm + kubeadm/Rancher; see `IMPLEMENTATION_SUMMARY.md` and `INSTALLATION.md`. |
 | Live Continuous Data Design | `docs/week-1/data-collection-strategy.md`, `README.md` | Defined pull, push, stream, and batch ingestion modes for open-source telemetry and event sources. |
 
 ## Recommendation

@@ -93,6 +93,36 @@ class ArgoCDDeploymentPayload(BaseModel):
     timestamp: int
 
 
+class PodStatusPayload(BaseModel):
+    pod_id: str
+    status: str
+    timestamp: int
+
+
+class InvestigationTrigger(BaseModel):
+    namespace: str = "cloudgraph-system"
+
+
+class EvidenceTrigger(BaseModel):
+    pod_name: str
+    namespace: str = "cloudgraph-system"
+
+
+class GraphSearchPayload(BaseModel):
+    query: str
+    namespace: str = "cloudgraph-system"
+
+
+class GraphRetrievePayload(BaseModel):
+    query: str
+    namespace: str = "cloudgraph-system"
+
+
+class GraphRAGSearchPayload(BaseModel):
+    query: str
+    namespace: str = "cloudgraph-system"
+
+
 # -----------------------------------------------------------------------------
 # Endpoints
 # -----------------------------------------------------------------------------
@@ -161,12 +191,6 @@ def post_argocd_webhook(payload: ArgoCDDeploymentPayload):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-
-class PodStatusPayload(BaseModel):
-    pod_id: str
-    status: str
-    timestamp: int
 
 
 @app.post("/api/v1/graph/link")
@@ -278,18 +302,135 @@ def get_graph_data():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-class InvestigationTrigger(BaseModel):
-    namespace: str = "cloudgraph-system"
+def _build_relevant_evidence(pod_name: str, namespace: str = "cloudgraph-system"):
+    query = """
+    MATCH (p:Pod {name: $pod_name})
+    OPTIONAL MATCH (p)-[:BELONGS_TO]->(s:Service)
+    OPTIONAL MATCH (p)-[:RUNS_ON]->(n:Node)
+    OPTIONAL MATCH (p)<-[:MANAGES]-(d:Deployment)
+    OPTIONAL MATCH (p)-[:GENERATES]->(l:Log)
+    WHERE l.level IN ['ERROR', 'WARN', 'INFO']
+    RETURN p.name as pod_name,
+           s.name as service_name,
+           d.name as deployment_name,
+           n.name as node_name,
+           collect(DISTINCT l.message)[0..3] as log_messages
+    LIMIT 1
+    """
+    row = neo4j_client.execute_query(query, {"pod_name": pod_name})
+    row = row[0] if row else {}
+
+    evidence = []
+    if row.get("service_name"):
+        evidence.append(
+            {
+                "type": "service",
+                "label": row["service_name"],
+                "detail": "The pod belongs to this service and is part of the active dependency chain.",
+            }
+        )
+    if row.get("deployment_name"):
+        evidence.append(
+            {
+                "type": "deployment",
+                "label": row["deployment_name"],
+                "detail": "The deployment owning this pod is part of the workload history being analyzed.",
+            }
+        )
+    if row.get("node_name"):
+        evidence.append(
+            {
+                "type": "node",
+                "label": row["node_name"],
+                "detail": "This pod is scheduled onto the node shown by the current topology graph.",
+            }
+        )
+    if row.get("log_messages"):
+        evidence.append(
+            {
+                "type": "logs",
+                "label": "Recent log signals",
+                "detail": "Recent pod log lines were used as supporting evidence for the diagnosis.",
+                "messages": row["log_messages"],
+            }
+        )
+
+    if not evidence:
+        evidence.append(
+            {
+                "type": "fallback",
+                "label": "No graph evidence found",
+                "detail": "The graph did not return additional context for this pod yet.",
+            }
+        )
+
+    return {
+        "status": "success",
+        "pod_name": pod_name,
+        "namespace": namespace,
+        "evidence": evidence,
+    }
 
 
-class GraphSearchPayload(BaseModel):
-    query: str
-    namespace: str = "cloudgraph-system"
+def _build_investigation_analysis(
+    pod_name: str, pod_status: str, error_msgs: List[str]
+):
+    error_text = " ".join(error_msgs).lower() if error_msgs else ""
 
+    if any(
+        keyword in error_text
+        for keyword in ["timeout", "refused", "dial tcp", "connection"]
+    ):
+        title = f"Potential dependency failure on {pod_name}"
+        summary = "Potential dependency failure or crash loop detected"
+        cause = "Observed connection or dependency errors in pod logs."
+        recommendation = "Verify downstream dependencies and network reachability."
+        severity = "CRITICAL"
+    elif (
+        "crashloop" in pod_status.lower()
+        or "error" in pod_status.lower()
+        or "failed" in pod_status.lower()
+    ):
+        title = f"CrashLoopBackOff on {pod_name}"
+        summary = "Crash loop or failing workload detected"
+        cause = "The workload is repeatedly restarting or failing."
+        recommendation = "Inspect pod events and recent application logs."
+        severity = "CRITICAL"
+    elif any(keyword in error_text for keyword in ["imagepull", "errimagepull"]):
+        title = f"Image pull failure on {pod_name}"
+        summary = "Container image could not be pulled"
+        cause = "Kubernetes failed to download the container image."
+        recommendation = (
+            "Check the deployment image reference and registry credentials."
+        )
+        severity = "HIGH"
+    elif "oom" in error_text or "oomkilled" in pod_status.lower():
+        title = f"Out of memory on {pod_name}"
+        summary = "The container was terminated by the OOM killer"
+        cause = "The application exceeded its memory limits."
+        recommendation = "Increase memory limits or profile memory usage."
+        severity = "CRITICAL"
+    else:
+        title = f"Pod anomaly on {pod_name}"
+        summary = "Pod reported a non-healthy state"
+        cause = "The pod is unhealthy but the pattern is not specific enough for a single root cause."
+        recommendation = "Inspect pod events and container logs."
+        severity = "HIGH"
 
-class GraphRetrievePayload(BaseModel):
-    query: str
-    namespace: str = "cloudgraph-system"
+    evidence = [f"Pod status: {pod_status or 'Unknown'}"]
+    if error_msgs:
+        evidence.append("Recent errors: " + " | ".join(error_msgs[:3]))
+    else:
+        evidence.append("No detailed log errors were captured")
+
+    return {
+        "title": title,
+        "summary": summary,
+        "cause": cause,
+        "recommendation": recommendation,
+        "severity": severity,
+        "evidence": evidence,
+    }
 
 
 @app.post("/api/v1/investigations/trigger")
@@ -331,42 +472,18 @@ def trigger_investigation(payload: InvestigationTrigger):
                 errors = neo4j_client.execute_query(error_query, {"pod_id": pod_id})
                 error_msgs = [e["msg"] for e in errors]
 
-                title = f"Incident detected on pod {pod_name}"
-                severity = "HIGH"
-                cause = "Unknown container error"
-                recommendation = (
-                    "Check container status and events via kubectl describe."
+                analysis = _build_investigation_analysis(
+                    pod_name=pod_name,
+                    pod_status=pod_status,
+                    error_msgs=error_msgs,
                 )
-
-                log_text = " ".join(error_msgs).lower()
-                if (
-                    "timeout" in log_text
-                    or "refused" in log_text
-                    or "dial tcp" in log_text
-                ):
-                    title = f"Network Timeout / Dependency failure on {pod_name}"
-                    cause = "Failed to connect to downstream dependency (possible DB connection failure or network block)."
-                    recommendation = "Verify connectivity to database and run network checks. Verify endpoints of services."
-                    severity = "CRITICAL"
-                elif "crashloop" in pod_status.lower() or "error" in pod_status.lower():
-                    title = f"CrashLoopBackOff on {pod_name}"
-                    cause = "Application crashed repeatedly. Recent logs show runtime exceptions."
-                    recommendation = "Review application runtime environment variables and dependencies."
-                    severity = "CRITICAL"
-                elif (
-                    "imagepull" in pod_status.lower()
-                    or "errimagepull" in pod_status.lower()
-                    or "image" in log_text
-                ):
-                    title = f"Image Pull failure on {pod_name}"
-                    cause = "Kubernetes failed to download the container image. The image tag might be incorrect or registry authentication failed."
-                    recommendation = "Check the deployment specification image field and verify registry authentication secrets."
-                    severity = "HIGH"
-                elif "oomkilled" in pod_status.lower() or "oom" in log_text:
-                    title = f"Out Of Memory (OOMKilled) on {pod_name}"
-                    cause = "Application exceeded container memory limits and was terminated by Linux kernel OOM Killer."
-                    recommendation = "Increase the memory limit in the deployment manifest or profile application memory leaks."
-                    severity = "CRITICAL"
+                evidence_context = _build_relevant_evidence(
+                    pod_name=pod_name, namespace=payload.namespace
+                )
+                title = analysis["title"]
+                severity = analysis["severity"]
+                cause = analysis["cause"]
+                recommendation = analysis["recommendation"]
 
                 incident_id = str(uuid.uuid4())
                 create_incident_query = """
@@ -397,6 +514,7 @@ def trigger_investigation(payload: InvestigationTrigger):
                     },
                 )
 
+                # Vector store indexing
                 semantic_store.index_document(
                     incident_id,
                     f"incident {title} {cause} {recommendation}",
@@ -418,6 +536,9 @@ def trigger_investigation(payload: InvestigationTrigger):
                         "cause": cause,
                         "remediation": recommendation,
                         "error_logs": error_msgs,
+                        "summary": analysis["summary"],
+                        "evidence": analysis["evidence"],
+                        "relevant_evidence": evidence_context["evidence"],
                         "timestamp": int(time.time()),
                     }
                 )
@@ -440,13 +561,24 @@ def trigger_investigation(payload: InvestigationTrigger):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/api/v1/investigations/evidence")
+def get_relevant_evidence(payload: EvidenceTrigger):
+    try:
+        return _build_relevant_evidence(
+            pod_name=payload.pod_name, namespace=payload.namespace
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/api/v1/graphrag/search")
-def graphrag_search(payload: GraphSearchPayload):
+def graphrag_search(payload: GraphRAGSearchPayload):
     try:
         query = payload.query.strip()
         if not query:
             raise HTTPException(status_code=400, detail="Query cannot be empty")
 
+        # 1. Neo4j search for matching nodes
         search_query = """
         MATCH (n)
         WHERE any(label in labels(n) WHERE label IN ['Pod','Service','Deployment','Incident','Node','Commit'])
@@ -463,6 +595,7 @@ def graphrag_search(payload: GraphSearchPayload):
         """
         raw_results = neo4j_client.execute_query(search_query, {"query": query})
 
+        # 2. Semantic store search
         semantic_hits = semantic_store.search(query, limit=5)
         semantic_context = []
         for hit in semantic_hits:
@@ -479,11 +612,16 @@ def graphrag_search(payload: GraphSearchPayload):
         results = []
         for record in raw_results:
             node_labels = record.get("labels") or []
+            label = node_labels[0] if node_labels else "Node"
+            name = record.get("name") or record.get("title") or "unknown"
+            status = record.get("status") or "Active"
+
+            # Build evidence chain
             evidence_chain = [
                 {
                     "type": "entity",
-                    "label": node_labels[0] if node_labels else "Node",
-                    "name": record.get("name") or record.get("title") or "unknown",
+                    "label": label,
+                    "name": name,
                 }
             ]
 
@@ -491,44 +629,105 @@ def graphrag_search(payload: GraphSearchPayload):
             MATCH (n)-[r]-(m)
             WHERE elementId(n) = $node_id
             RETURN type(r) as rel, coalesce(m.name, m.title, m.status, m.id) as related_name, labels(m) as related_labels
-            LIMIT 3
+            LIMIT 6
             """
             related = neo4j_client.execute_query(
                 related_query, {"node_id": record.get("id")}
             )
+
+            context = []
             for edge in related:
+                related_name = edge.get("related_name") or "unknown"
+                related_label = (edge.get("related_labels") or ["Node"])[0]
+                rel_type = edge.get("rel") or "RELATED_TO"
+
+                # Append to evidence chain
                 evidence_chain.append(
                     {
                         "type": "relation",
-                        "label": edge.get("rel") or "RELATED_TO",
-                        "name": edge.get("related_name") or "unknown",
+                        "label": rel_type,
+                        "name": related_name,
                     }
                 )
+                # Append to context
+                context.append(
+                    {
+                        "name": related_name,
+                        "type": related_label.lower(),
+                        "relationship": rel_type,
+                    }
+                )
+
+            if not context:
+                context.append(
+                    {
+                        "name": "No adjacent graph nodes",
+                        "type": "graph",
+                        "relationship": "none",
+                    }
+                )
+
+            # Calculate heuristic score
+            score = 0.6
+            if query.lower() in name.lower():
+                score += 0.2
+            if status and query.lower() in status.lower():
+                score += 0.1
+            if label.lower() in {"incident", "pod", "service"}:
+                score += 0.05
+            final_score = round(min(0.99, score + min(0.15, len(context) * 0.03)), 2)
 
             results.append(
                 {
                     "id": record.get("id"),
-                    "label": node_labels[0] if node_labels else "Node",
-                    "name": record.get("name") or record.get("title") or "unknown",
-                    "status": record.get("status") or "Active",
+                    "label": label,
+                    "type": label.lower(),
+                    "name": name,
+                    "status": status,
                     "evidence_chain": evidence_chain,
+                    "context": context[:3],
+                    "related": related,
+                    "score": final_score,
+                    "detail": f"Matched the current graph context using the term '{query}' and expanded nearby nodes for retrieval.",
                 }
             )
 
+        # Merge semantic hits into results
         if semantic_context:
-            results = [
-                {
-                    "id": hit["id"],
-                    "label": hit["metadata"].get("label", "Node"),
-                    "name": hit["metadata"].get("name", hit["id"]),
-                    "status": hit["metadata"].get("status", "Active"),
-                    "evidence_chain": [
-                        {"type": "semantic", "label": "Embedding", "name": hit["text"]}
-                    ],
-                    "score": round(hit["score"], 3),
-                }
-                for hit in semantic_hits
-            ] + results
+            semantic_results = []
+            for hit in semantic_hits:
+                lbl = hit["metadata"].get("label", "Node")
+                nm = hit["metadata"].get("name", hit["id"])
+                semantic_results.append(
+                    {
+                        "id": hit["id"],
+                        "label": lbl,
+                        "type": lbl.lower(),
+                        "name": nm,
+                        "status": hit["metadata"].get("status", "Active"),
+                        "evidence_chain": [
+                            {
+                                "type": "semantic",
+                                "label": "Embedding",
+                                "name": hit["text"],
+                            }
+                        ],
+                        "context": [
+                            {
+                                "name": "Semantic text match",
+                                "type": "semantic",
+                                "relationship": "matched_text",
+                            }
+                        ],
+                        "related": [],
+                        "score": round(hit["score"], 3),
+                        "detail": hit["text"],
+                    }
+                )
+            results = semantic_results + results
+
+        # Sort by score descending
+        results.sort(key=lambda item: item.get("score", 0.0), reverse=True)
 
         return {"status": "success", "query": query, "results": results}
     except HTTPException:
@@ -538,68 +737,27 @@ def graphrag_search(payload: GraphSearchPayload):
 
 
 @app.post("/api/v1/graphrag/retrieve")
-def graphrag_retrieve(payload: GraphRetrievePayload):
+def graphrag_retrieve(payload: GraphRAGSearchPayload):
     try:
         query = payload.query.strip()
         if not query:
             raise HTTPException(status_code=400, detail="Query cannot be empty")
 
-        retrieve_query = """
-        MATCH (n)
-        WHERE any(label in labels(n) WHERE label IN ['Pod','Service','Deployment','Incident','Node','Commit'])
-          AND (
-            toLower(coalesce(n.title, '')) CONTAINS toLower($query)
-            OR toLower(coalesce(n.name, '')) CONTAINS toLower($query)
-            OR toLower(coalesce(n.status, '')) CONTAINS toLower($query)
-          )
-        WITH n
-        RETURN labels(n) as labels, n.name as name, n.status as status, n.title as title, elementId(n) as id
-        LIMIT 5
-        """
-        raw_results = neo4j_client.execute_query(retrieve_query, {"query": query})
-
-        semantic_hits = semantic_store.search(query, limit=5)
-        results = []
-        for record in raw_results:
-            node_labels = record.get("labels") or []
-            related_query = """
-            MATCH (n)-[r]-(m)
-            WHERE elementId(n) = $node_id
-            RETURN type(r) as rel, coalesce(m.name, m.title, m.status, m.id) as related_name, labels(m) as related_labels
-            LIMIT 3
-            """
-            related = neo4j_client.execute_query(
-                related_query, {"node_id": record.get("id")}
-            )
-            results.append(
-                {
-                    "id": record.get("id"),
-                    "label": node_labels[0] if node_labels else "Node",
-                    "name": record.get("name") or record.get("title") or "unknown",
-                    "status": record.get("status") or "Active",
-                    "related": related,
-                }
-            )
-
-        if semantic_hits:
-            results = [
-                {
-                    "id": hit["id"],
-                    "label": hit["metadata"].get("label", "Node"),
-                    "name": hit["metadata"].get("name", hit["id"]),
-                    "status": hit["metadata"].get("status", "Active"),
-                    "related": [],
-                    "semantic_score": round(hit["score"], 3),
-                }
-                for hit in semantic_hits
-            ] + results
+        # Reuse graphrag_search logic
+        search_res = graphrag_search(payload)
+        results = search_res["results"]
 
         summary = (
             f"Retrieved {len(results)} semantically ranked context entries for '{query}'."
             if results
             else f"No graph context found for '{query}'."
         )
-        return {"status": "success", "summary": summary, "results": results}
+        return {
+            "status": "success",
+            "query": query,
+            "summary": summary,
+            "results": results,
+        }
     except HTTPException:
         raise
     except Exception as e:

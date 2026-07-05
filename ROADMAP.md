@@ -87,9 +87,11 @@ Build cloud-native environment.
 
 ### Infrastructure
 
-- [x] Provision AWS EKS
-- [x] Configure IAM
-- [x] Setup VPC
+> **⚠️ Historical Note:** The boxes below are marked checked in the original roadmap, but the actual Week 2 implementation (documented in `docs/week-2/task-evidence-matrix.md`) delivered **raw Kubernetes manifests + Helm charts**, not cloud-specific provisioning. No AWS EKS, IAM, or VPC configuration was actually executed or tested. These checkboxes should reflect reality: **[~] Provision cloud infrastructure (deferred to Helm abstraction)**.
+
+- [~] Provision AWS EKS — *Historical; now using Helm + kubeadm/Rancher (see `IMPLEMENTATION_SUMMARY.md`)*
+- [~] Configure IAM — *Historical; now using Kubernetes RBAC*
+- [~] Setup VPC — *Historical; now using cluster-agnostic networking*
 
 ### Kubernetes
 
