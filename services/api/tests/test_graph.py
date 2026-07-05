@@ -4,6 +4,9 @@ from unittest.mock import MagicMock
 from fastapi.testclient import TestClient
 from app.main import app
 from app.database.neo4j_client import neo4j_client
+from app.services.semantic_store import SemanticVectorStore
+from app.adapters.tempo import ingest_tempo_trace
+import app.adapters.k8s_discovery as k8s_discovery
 
 client = TestClient(app)
 
@@ -104,6 +107,194 @@ def test_graph_integrity():
     """)
     # For a clean deployment, orphan count should start at 0 after linking
     assert result[0]["orphan_count"] >= 0
+
+
+def test_investigation_trigger_returns_structured_analysis(monkeypatch):
+    def fake_execute_query(query, params=None):
+        if "MATCH (p:Pod)" in query and "WHERE NOT p.status" in query:
+            return [
+                {
+                    "id": "pod-1",
+                    "name": "checkout",
+                    "status": "CrashLoopBackOff",
+                    "nodeName": "node-1",
+                }
+            ]
+        if (
+            "MATCH (p:Pod)-[:GENERATES]->(l:Log)" in query
+            and "l.level = 'ERROR'" in query
+        ):
+            return [{"msg": "database connection timeout", "ts": 123}]
+        if "CREATE (i:Incident" in query:
+            return [{"id": "incident-1"}]
+        return []
+
+    monkeypatch.setattr(neo4j_client, "execute_query", fake_execute_query)
+    monkeypatch.setattr(
+        k8s_discovery,
+        "discover_cluster_topology",
+        lambda namespace=None: {"status": "success"},
+    )
+
+    response = client.post(
+        "/api/v1/investigations/trigger", json={"namespace": "cloudgraph-system"}
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "success"
+    assert (
+        body["results"][0]["summary"]
+        == "Potential dependency failure or crash loop detected"
+    )
+    assert body["results"][0]["evidence"]
+
+
+def test_relevant_evidence_endpoint_returns_graph_context(monkeypatch):
+    def fake_execute_query(query, params=None):
+        if "MATCH (p:Pod" in query and "RETURN p.name" in query:
+            return [
+                {
+                    "pod_name": "checkout-abc",
+                    "service_name": "checkout",
+                    "node_name": "node-1",
+                    "deployment_name": "checkout-deployment",
+                    "log_messages": ["database connection timeout"],
+                }
+            ]
+        return []
+
+    monkeypatch.setattr(neo4j_client, "execute_query", fake_execute_query)
+
+    response = client.post(
+        "/api/v1/investigations/evidence",
+        json={"pod_name": "checkout-abc", "namespace": "cloudgraph-system"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "success"
+    assert body["pod_name"] == "checkout-abc"
+    assert any(item["type"] == "service" for item in body["evidence"])
+
+
+def test_graphrag_search_endpoint_returns_ranked_results(monkeypatch):
+    def fake_execute_query(query, params=None):
+        if "MATCH (n)" in query and "RETURN labels(n)" in query:
+            return [
+                {
+                    "labels": ["Pod"],
+                    "name": "checkout-pod",
+                    "status": "CrashLoopBackOff",
+                    "title": None,
+                    "id": "pod-1",
+                }
+            ]
+        if "OPTIONAL MATCH" in query or "MATCH (n)-[r]-(m)" in query:
+            return [
+                {
+                    "rel": "BELONGS_TO",
+                    "related_name": "checkout-service",
+                    "related_labels": ["Service"],
+                },
+                {
+                    "rel": "RUNS_ON",
+                    "related_name": "node-1",
+                    "related_labels": ["Node"],
+                },
+            ]
+        return []
+
+    monkeypatch.setattr(neo4j_client, "execute_query", fake_execute_query)
+
+    response = client.post(
+        "/api/v1/graphrag/search",
+        json={"query": "checkout", "namespace": "cloudgraph-system"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "success"
+    assert body["query"] == "checkout"
+    assert body["results"]
+    assert body["results"][0]["evidence_chain"]
+    assert body["results"][0]["context"]
+
+
+def test_graphrag_retrieve_endpoint_returns_summary(monkeypatch):
+    def fake_execute_query(query, params=None):
+        if "MATCH (n)" in query and "RETURN labels(n)" in query:
+            return [
+                {
+                    "labels": ["Incident"],
+                    "name": None,
+                    "status": "Open",
+                    "title": "CrashLoopBackOff",
+                    "id": "incident-1",
+                }
+            ]
+        if "OPTIONAL MATCH" in query or "MATCH (n)-[r]-(m)" in query:
+            return [
+                {
+                    "rel": "AFFECTED_BY",
+                    "related_name": "checkout-pod",
+                    "related_labels": ["Pod"],
+                }
+            ]
+        return []
+
+    monkeypatch.setattr(neo4j_client, "execute_query", fake_execute_query)
+
+    response = client.post(
+        "/api/v1/graphrag/retrieve",
+        json={"query": "crash", "namespace": "cloudgraph-system"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "success"
+    assert body["summary"]
+    assert body["results"]
+
+
+def test_semantic_vector_store_returns_semantically_similar_documents(tmp_path):
+    store = SemanticVectorStore(storage_path=str(tmp_path / "semantic.json"))
+    store.index_document(
+        "pod-1",
+        "checkout pod crashed with crashloopbackoff and restart loop",
+        {"label": "Pod", "name": "checkout-pod"},
+    )
+    store.index_document(
+        "pod-2",
+        "payment service responded normally and healthy",
+        {"label": "Service", "name": "payment-service"},
+    )
+
+    results = store.search("crashloopbackoff pod failure", limit=1)
+    assert results
+    assert results[0]["id"] == "pod-1"
+
+
+def test_ingest_tempo_trace_creates_trace_record(monkeypatch):
+    def fake_execute_query(query, params=None):
+        assert "MERGE (t:Trace" in query
+        return [{"trace_id": "trace-123"}]
+
+    monkeypatch.setattr(neo4j_client, "execute_query", fake_execute_query)
+
+    result = ingest_tempo_trace(
+        pod_id="pod-1",
+        pod_name="checkout-abc",
+        span_id="span-1",
+        trace_id="trace-123",
+        parent_span_id="parent-span",
+        service_name="checkout",
+        duration=42.5,
+        timestamp=123456789,
+        status="ok",
+    )
+
+    assert result[0]["trace_id"] == "trace-123"
 
 
 # =============================================================================

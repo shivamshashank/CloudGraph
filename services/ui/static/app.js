@@ -6,7 +6,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnDiscover = document.getElementById('btn-discover');
     const btnAnalyze = document.getElementById('btn-analyze');
     const btnReset = document.getElementById('btn-reset');
+    const btnRetrieve = document.getElementById('btn-retrieve');
     const graphLoader = document.getElementById('graph-loader');
+
+    // GraphRAG Search Elements
+    const graphragQuery = document.getElementById('graphrag-query');
+    const graphragResults = document.getElementById('graphrag-results');
+    const btnSearch = document.getElementById('btn-search');
+
+    // Relevant Evidence (Retrieval) Elements
+    const retrievalOutput = document.getElementById('retrieval-output');
+    const retrievalQuery = document.getElementById('retrieval-query');
 
     // Stats Elements
     const statNodes = document.getElementById('stat-nodes');
@@ -53,6 +63,21 @@ document.addEventListener('DOMContentLoaded', () => {
     btnDiscover.addEventListener('click', runDiscovery);
     btnAnalyze.addEventListener('click', runInvestigation);
     btnReset.addEventListener('click', resetGraph);
+    btnRetrieve.addEventListener('click', runRetrieval);
+    btnSearch.addEventListener('click', runGraphSearch);
+
+    if (graphragQuery) {
+        graphragQuery.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') runGraphSearch();
+        });
+    }
+
+    if (retrievalQuery) {
+        retrievalQuery.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') runRetrieval();
+        });
+    }
+
     btnClosePopup.addEventListener('click', () => nodePopup.classList.add('hidden'));
 
     // SVG drag-and-pan support
@@ -187,6 +212,73 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (err) {
             rcaOutput.innerHTML = `<div class="empty-state"><p class="log-level-error">Investigation failed: ${err.message}</p></div>`;
+        }
+    }
+
+    // GraphRAG Search (Diagnostic Panel)
+    async function runGraphSearch() {
+        const query = graphragQuery.value.trim();
+        if (!query) {
+            graphragResults.innerHTML = '<div class="retrieval-result"><div class="retrieval-result-title">Enter a search term</div><div class="retrieval-result-detail">Try a pod, service, deployment, or incident keyword.</div></div>';
+            return;
+        }
+
+        graphragResults.innerHTML = '<div class="retrieval-result"><div class="retrieval-result-title">Searching graph context…</div></div>';
+        try {
+            const res = await fetch(`${API_BASE}/api/v1/graphrag/search`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query, namespace: 'cloudgraph-system' })
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                if (data.results.length === 0) {
+                    graphragResults.innerHTML = '<div class="retrieval-result"><div class="retrieval-result-title">No matches</div><div class="retrieval-result-detail">Try a broader term such as checkout, timeout, or crash.</div></div>';
+                } else {
+                    graphragResults.innerHTML = data.results.map(result => `
+                        <div class="retrieval-result">
+                            <div class="retrieval-result-title">${result.name}</div>
+                            <div class="retrieval-result-detail">${result.detail}</div>
+                            <div class="retrieval-context">
+                                ${result.context ? result.context.map(item => `<span class="retrieval-context-item">${item.relationship} → ${item.name}</span>`).join('') : ''}
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            }
+        } catch (err) {
+            graphragResults.innerHTML = `<div class="retrieval-result"><div class="retrieval-result-title">Search failed</div><div class="retrieval-result-detail">${err.message}</div></div>`;
+        }
+    }
+
+    // Relevant Evidence (Bottom Panel)
+    async function runRetrieval() {
+        const query = retrievalQuery.value.trim();
+        if (!query) {
+            retrievalOutput.innerHTML = '<div class="empty-state"><p>Enter a term to retrieve evidence.</p></div>';
+            return;
+        }
+
+        retrievalOutput.innerHTML = `
+            <div class="empty-state">
+                <div class="spinner"></div>
+                <p>Retrieving graph evidence...</p>
+            </div>`;
+
+        try {
+            const res = await fetch(`${API_BASE}/api/v1/graphrag/retrieve`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query, namespace: 'cloudgraph-system' })
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                renderRetrieval(data);
+            } else {
+                retrievalOutput.innerHTML = `<div class="empty-state"><p class="log-level-error">${data.detail || 'Retrieval failed.'}</p></div>`;
+            }
+        } catch (err) {
+            retrievalOutput.innerHTML = `<div class="empty-state"><p class="log-level-error">${err.message}</p></div>`;
         }
     }
 
@@ -482,6 +574,34 @@ document.addEventListener('DOMContentLoaded', () => {
         popupContent.innerHTML = propsHtml;
     }
 
+    function renderRetrieval(data) {
+        if (!data.results || data.results.length === 0) {
+            retrievalOutput.innerHTML = `<div class="empty-state"><p>${data.summary || 'No evidence found.'}</p></div>`;
+            return;
+        }
+
+        const html = `
+            <div class="retrieval-summary">${data.summary}</div>
+            <div class="retrieval-list">
+                ${data.results.map(item => `
+                    <div class="retrieval-item">
+                        <div class="retrieval-item-header">
+                            <span class="retrieval-label">${item.label}</span>
+                            <span class="retrieval-name">${item.name}</span>
+                        </div>
+                        <div class="retrieval-status">${item.status}</div>
+                        <div class="retrieval-related">
+                            ${item.related && item.related.length > 0 ? item.related.map(rel => `
+                                <span class="retrieval-chip">${rel.rel || 'RELATED_TO'} → ${rel.related_name || 'unknown'}</span>
+                            `).join('') : '<span class="retrieval-chip">No adjacent context</span>'}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        retrievalOutput.innerHTML = html;
+    }
+
     // Render RCA report cards
     function renderRCA(results) {
         if (results.length === 0) return;
@@ -499,6 +619,16 @@ document.addEventListener('DOMContentLoaded', () => {
                    </div>`
                 : '';
 
+            const evidenceItems = Array.isArray(res.relevant_evidence) && res.relevant_evidence.length > 0
+                ? res.relevant_evidence.map(item => `
+                    <div class="evidence-item">
+                        <div class="evidence-item-title">${item.label}</div>
+                        <div class="evidence-item-detail">${item.detail}</div>
+                        ${item.messages ? `<div class="evidence-item-messages">${item.messages.map(msg => `<span class="evidence-msg">${msg}</span>`).join('')}</div>` : ''}
+                    </div>
+                `).join('')
+                : '<div class="evidence-item"><div class="evidence-item-title">No graph evidence returned yet</div><div class="evidence-item-detail">The current topology does not have additional evidence for this incident.</div></div>';
+
             rcaHtml += `
                 <div class="rca-header">
                     <span class="rca-badge ${severityClass}">${res.severity}</span>
@@ -511,6 +641,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
 
                 ${logsHtml}
+
+                <div class="rca-block">
+                    <div class="rca-block-title" style="color: #a5b4fc;">Relevant Evidence</div>
+                    <div class="evidence-list">
+                        ${evidenceItems}
+                    </div>
+                </div>
 
                 <div class="rca-block rca-remediation">
                     <div class="rca-block-title" style="color: #a5b4fc;">Remediation Recommendation</div>
