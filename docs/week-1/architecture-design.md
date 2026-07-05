@@ -15,7 +15,7 @@ and generate root cause analysis through specialized investigation agents.
 | GraphRAG Investigation Pipeline | `docs/images/graphrag-investigation-pipeline.png` | End-to-end RCA workflow |
 | Multi-Agent Workflow            | `docs/images/multi-agent-workflow.png`            | Agent orchestration     |
 | Knowledge Graph Schema          | `docs/images/knowledge-graph-schema.png`          | Data model              |
-| AWS Deployment                  | `docs/images/aws-deployment.png`                  | Deployment architecture |
+| AWS Deployment *(Historical)*   | `docs/images/aws-deployment.png`                  | Deployment architecture — **Note:** Superseded by Helm/kubeadm path. See `IMPLEMENTATION_SUMMARY.md` for current deployment strategy. |
 
 ## Logical Architecture
 
@@ -34,7 +34,7 @@ and generate root cause analysis through specialized investigation agents.
 | Runtime Security Events       | Suspicious process, file, network, or privilege activity | `SecurityEvent` nodes linked to pod, node, service account, and incident |
 | Git Commits and Pull Requests | Code changes, config updates, changed files              | `Commit` and `PullRequest` nodes linked to deployment and service        |
 | Deployment Events             | Argo CD sync, health, degraded, rollback events          | `DeploymentEvent` nodes linked to service, commit, and incident          |
-| Terraform/OpenTofu Changes    | Infrastructure drift, IAM/network changes                | `InfraChange` nodes linked to cloud resource                             |
+| Terraform/OpenTofu Changes *(Deferred)* | Infrastructure drift, IAM/network changes                | `InfraChange` nodes linked to cloud resource — **Note:** Originally designed for AWS Terraform-based deployment. Not implemented; infrastructure now managed via Helm. |
 
 For the full live ingestion plan, see `docs/week-1/data-collection-strategy.md`.
 
