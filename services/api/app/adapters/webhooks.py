@@ -1,3 +1,5 @@
+"""Adapter for processing and ingesting git webhooks into Neo4j."""
+
 from app.database.neo4j_client import neo4j_client
 
 

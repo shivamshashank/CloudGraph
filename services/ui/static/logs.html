@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CloudGraph - Topology Map</title>
+    <title>CloudGraph - Log Stream</title>
     <!-- Modern Premium Typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -37,13 +37,13 @@
 
         <div class="section-title">Navigation</div>
         <div class="nav-menu">
-          <a href="index.html" class="nav-item active">
+          <a href="index.html" class="nav-item">
             <span class="nav-icon">🗺️</span> Topology Map
           </a>
           <a href="diagnosis.html" class="nav-item">
             <span class="nav-icon">🧠</span> AI Diagnosis
           </a>
-          <a href="logs.html" class="nav-item">
+          <a href="logs.html" class="nav-item active">
             <span class="nav-icon">📺</span> Log Stream
           </a>
           <a href="evidence.html" class="nav-item">
@@ -89,53 +89,22 @@
 
       <!-- Main Dashboard View -->
       <main class="main-content">
-        <!-- Topology Visualizer -->
-        <div class="card topology-card" style="height: 100%">
+        <!-- Live Logs / Event Stream -->
+        <div class="card logs-card" style="height: 100%">
           <div class="card-header">
-            <h2>Kubernetes Graph Topology Map</h2>
+            <h2>Pod Telemetry Log Stream</h2>
             <span class="card-subtitle"
-              >Real-time dependency and relationship rendering</span
+              >In-cluster stdout/stderr telemetry</span
             >
           </div>
-          <div class="canvas-container">
-            <svg id="topology-svg" width="100%" height="100%">
-              <!-- Grid pattern for technical grid styling -->
-              <defs>
-                <pattern
-                  id="grid"
-                  width="40"
-                  height="40"
-                  patternUnits="userSpaceOnUse"
-                >
-                  <path
-                    d="M 40 0 L 0 0 0 40"
-                    fill="none"
-                    stroke="rgba(255, 255, 255, 0.03)"
-                    stroke-width="1"
-                  />
-                </pattern>
-              </defs>
-              <rect width="100%" height="100%" fill="url(#grid)" />
-              <!-- Groups for nodes & edges -->
-              <g id="edges-group"></g>
-              <g id="nodes-group"></g>
-            </svg>
-            <div id="graph-loader" class="loader-overlay hidden">
-              <div class="spinner"></div>
-              <p>Scanning cluster assets...</p>
+          <div class="logs-console" id="logs-feed">
+            <div class="empty-state">
+              <span class="empty-icon">📺</span>
+              <p>Discover the cluster to stream live pod stdout logs.</p>
             </div>
           </div>
         </div>
       </main>
-    </div>
-
-    <!-- Node Info Tooltip/Popup -->
-    <div id="node-popup" class="popup-panel hidden">
-      <div class="popup-header">
-        <h3 id="popup-title">Pod Details</h3>
-        <button id="btn-close-popup" class="btn-close">&times;</button>
-      </div>
-      <div class="popup-body" id="popup-content"></div>
     </div>
     <script src="app.js"></script>
   </body>

@@ -1,3 +1,5 @@
+"""Adapter for constructing graphs and linking entities in Neo4j."""
+
 from app.database.neo4j_client import neo4j_client
 
 
@@ -57,7 +59,8 @@ def build_service_dependency_map():
 
 def record_state_history(pod_id: str, new_status: str, timestamp: int):
     """
-    Appends a state history change record to track the timeline of Kubernetes pod state transitions.
+    Appends a state history change record to track the timeline of
+    Kubernetes pod state transitions.
     """
     query = """
     MATCH (p:Pod {id: $pod_id})

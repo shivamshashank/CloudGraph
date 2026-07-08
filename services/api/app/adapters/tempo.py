@@ -1,18 +1,26 @@
+"""Adapter for ingesting traces into Neo4j from Tempo."""
+
 from app.database.neo4j_client import neo4j_client
 
 
-def ingest_tempo_trace(
-    pod_id: str,
-    pod_name: str,
-    span_id: str,
-    trace_id: str,
-    parent_span_id: str,
-    service_name: str,
-    duration: float,
-    timestamp: int,
-    status: str,
-):
+def ingest_tempo_trace(*args, **kwargs):
     """Persist a trace span into Neo4j and link it to the pod that emitted it."""
+
+    def _get_arg(index, name, default=None):
+        if len(args) > index:
+            return args[index]
+        return kwargs.get(name, default)
+
+    pod_id = _get_arg(0, "pod_id")
+    pod_name = _get_arg(1, "pod_name")
+    span_id = _get_arg(2, "span_id")
+    trace_id = _get_arg(3, "trace_id")
+    parent_span_id = _get_arg(4, "parent_span_id")
+    service_name = _get_arg(5, "service_name")
+    duration = _get_arg(6, "duration", 0.0)
+    timestamp = _get_arg(7, "timestamp", 0)
+    status = _get_arg(8, "status")
+
     query = """
     MERGE (p:Pod {id: $pod_id})
     MERGE (t:Trace {id: $trace_id})
@@ -32,12 +40,12 @@ def ingest_tempo_trace(
         "span_id": span_id,
         "parent_span_id": parent_span_id,
         "service_name": service_name,
-        "duration": float(duration),
-        "timestamp": int(timestamp),
+        "duration": float(duration) if duration is not None else 0.0,
+        "timestamp": int(timestamp) if timestamp else 0,
         "status": status,
         "pod_name": pod_name,
     }
     try:
         return neo4j_client.execute_query(query, params)
-    except Exception:
+    except (RuntimeError, ConnectionError, OSError):
         return []
