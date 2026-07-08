@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -19,6 +20,9 @@ func TestCommandExists(t *testing.T) {
 }
 
 func TestGetTotalMemoryGB(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("Skipping memory detection test on non-Linux OS")
+	}
 	mem := getTotalMemoryGB()
 	if mem <= 0 {
 		t.Errorf("Expected total memory to be greater than 0, got %.2f", mem)
@@ -106,6 +110,67 @@ func TestGetIngressHosts(t *testing.T) {
 	hosts := getIngressHosts("default")
 	if hosts == nil {
 		t.Error("Expected slice to be non-nil")
+	}
+}
+
+func TestParseQdrantCollectionPayload(t *testing.T) {
+	payload := []byte(`{"result":{"collections":[{"name":"documents","status":"green","points_count":42},{"name":"embeddings","status":"yellow","pointsCount":7}]}}`)
+
+	collections, err := parseQdrantCollectionPayload(payload)
+	if err != nil {
+		t.Fatalf("expected payload to parse, got error: %v", err)
+	}
+	if len(collections) != 2 {
+		t.Fatalf("expected 2 collections, got %d", len(collections))
+	}
+	if collections[0].Name != "documents" || collections[0].Status != "green" || collections[0].Points != 42 {
+		t.Fatalf("unexpected first collection payload: %+v", collections[0])
+	}
+	if collections[1].Name != "embeddings" || collections[1].Status != "yellow" || collections[1].Points != 7 {
+		t.Fatalf("unexpected second collection payload: %+v", collections[1])
+	}
+}
+
+func TestRunStatusIncludesQdrantCollections(t *testing.T) {
+	oldContext := getKubectlCurrentContextFunc
+	oldStatuses := getDeploymentStatusesFunc
+	oldHosts := getIngressHostsFunc
+	oldSummary := qdrantCollectionSummaryFunc
+	defer func() {
+		getKubectlCurrentContextFunc = oldContext
+		getDeploymentStatusesFunc = oldStatuses
+		getIngressHostsFunc = oldHosts
+		qdrantCollectionSummaryFunc = oldSummary
+	}()
+
+	getKubectlCurrentContextFunc = func() string { return "test-context" }
+	getDeploymentStatusesFunc = func(namespace string) map[string]string { return map[string]string{"api": "Running"} }
+	getIngressHostsFunc = func(namespace string) []string { return []string{"cloudgraph.example.com"} }
+	qdrantCollectionSummaryFunc = func(namespace string) []qdrantCollectionStatus {
+		return []qdrantCollectionStatus{{Name: "documents", Status: "green", Points: 42}}
+	}
+
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	runStatus()
+
+	w.Close()
+	os.Stdout = oldStdout
+
+	var buf bytes.Buffer
+	_, _ = io.Copy(&buf, r)
+	output := buf.String()
+
+	if !strings.Contains(output, "CloudGraph Status Dashboard") {
+		t.Fatalf("expected status banner in output, got: %s", output)
+	}
+	if !strings.Contains(output, "Vector Store") {
+		t.Fatalf("expected vector store section in output, got: %s", output)
+	}
+	if !strings.Contains(output, "Qdrant collection documents") {
+		t.Fatalf("expected Qdrant collection output, got: %s", output)
 	}
 }
 

@@ -1,11 +1,34 @@
-import uuid
-import time
-import random
+"""Adapter for discovering Kubernetes cluster topology and syncing it with Neo4j."""
+
 import logging
+import random
+import time
+import uuid
+
 from kubernetes import client, config
+from kubernetes.config.config_exception import ConfigException
+from kubernetes.client.exceptions import ApiException
+
+from app.adapters.graph_constructor import (
+    build_service_dependency_map,
+    run_entity_linking,
+)
 from app.database.neo4j_client import neo4j_client
 
 logger = logging.getLogger(__name__)
+
+# Specific exception tuple covering expected API/config/system issues
+K8S_ERRORS = (
+    ConfigException,
+    ApiException,
+    OSError,
+    ConnectionError,
+    RuntimeError,
+    KeyError,
+    AttributeError,
+    TypeError,
+    ValueError,
+)
 
 
 def get_k8s_client():
@@ -13,34 +36,19 @@ def get_k8s_client():
     try:
         config.load_incluster_config()
         logger.info("Loaded in-cluster Kubernetes config")
-    except Exception as e:
-        logger.warning(f"Failed to load in-cluster config: {e}")
+    except K8S_ERRORS as e:
+        logger.warning("Failed to load in-cluster config: %s", e)
         try:
             config.load_kube_config()
             logger.info("Loaded local kubeconfig")
-        except Exception as ex:
-            logger.warning(f"Could not load Kubernetes configuration: {ex}")
+        except K8S_ERRORS as ex:
+            logger.warning("Could not load Kubernetes configuration: %s", ex)
             return None
     return client.CoreV1Api(), client.AppsV1Api()
 
 
-def discover_cluster_topology(namespace="cloudgraph-system"):
-    """
-    Scrapes Kubernetes cluster metadata, maps resources to Neo4j,
-    ingests pod logs, simulates pod metrics, and triggers entity linking.
-    """
-    apis = get_k8s_client()
-    if not apis:
-        return {"status": "skipped", "reason": "Kubernetes client not initialized"}
-
-    v1, apps_v1 = apis
-
+def _discover_nodes(v1) -> list:
     nodes_discovered = []
-    deployments_discovered = []
-    services_discovered = []
-    pods_discovered = []
-
-    # 1. Discover Nodes
     try:
         node_list = v1.list_node()
         for node in node_list.items:
@@ -66,19 +74,26 @@ def discover_cluster_topology(namespace="cloudgraph-system"):
                 {
                     "name": node_name,
                     "status": status,
-                    "cpu": node.status.allocatable.get("cpu", "unknown")
-                    if node.status.allocatable
-                    else "unknown",
-                    "memory": node.status.allocatable.get("memory", "unknown")
-                    if node.status.allocatable
-                    else "unknown",
+                    "cpu": (
+                        node.status.allocatable.get("cpu", "unknown")
+                        if node.status.allocatable
+                        else "unknown"
+                    ),
+                    "memory": (
+                        node.status.allocatable.get("memory", "unknown")
+                        if node.status.allocatable
+                        else "unknown"
+                    ),
                 },
             )
             nodes_discovered.append(node_name)
-    except Exception as e:
-        logger.error(f"Error discovering nodes: {e}")
+    except K8S_ERRORS as e:
+        logger.error("Error discovering nodes: %s", e)
+    return nodes_discovered
 
-    # 2. Discover Deployments
+
+def _discover_deployments(apps_v1, namespace) -> list:
+    deployments_discovered = []
     try:
         if namespace:
             deploy_list = apps_v1.list_namespaced_deployment(namespace)
@@ -114,10 +129,13 @@ def discover_cluster_topology(namespace="cloudgraph-system"):
                 },
             )
             deployments_discovered.append(deploy_name)
-    except Exception as e:
-        logger.error(f"Error discovering deployments: {e}")
+    except K8S_ERRORS as e:
+        logger.error("Error discovering deployments: %s", e)
+    return deployments_discovered
 
-    # 3. Discover Services
+
+def _discover_services(v1, namespace) -> list:
+    services_discovered = []
     try:
         if namespace:
             service_list = v1.list_namespaced_service(namespace)
@@ -147,10 +165,119 @@ def discover_cluster_topology(namespace="cloudgraph-system"):
                 },
             )
             services_discovered.append(svc_name)
-    except Exception as e:
-        logger.error(f"Error discovering services: {e}")
+    except K8S_ERRORS as e:
+        logger.error("Error discovering services: %s", e)
+    return services_discovered
 
-    # 4. Discover Pods and Ingest logs / metrics
+
+def _ingest_pod_logs(v1, pod, ns, status):
+    pod_name = pod.metadata.name
+    pod_uid = pod.metadata.uid
+    try:
+        if pod.spec and pod.spec.containers and status == "Running":
+            container_name = pod.spec.containers[0].name
+            logs = v1.read_namespaced_pod_log(
+                name=pod_name,
+                namespace=ns,
+                container=container_name,
+                tail_lines=30,
+            )
+            for line in logs.splitlines():
+                line_str = line.strip()
+                if line_str:
+                    level = "INFO"
+                    lower_line = line_str.lower()
+                    if (
+                        "error" in lower_line
+                        or "fail" in lower_line
+                        or "exception" in lower_line
+                    ):
+                        level = "ERROR"
+                    elif "warn" in lower_line:
+                        level = "WARN"
+
+                    log_query = """
+                    MERGE (p:Pod {id: $pod_uid})
+                    CREATE (l:Log {
+                        id: $log_id,
+                        message: $message,
+                        level: $level,
+                        timestamp: $timestamp,
+                        containerName: $container_name
+                    })
+                    CREATE (p)-[:GENERATES]->(l)
+                    """
+                    neo4j_client.execute_query(
+                        log_query,
+                        {
+                            "pod_uid": pod_uid,
+                            "log_id": str(uuid.uuid4()),
+                            "message": line_str,
+                            "level": level,
+                            "timestamp": int(time.time()),
+                            "container_name": container_name,
+                        },
+                    )
+    except K8S_ERRORS as log_ex:
+        logger.debug("Could not read logs for pod %s: %s", pod_name, log_ex)
+
+
+def _simulate_pod_metrics(pod, status):
+    pod_name = pod.metadata.name
+    pod_uid = pod.metadata.uid
+    try:
+        if status == "Running":
+            # CPU metric
+            cpu_query = """
+            MERGE (p:Pod {id: $pod_uid})
+            CREATE (m:Metric {
+                id: $metric_id,
+                name: "pod_cpu_utilization_ratio",
+                value: $value,
+                timestamp: $timestamp,
+                labels: $labels
+            })
+            CREATE (p)-[:GENERATES]->(m)
+            """
+            neo4j_client.execute_query(
+                cpu_query,
+                {
+                    "pod_uid": pod_uid,
+                    "metric_id": str(uuid.uuid4()),
+                    "value": float(random.uniform(5.0, 65.0)),
+                    "timestamp": int(time.time()),
+                    "labels": str({"unit": "%"}),
+                },
+            )
+
+            # Memory metric
+            mem_query = """
+            MERGE (p:Pod {id: $pod_uid})
+            CREATE (m:Metric {
+                id: $metric_id,
+                name: "pod_memory_utilization_ratio",
+                value: $value,
+                timestamp: $timestamp,
+                labels: $labels
+            })
+            CREATE (p)-[:GENERATES]->(m)
+            """
+            neo4j_client.execute_query(
+                mem_query,
+                {
+                    "pod_uid": pod_uid,
+                    "metric_id": str(uuid.uuid4()),
+                    "value": float(random.uniform(25.0, 75.0)),
+                    "timestamp": int(time.time()),
+                    "labels": str({"unit": "%"}),
+                },
+            )
+    except K8S_ERRORS as metric_ex:
+        logger.debug("Could not simulate metrics for pod %s: %s", pod_name, metric_ex)
+
+
+def _discover_pods(v1, namespace) -> list:
+    pods_discovered = []
     try:
         if namespace:
             pod_list = v1.list_namespaced_pod(namespace)
@@ -187,123 +314,34 @@ def discover_cluster_topology(namespace="cloudgraph-system"):
             )
             pods_discovered.append(pod_name)
 
-            # Fetch container logs
-            try:
-                if pod.spec and pod.spec.containers and status == "Running":
-                    container_name = pod.spec.containers[0].name
-                    logs = v1.read_namespaced_pod_log(
-                        name=pod_name,
-                        namespace=ns,
-                        container=container_name,
-                        tail_lines=30,
-                    )
-                    for line in logs.splitlines():
-                        line_str = line.strip()
-                        if line_str:
-                            level = "INFO"
-                            lower_line = line_str.lower()
-                            if (
-                                "error" in lower_line
-                                or "fail" in lower_line
-                                or "exception" in lower_line
-                            ):
-                                level = "ERROR"
-                            elif "warn" in lower_line:
-                                level = "WARN"
+            _ingest_pod_logs(v1, pod, ns, status)
+            _simulate_pod_metrics(pod, status)
+    except K8S_ERRORS as e:
+        logger.error("Failed to run cluster discovery: %s", e)
+    return pods_discovered
 
-                            log_query = """
-                            MERGE (p:Pod {id: $pod_uid})
-                            CREATE (l:Log {
-                                id: $log_id,
-                                message: $message,
-                                level: $level,
-                                timestamp: $timestamp,
-                                containerName: $container_name
-                            })
-                            CREATE (p)-[:GENERATES]->(l)
-                            """
-                            neo4j_client.execute_query(
-                                log_query,
-                                {
-                                    "pod_uid": pod_uid,
-                                    "log_id": str(uuid.uuid4()),
-                                    "message": line_str,
-                                    "level": level,
-                                    "timestamp": int(time.time()),
-                                    "container_name": container_name,
-                                },
-                            )
-            except Exception as log_ex:
-                logger.debug(f"Could not read logs for pod {pod_name}: {log_ex}")
 
-            # Simulate metrics for the pod
-            try:
-                if status == "Running":
-                    # CPU metric
-                    cpu_query = """
-                    MERGE (p:Pod {id: $pod_uid})
-                    CREATE (m:Metric {
-                        id: $metric_id,
-                        name: "pod_cpu_utilization_ratio",
-                        value: $value,
-                        timestamp: $timestamp,
-                        labels: $labels
-                    })
-                    CREATE (p)-[:GENERATES]->(m)
-                    """
-                    neo4j_client.execute_query(
-                        cpu_query,
-                        {
-                            "pod_uid": pod_uid,
-                            "metric_id": str(uuid.uuid4()),
-                            "value": float(random.uniform(5.0, 65.0)),
-                            "timestamp": int(time.time()),
-                            "labels": str({"unit": "%"}),
-                        },
-                    )
+def discover_cluster_topology(namespace="cloudgraph-system"):
+    """Scrapes Kubernetes cluster metadata, maps resources to Neo4j,
+    ingests pod logs, simulates pod metrics, and triggers entity linking."""
+    apis = get_k8s_client()
+    if not apis:
+        return {"status": "skipped", "reason": "Kubernetes client not initialized"}
 
-                    # Memory metric
-                    mem_query = """
-                    MERGE (p:Pod {id: $pod_uid})
-                    CREATE (m:Metric {
-                        id: $metric_id,
-                        name: "pod_memory_utilization_ratio",
-                        value: $value,
-                        timestamp: $timestamp,
-                        labels: $labels
-                    })
-                    CREATE (p)-[:GENERATES]->(m)
-                    """
-                    neo4j_client.execute_query(
-                        mem_query,
-                        {
-                            "pod_uid": pod_uid,
-                            "metric_id": str(uuid.uuid4()),
-                            "value": float(random.uniform(25.0, 75.0)),
-                            "timestamp": int(time.time()),
-                            "labels": str({"unit": "%"}),
-                        },
-                    )
-            except Exception as metric_ex:
-                logger.debug(
-                    f"Could not generate metrics for pod {pod_name}: {metric_ex}"
-                )
+    v1, apps_v1 = apis
 
-    except Exception as e:
-        logger.error(f"Error discovering pods: {e}")
+    nodes_discovered = _discover_nodes(v1)
+    deployments_discovered = _discover_deployments(apps_v1, namespace)
+    services_discovered = _discover_services(v1, namespace)
+    pods_discovered = _discover_pods(v1, namespace)
 
     # 5. Run Entity Linking
     linking_results = {}
     try:
-        from app.adapters.graph_constructor import (
-            run_entity_linking,
-            build_service_dependency_map,
-        )
-
         linking_results = run_entity_linking()
         build_service_dependency_map()
-    except Exception as e:
-        logger.error(f"Error running entity linking: {e}")
+    except K8S_ERRORS as e:
+        logger.error("Failed to link node dependencies: %s", e)
 
     return {
         "status": "success",
