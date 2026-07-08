@@ -9,7 +9,7 @@ from typing import Any
 import httpx
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, PointStruct, VectorParams
-from qdrant_client.http.exceptions import UnexpectedResponse
+from qdrant_client.http.exceptions import ApiException, UnexpectedResponse
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +22,7 @@ QDRANT_ERRORS = (
     RuntimeError,
     httpx.HTTPError,
     UnexpectedResponse,
+    ApiException,
 )
 
 
