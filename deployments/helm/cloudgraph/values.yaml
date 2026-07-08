@@ -252,7 +252,7 @@ crds:
 
 # Observability Stack (optional - install if not already present)
 observabilityStack:
-  enabled: false  # Set to true to install Prometheus, Grafana, or Loki
+  enabled: false # Set to true to install Prometheus, Grafana, or Loki
 
   prometheus:
     enabled: false

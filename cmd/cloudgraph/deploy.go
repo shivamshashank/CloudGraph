@@ -564,7 +564,68 @@ func probeQdrantCollections(baseURL string) ([]qdrantCollectionStatus, error) {
 	if err != nil {
 		return nil, err
 	}
-	return parseQdrantCollectionPayload(payload)
+
+	var listRoot struct {
+		Result struct {
+			Collections []struct {
+				Name string `json:"name"`
+			} `json:"collections"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal(payload, &listRoot); err != nil {
+		return nil, err
+	}
+
+	var collections []qdrantCollectionStatus
+	for _, col := range listRoot.Result.Collections {
+		colPayload, err := httpGetJSON(baseURL + "/collections/" + col.Name)
+		if err != nil {
+			// Fallback if details query fails
+			collections = append(collections, qdrantCollectionStatus{
+				Name:   col.Name,
+				Status: "unknown",
+				Points: 0,
+			})
+			continue
+		}
+		var detailRoot struct {
+			Result struct {
+				Status          string `json:"status"`
+				PointsCount     int    `json:"points_count"`
+				PointsCountAlt  int    `json:"pointsCount"`
+				VectorsCount    int    `json:"vectors_count"`
+				VectorsCountAlt int    `json:"vectorsCount"`
+			} `json:"result"`
+		}
+		if err := json.Unmarshal(colPayload, &detailRoot); err == nil {
+			status := strings.ToLower(strings.TrimSpace(detailRoot.Result.Status))
+			if status == "" {
+				status = "green"
+			}
+			points := detailRoot.Result.PointsCount
+			if points == 0 {
+				points = detailRoot.Result.PointsCountAlt
+			}
+			if points == 0 {
+				points = detailRoot.Result.VectorsCount
+			}
+			if points == 0 {
+				points = detailRoot.Result.VectorsCountAlt
+			}
+			collections = append(collections, qdrantCollectionStatus{
+				Name:   col.Name,
+				Status: status,
+				Points: points,
+			})
+		} else {
+			collections = append(collections, qdrantCollectionStatus{
+				Name:   col.Name,
+				Status: "unknown",
+				Points: 0,
+			})
+		}
+	}
+	return collections, nil
 }
 
 func discoverQdrantService(namespace string) string {
@@ -784,6 +845,37 @@ func runDoctor() {
 	printInfo("Run: sudo cloudgraph deploy")
 }
 
+func getPublicIP() string {
+	client := &http.Client{Timeout: 3 * time.Second}
+	// Try api.ipify.org
+	resp, err := client.Get("https://api.ipify.org")
+	if err == nil {
+		defer resp.Body.Close()
+		ipBytes, err := io.ReadAll(resp.Body)
+		if err == nil {
+			ip := strings.TrimSpace(string(ipBytes))
+			if ip != "" {
+				return ip
+			}
+		}
+	}
+
+	// Fallback to ifconfig.me
+	resp, err = client.Get("https://ifconfig.me/ip")
+	if err == nil {
+		defer resp.Body.Close()
+		ipBytes, err := io.ReadAll(resp.Body)
+		if err == nil {
+			ip := strings.TrimSpace(string(ipBytes))
+			if ip != "" {
+				return ip
+			}
+		}
+	}
+
+	return "localhost"
+}
+
 func runStatus() {
 	printHeader("CloudGraph Status Dashboard")
 
@@ -806,13 +898,18 @@ func runStatus() {
 
 	fmt.Println("")
 	printHeader("Access Information")
+	publicIP := getPublicIP()
 	hosts := getIngressHostsFunc(namespace)
 	if len(hosts) > 0 {
 		for _, host := range hosts {
-			fmt.Printf("CloudGraph UI: http://%s/\n", host)
+			if host == "localhost" || host == "cloudgraph.local" {
+				fmt.Printf("CloudGraph UI: http://%s/ (or http://%s/ with hosts file mapped)\n", publicIP, host)
+			} else {
+				fmt.Printf("CloudGraph UI: http://%s/\n", host)
+			}
 		}
 	} else {
-		fmt.Println("CloudGraph UI: http://localhost/")
+		fmt.Printf("CloudGraph UI: http://%s/\n", publicIP)
 	}
 	qdrantCollections := qdrantCollectionSummaryFunc(namespace)
 	if len(qdrantCollections) > 0 {
@@ -833,7 +930,7 @@ func runStatus() {
 		fmt.Println("")
 		printWarning("Qdrant not reachable or collections are not yet available")
 	}
-	fmt.Println("CloudGraph API: http://localhost:8080/")
+	fmt.Printf("CloudGraph API: http://%s/api/\n", publicIP)
 }
 
 func runDeploy() {
@@ -887,11 +984,12 @@ func runDeploy() {
 		printWarning("Qdrant did not report collections yet; check 'cloudgraph status' after the services are up")
 	}
 
+	publicIP := getPublicIP()
 	printHeader("Setup Completed Successfully!")
 	fmt.Println("You can check your pods with:")
 	fmt.Println("  kubectl get pods -n cloudgraph-system")
 	fmt.Println("")
-	fmt.Println("Access your UI at http://localhost/ and API at http://localhost/api/")
+	fmt.Printf("Access your UI at http://%s/ and API at http://%s/api/\n", publicIP, publicIP)
 	fmt.Println("")
 }
 

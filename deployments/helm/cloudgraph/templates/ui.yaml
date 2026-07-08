@@ -103,6 +103,13 @@ spec:
                 name: cloudgraph-api
                 port:
                   number: 8080
+          - path: /ready
+            pathType: Exact
+            backend:
+              service:
+                name: cloudgraph-api
+                port:
+                  number: 8080
           - path: /
             pathType: Prefix
             backend:

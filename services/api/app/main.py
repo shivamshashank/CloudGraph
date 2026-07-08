@@ -91,6 +91,19 @@ def ready_check():
     return {"status": "ready"}
 
 
+@app.get("/api")
+@app.get("/api/")
+def api_root():
+    """Welcome handler for the API root."""
+    return {
+        "message": (
+            "Welcome to the CloudGraph Ingestion API. Use the telemetry "
+            "endpoints under /api/v1/."
+        ),
+        "status": "running",
+    }
+
+
 @app.post("/api/v1/telemetry/metrics")
 def post_metric(payload: MetricPayload):
     """Ingest a Prometheus metric signal and register in semantic vector index."""
