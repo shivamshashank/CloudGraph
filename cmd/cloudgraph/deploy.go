@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/fs"
@@ -16,6 +17,21 @@ import (
 	"time"
 
 	cloudgraph "github.com/shivamshashank/CloudGraph"
+)
+
+type qdrantCollectionStatus struct {
+	Name   string
+	Status string
+	Points int
+}
+
+var (
+	commandExistsFunc            = commandExists
+	checkInternetConnectionFunc  = checkInternetConnection
+	getKubectlCurrentContextFunc = getKubectlCurrentContext
+	getDeploymentStatusesFunc    = getDeploymentStatuses
+	getIngressHostsFunc          = getIngressHosts
+	qdrantCollectionSummaryFunc  = getQdrantCollectionSummary
 )
 
 func runCmd(name string, args ...string) error {
@@ -40,7 +56,7 @@ func commandExists(name string) bool {
 
 func checkKubectl() bool {
 	printHeader("Checking for kubectl")
-	if commandExists("kubectl") {
+	if commandExistsFunc("kubectl") {
 		printSuccess("kubectl found")
 		return true
 	}
@@ -50,7 +66,7 @@ func checkKubectl() bool {
 
 func checkK8sCluster() bool {
 	printHeader("Checking for Kubernetes cluster")
-	if !commandExists("kubectl") {
+	if !commandExistsFunc("kubectl") {
 		printError("kubectl is required to check cluster")
 		return false
 	}
@@ -159,16 +175,12 @@ func installKubeadm() bool {
 }
 
 func installKubernetesLocal() bool {
-	goos := runtime.GOOS
-	if goos == "darwin" {
-		printInfo("macOS detected - using Docker Desktop Kubernetes")
-		fmt.Println("Please enable Kubernetes in Docker Desktop settings")
-		os.Exit(1)
-	} else if goos == "linux" {
+	switch goos := runtime.GOOS; goos {
+	case "linux":
 		printInfo("Linux detected - installing kubeadm cluster")
 		return installKubeadmLinux()
-	} else {
-		printError(fmt.Sprintf("Unsupported OS: %s", goos))
+	default:
+		printError(fmt.Sprintf("Unsupported OS: %s. CloudGraph is only supported on Linux.", goos))
 		os.Exit(1)
 	}
 	return false
@@ -492,6 +504,129 @@ func commandOutput(name string, args ...string) (string, error) {
 	return strings.TrimSpace(string(out)), err
 }
 
+func httpGetJSON(url string) ([]byte, error) {
+	client := &http.Client{Timeout: 3 * time.Second}
+	resp, err := client.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+	return io.ReadAll(resp.Body)
+}
+
+func parseQdrantCollectionPayload(payload []byte) ([]qdrantCollectionStatus, error) {
+	var root struct {
+		Result struct {
+			Collections []struct {
+				Name            string `json:"name"`
+				Status          string `json:"status"`
+				PointsCount     int    `json:"points_count"`
+				PointsCountAlt  int    `json:"pointsCount"`
+				VectorsCount    int    `json:"vectors_count"`
+				VectorsCountAlt int    `json:"vectorsCount"`
+				Count           int    `json:"count"`
+			} `json:"collections"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal(payload, &root); err != nil {
+		return nil, err
+	}
+
+	collections := make([]qdrantCollectionStatus, 0, len(root.Result.Collections))
+	for _, item := range root.Result.Collections {
+		points := item.PointsCount
+		if points == 0 {
+			points = item.PointsCountAlt
+		}
+		if points == 0 {
+			points = item.VectorsCount
+		}
+		if points == 0 {
+			points = item.VectorsCountAlt
+		}
+		if points == 0 {
+			points = item.Count
+		}
+		collections = append(collections, qdrantCollectionStatus{
+			Name:   item.Name,
+			Status: strings.ToLower(strings.TrimSpace(item.Status)),
+			Points: points,
+		})
+	}
+	return collections, nil
+}
+
+func probeQdrantCollections(baseURL string) ([]qdrantCollectionStatus, error) {
+	payload, err := httpGetJSON(baseURL + "/collections")
+	if err != nil {
+		return nil, err
+	}
+	return parseQdrantCollectionPayload(payload)
+}
+
+func discoverQdrantService(namespace string) string {
+	out, err := commandOutput("kubectl", "get", "svc", "-n", namespace, "--no-headers")
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(out, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			continue
+		}
+		name := fields[0]
+		if strings.Contains(name, "qdrant") {
+			return name
+		}
+	}
+	return ""
+}
+
+func getQdrantCollectionSummary(namespace string) []qdrantCollectionStatus {
+	if !commandExistsFunc("kubectl") {
+		return nil
+	}
+	if err := exec.Command("kubectl", "cluster-info").Run(); err != nil {
+		return nil
+	}
+
+	serviceName := discoverQdrantService(namespace)
+	if serviceName == "" {
+		return nil
+	}
+
+	portForwardCmd := exec.Command("kubectl", "port-forward", "-n", namespace, fmt.Sprintf("svc/%s", serviceName), "6333:6333", "--address", "127.0.0.1")
+	portForwardCmd.Stdout = io.Discard
+	portForwardCmd.Stderr = io.Discard
+	if err := portForwardCmd.Start(); err != nil {
+		return nil
+	}
+	defer func() {
+		_ = portForwardCmd.Process.Kill()
+		_ = portForwardCmd.Wait()
+	}()
+
+	deadline := time.Now().Add(5 * time.Second)
+	var collections []qdrantCollectionStatus
+	var err error
+	for time.Now().Before(deadline) {
+		collections, err = probeQdrantCollections("http://127.0.0.1:6333")
+		if err == nil && len(collections) > 0 {
+			return collections
+		}
+		time.Sleep(300 * time.Millisecond)
+	}
+
+	return nil
+}
+
 func getTotalMemoryGB() float64 {
 	if runtime.GOOS == "linux" {
 		content, err := os.ReadFile("/proc/meminfo")
@@ -507,14 +642,6 @@ func getTotalMemoryGB() float64 {
 						return kb / 1024.0 / 1024.0
 					}
 				}
-			}
-		}
-	} else if runtime.GOOS == "darwin" {
-		out, err := commandOutput("sysctl", "-n", "hw.memsize")
-		if err == nil {
-			bytes, err := strconv.ParseFloat(strings.TrimSpace(out), 64)
-			if err == nil {
-				return bytes / 1024.0 / 1024.0 / 1024.0
 			}
 		}
 	}
@@ -595,15 +722,15 @@ func runDoctor() {
 	printHeader("CloudGraph Doctor")
 
 	printSuccess(fmt.Sprintf("OS: %s/%s", runtime.GOOS, runtime.GOARCH))
-	checkInternetConnection()
+	checkInternetConnectionFunc()
 
-	if commandExists("kubectl") {
+	if commandExistsFunc("kubectl") {
 		printSuccess("kubectl found")
 	} else {
 		printError("kubectl not found")
 	}
 
-	if commandExists("kubectl") && exec.Command("kubectl", "cluster-info").Run() == nil {
+	if commandExistsFunc("kubectl") && exec.Command("kubectl", "cluster-info").Run() == nil {
 		printSuccess("Kubernetes cluster detected")
 	} else {
 		printWarning("Kubernetes cluster not detected")
@@ -634,6 +761,25 @@ func runDoctor() {
 		printWarning(fmt.Sprintf("Minimum CPU: 2 cores+ (detected %d cores)", cpuCount))
 	}
 
+	qdrantCollections := qdrantCollectionSummaryFunc("cloudgraph-system")
+	if len(qdrantCollections) > 0 {
+		var summary []string
+		for _, collection := range qdrantCollections {
+			status := collection.Status
+			if status == "" {
+				status = "unknown"
+			}
+			if collection.Points > 0 {
+				summary = append(summary, fmt.Sprintf("%s=%s(%d points)", collection.Name, status, collection.Points))
+			} else {
+				summary = append(summary, fmt.Sprintf("%s=%s", collection.Name, status))
+			}
+		}
+		printSuccess(fmt.Sprintf("Qdrant reachable: %s", strings.Join(summary, ", ")))
+	} else {
+		printWarning("Qdrant not reachable or no collections reported yet")
+	}
+
 	fmt.Println("")
 	printInfo("Run: sudo cloudgraph deploy")
 }
@@ -641,7 +787,7 @@ func runDoctor() {
 func runStatus() {
 	printHeader("CloudGraph Status Dashboard")
 
-	context := getKubectlCurrentContext()
+	context := getKubectlCurrentContextFunc()
 	namespace := "cloudgraph-system"
 
 	fmt.Printf("Kubernetes Context: %s\n", context)
@@ -649,7 +795,7 @@ func runStatus() {
 	fmt.Println("")
 
 	printHeader("System Components Checklist")
-	statuses := getDeploymentStatuses(namespace)
+	statuses := getDeploymentStatusesFunc(namespace)
 	if len(statuses) == 0 {
 		printWarning("No deployments found in namespace 'cloudgraph-system' or cluster unreachable")
 	} else {
@@ -660,13 +806,32 @@ func runStatus() {
 
 	fmt.Println("")
 	printHeader("Access Information")
-	hosts := getIngressHosts(namespace)
+	hosts := getIngressHostsFunc(namespace)
 	if len(hosts) > 0 {
 		for _, host := range hosts {
 			fmt.Printf("CloudGraph UI: http://%s/\n", host)
 		}
 	} else {
 		fmt.Println("CloudGraph UI: http://localhost/")
+	}
+	qdrantCollections := qdrantCollectionSummaryFunc(namespace)
+	if len(qdrantCollections) > 0 {
+		fmt.Println("")
+		printHeader("Vector Store")
+		for _, collection := range qdrantCollections {
+			status := collection.Status
+			if status == "" {
+				status = "unknown"
+			}
+			if collection.Points > 0 {
+				fmt.Printf("Qdrant collection %s: %s (%d points)\n", collection.Name, status, collection.Points)
+			} else {
+				fmt.Printf("Qdrant collection %s: %s\n", collection.Name, status)
+			}
+		}
+	} else {
+		fmt.Println("")
+		printWarning("Qdrant not reachable or collections are not yet available")
 	}
 	fmt.Println("CloudGraph API: http://localhost:8080/")
 }
@@ -679,7 +844,7 @@ func runDeploy() {
 
 	// Check if a Kubernetes cluster is already active
 	hasCluster := false
-	if commandExists("kubectl") {
+	if commandExistsFunc("kubectl") {
 		cmd := exec.Command("kubectl", "cluster-info")
 		if err := cmd.Run(); err == nil {
 			hasCluster = true
@@ -714,6 +879,13 @@ func runDeploy() {
 	createNamespace()
 	installCloudGraph()
 	waitForDeployment()
+
+	qdrantCollections := qdrantCollectionSummaryFunc("cloudgraph-system")
+	if len(qdrantCollections) > 0 {
+		printSuccess("Qdrant collections are available")
+	} else {
+		printWarning("Qdrant did not report collections yet; check 'cloudgraph status' after the services are up")
+	}
 
 	printHeader("Setup Completed Successfully!")
 	fmt.Println("You can check your pods with:")

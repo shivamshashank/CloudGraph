@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -155,6 +156,11 @@ func runIngest(args []string) {
 }
 
 func main() {
+	if runtime.GOOS != "linux" && os.Getenv("CLOUDGRAPH_TESTING") != "true" {
+		fmt.Fprintln(os.Stderr, "Error: CloudGraph is only supported on Linux.")
+		os.Exit(1)
+	}
+
 	if len(os.Args) < 2 {
 		showHelp()
 		return

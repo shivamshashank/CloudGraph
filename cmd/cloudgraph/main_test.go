@@ -8,6 +8,10 @@ import (
 	"testing"
 )
 
+func init() {
+	os.Setenv("CLOUDGRAPH_TESTING", "true")
+}
+
 func TestShowVersion(t *testing.T) {
 	old := os.Stdout
 	r, w, _ := os.Pipe()
