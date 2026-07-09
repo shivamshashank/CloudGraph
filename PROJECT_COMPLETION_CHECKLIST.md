@@ -14,10 +14,10 @@
 - [x] Backend ingestion endpoints for metrics, logs, git events, and deployment webhooks exist.
 - [x] Basic graph linking and pod state history recording are implemented.
 - [x] Initial CLI and ingestion tests exist.
-- [ ] Real GraphRAG retrieval and ranking are not yet fully implemented.
-- [ ] Multi-agent orchestration and RCA generation are not yet fully implemented.
+- [x] Real GraphRAG retrieval, ranking, and validation benchmarks are completed.
+- [x] Multi-agent orchestration and RCA generation are completed.
 - [ ] End-to-end deployment validation on a real cluster is not yet fully demonstrated.
-- [ ] A production-grade UI with live investigation workflows is not yet complete.
+- [x] A production-grade UI with live investigation workflows and triage incident workbench is completed.
 - [ ] Comprehensive security, resilience, and release automation are still pending.
 
 ---
@@ -47,16 +47,16 @@
 - [x] Provide namespace creation and RBAC templates.
 - [x] Provide a basic uninstall flow.
 - [ ] Add a one-command local development bootstrap for Kind or k3d.
-- [ ] Add Helm chart linting and template validation in CI.
+- [x] Add Helm chart linting and template validation in CI.
 - [ ] Add package signing and release artifact verification.
 - [ ] Add versioned container images and image pull policy controls.
 - [ ] Add support for custom values files and environment-specific overlays.
 - [ ] Add deployment health gates that fail fast if dependencies are missing.
-- [ ] Add a dry-run deployment mode for CI and preflight checks.
-- [ ] Add support for upgrading and rolling back Helm releases safely.
+- [x] Add a dry-run deployment mode for CI and preflight checks.
+- [x] Add support for upgrading and rolling back Helm releases safely.
 - [ ] Add test coverage for deployment success and failure cases.
-- [ ] Validate deployment on a fresh Kind cluster end to end.
-- [ ] Validate deployment on a fresh k3d cluster end to end.
+- [x] Validate deployment on a fresh Kind cluster end to end.
+- [x] Validate deployment on a fresh k3d cluster end to end.
 - [ ] Validate deployment on a managed cluster such as EKS or AKS.
 
 ## 3. Infrastructure and Observability Integration
@@ -114,40 +114,40 @@
 
 ## 6. GraphRAG, Retrieval, and Search
 
-- [ ] Add Qdrant or equivalent vector storage for embeddings.
-- [ ] Add chunking and embedding pipelines for logs, metrics, incidents, and docs.
-- [ ] Add metadata indexing for graph nodes and their surrounding evidence.
-- [ ] Add hybrid retrieval combining vector similarity, keyword similarity, and graph traversal.
-- [ ] Add graph traversal APIs for neighborhood expansion and multi-hop retrieval.
-- [ ] Add ranking and re-ranking logic for retrieved evidence.
-- [ ] Add support for temporal context windows in retrieval.
-- [ ] Add support for evidence provenance and citation tracing.
-- [ ] Add retrieval relevance tests with a labeled benchmark set.
-- [ ] Add latency benchmarks for retrieval under realistic loads.
-- [ ] Add evaluation metrics for precision, recall, and MRR.
-- [ ] Add a query API for incident investigation and evidence retrieval.
-- [ ] Add a retrieval service that can explain why an evidence item was returned.
+- [x] Add Qdrant or equivalent vector storage for embeddings.
+- [x] Add chunking and embedding pipelines for logs, metrics, incidents, and docs.
+- [x] Add metadata indexing for graph nodes and their surrounding evidence.
+- [x] Add hybrid retrieval combining vector similarity, keyword similarity, and graph traversal.
+- [x] Add graph traversal APIs for neighborhood expansion and multi-hop retrieval.
+- [x] Add ranking and re-ranking logic for retrieved evidence.
+- [x] Add support for temporal context windows in retrieval.
+- [x] Add support for evidence provenance and citation tracing.
+- [x] Add retrieval relevance tests with a labeled benchmark set.
+- [x] Add latency benchmarks for retrieval under realistic loads.
+- [x] Add evaluation metrics for precision, recall, and MRR.
+- [x] Add a query API for incident investigation and evidence retrieval.
+- [x] Add a retrieval service that can explain why an evidence item was returned.
 - [ ] Add caching for repeated queries and common retrieval paths.
 - [ ] Add guardrails to prevent retrieval from returning irrelevant or low-confidence evidence.
 
 ## 7. Agent Orchestration and Multi-Agent Investigation
 
-- [ ] Implement a monitoring agent for metrics and alert analysis.
-- [ ] Implement a log analysis agent for anomaly and error pattern detection.
-- [ ] Implement a deployment agent for change and rollout correlation.
-- [ ] Implement a dependency and service topology agent.
-- [ ] Implement a security and runtime signal agent.
-- [ ] Add a coordinator/orchestrator that dispatches evidence gathering tasks.
+- [x] Implement a monitoring agent for metrics and alert analysis.
+- [x] Implement a log analysis agent for anomaly and error pattern detection.
+- [x] Implement a deployment agent for change and rollout correlation.
+- [x] Implement a dependency and service topology agent.
+- [x] Implement a security and runtime signal agent.
+- [x] Add a coordinator/orchestrator that dispatches evidence gathering tasks.
 - [ ] Add a shared memory store for conversation state and investigation history.
-- [ ] Add confidence scoring for agent hypotheses and evidence.
-- [ ] Add weighted voting or consensus logic across agents.
-- [ ] Add explanation generation that links evidence to conclusions.
-- [ ] Add a root cause ranking engine for candidate hypotheses.
-- [ ] Add remediation suggestion generation with risk assessment.
+- [x] Add confidence scoring for agent hypotheses and evidence.
+- [x] Add weighted voting or consensus logic across agents.
+- [x] Add explanation generation that links evidence to conclusions.
+- [x] Add a root cause ranking engine for candidate hypotheses.
+- [x] Add remediation suggestion generation with risk assessment.
 - [ ] Add rollback and mitigation recommendation workflows.
 - [ ] Add a human-in-the-loop approval step for high-risk actions.
-- [ ] Add integration tests for each agent in isolation.
-- [ ] Add integration tests for the full multi-agent investigation flow.
+- [x] Add integration tests for each agent in isolation.
+- [x] Add integration tests for the full multi-agent investigation flow.
 - [ ] Add golden-case scenarios for crashloop, network, resource starvation, and security incidents.
 
 ## 8. Incident Investigation Workflows and RCA
@@ -169,14 +169,14 @@
 
 ## 9. UI and User Experience
 
-- [ ] Build a dashboard for incidents, alerts, and investigation status.
+- [x] Build a dashboard for incidents, alerts, and investigation status.
 - [ ] Build a graph explorer view for services, dependencies, and evidence nodes.
-- [ ] Build a timeline view for incident evolution and state changes.
-- [ ] Build a detail page for each incident with evidence and recommendations.
+- [x] Build a timeline view for incident evolution and state changes.
+- [x] Build a detail page for each incident with evidence and recommendations.
 - [ ] Build a search view for graph and retrieval results.
-- [ ] Add live refresh for telemetry and investigation updates.
-- [ ] Add filtering by namespace, service, severity, and time range.
-- [ ] Add authentication and session management for the UI.
+- [x] Add live refresh for telemetry and investigation updates.
+- [x] Add filtering by namespace, service, severity, and time range.
+- [x] Add authentication and session management for the UI.
 - [ ] Add role-based access controls for sensitive incident data.
 - [ ] Add responsive behavior for desktop and tablet layouts.
 - [ ] Add end-to-end UI tests for the major user journeys.

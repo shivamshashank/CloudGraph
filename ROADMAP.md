@@ -169,31 +169,31 @@ Implement retrieval engine.
 
 ### Retrieval
 
-- [ ] Qdrant setup
-- [ ] Embedding pipeline
-- [ ] Hybrid retrieval
-- [ ] Graph retrieval
+- [x] Qdrant setup
+- [x] Embedding pipeline
+- [x] Hybrid retrieval
+- [x] Graph retrieval
 
 ### GraphRAG
 
-- [ ] Multi-hop traversal
-- [ ] Context expansion
-- [ ] Ranking algorithms
+- [x] Multi-hop traversal
+- [x] Context expansion
+- [x] Ranking algorithms
 
 ### API
 
-- [ ] Graph search endpoint
-- [ ] Retrieval endpoint
+- [x] Graph search endpoint
+- [x] Retrieval endpoint
 
 ### Testing
 
-- [ ] Retrieval relevance tests
-- [ ] Latency benchmarks
-- [ ] Accuracy evaluation
+- [x] Retrieval relevance tests
+- [x] Latency benchmarks
+- [x] Accuracy evaluation
 
 ### Deliverables
 
-- [ ] Working GraphRAG System
+- [x] Working GraphRAG System
 
 ---
 
@@ -207,33 +207,33 @@ Develop investigation agents.
 
 ### Agents
 
-- [ ] Monitoring Agent
-- [ ] Log Agent
-- [ ] Investigation Agent
-- [ ] Deployment Agent
-- [ ] Security Agent
+- [x] Monitoring Agent
+- [x] Log Agent
+- [x] Investigation Agent
+- [x] Deployment Agent
+- [x] Security Agent
 
 ### LangGraph
 
-- [ ] Agent orchestration
-- [ ] Agent communication
-- [ ] Workflow design
+- [x] Agent orchestration
+- [x] Agent communication
+- [x] Workflow design
 
 ### Consensus Engine
 
-- [ ] Evidence aggregation
-- [ ] Confidence scoring
-- [ ] Voting mechanism
+- [x] Evidence aggregation
+- [x] Confidence scoring
+- [x] Voting mechanism
 
 ### Testing
 
-- [ ] Agent unit tests
-- [ ] Agent integration tests
-- [ ] Consensus validation
+- [x] Agent unit tests
+- [x] Agent integration tests
+- [x] Consensus validation
 
 ### Deliverables
 
-- [ ] Multi-Agent Investigation System
+- [x] Multi-Agent Investigation System
 
 ---
 

@@ -1,6 +1,11 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <script>
+      if (localStorage.getItem("cloudgraph_logged_in") !== "true") {
+        window.location.href = "login.html";
+      }
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CloudGraph - Log Stream</title>
@@ -49,6 +54,9 @@
           <a href="evidence.html" class="nav-item">
             <span class="nav-icon">🧭</span> Evidence & Search
           </a>
+          <a href="workbench.html" class="nav-item">
+            <span class="nav-icon">📥</span> Incident Workbench
+          </a>
         </div>
 
         <div class="section-title">Cluster Metrics</div>
@@ -84,6 +92,13 @@
               >Neo4j: <strong id="db-status">Connecting...</strong></span
             >
           </div>
+          <button
+            id="btn-logout"
+            class="btn btn-danger"
+            style="margin-top: 10px; padding: 8px 12px; font-size: 12px"
+          >
+            <span class="btn-icon">🚪</span> Sign Out
+          </button>
         </div>
       </aside>
 
@@ -107,5 +122,6 @@
       </main>
     </div>
     <script src="app.js"></script>
+    <script src="logs.js"></script>
   </body>
 </html>

@@ -1,4 +1,4 @@
-"""Mock service for UI proxy and static files."""
+"""UI proxy and static file server."""
 
 import os
 import http.server
