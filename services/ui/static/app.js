@@ -242,13 +242,4 @@ document.addEventListener("DOMContentLoaded", () => {
   // Register shared hooks
   window.CloudGraph.fetchGraph = fetchGraph;
   window.CloudGraph.checkHealth = checkHealth;
-
-  // Sign Out event listener
-  const logoutBtn = document.getElementById("btn-logout");
-  if (logoutBtn) {
-    logoutBtn.addEventListener("click", () => {
-      localStorage.removeItem("cloudgraph_logged_in");
-      window.location.href = "login.html";
-    });
-  }
 });
