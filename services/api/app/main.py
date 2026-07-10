@@ -1,6 +1,7 @@
 """Main FastAPI application entry point, containing HTTP routes and lifespans."""
 
 from contextlib import asynccontextmanager
+import os
 import time
 import traceback
 from typing import Any
@@ -9,6 +10,7 @@ import uuid
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+import requests
 
 
 from app.adapters.graph_constructor import (
@@ -360,11 +362,46 @@ def _investigate_pod(pod: dict[str, Any], namespace: str) -> dict[str, Any]:
     )
     error_msgs = [e["msg"] for e in errors]
 
-    analysis = build_investigation_analysis(
-        pod_name=pod["name"],
-        pod_status=pod["status"],
-        error_msgs=error_msgs,
-    )
+    agent_orchestrator_url = os.getenv(
+        "AGENT_ORCHESTRATOR_URL", "http://localhost:8082"
+    ).rstrip("/")
+    called_orchestrator = False
+    analysis = None
+
+    try:
+        response = requests.post(
+            f"{agent_orchestrator_url}/orchestrate",
+            json={
+                "pod_id": pod["id"],
+                "pod_name": pod["name"],
+                "pod_status": pod["status"],
+                "namespace": namespace,
+                "error_logs": error_msgs,
+            },
+            timeout=12,
+        )
+        if response.status_code == 200:
+            res_data = response.json()
+            if res_data.get("status") == "success" and "consensus" in res_data:
+                consensus = res_data["consensus"]
+                analysis = {
+                    "title": consensus["title"],
+                    "summary": consensus["summary"],
+                    "cause": consensus["cause"],
+                    "recommendation": consensus["recommendation"],
+                    "severity": consensus["severity"],
+                    "evidence": consensus["evidence"],
+                }
+                called_orchestrator = True
+    except Exception:  # pylint: disable=broad-exception-caught
+        pass
+
+    if not called_orchestrator:
+        analysis = build_investigation_analysis(
+            pod_name=pod["name"],
+            pod_status=pod["status"],
+            error_msgs=error_msgs,
+        )
     evidence_context = build_relevant_evidence(
         pod_name=pod["name"], namespace=namespace
     )

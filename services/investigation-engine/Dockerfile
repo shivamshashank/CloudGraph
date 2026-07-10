@@ -1,4 +1,5 @@
 FROM python:3.11-alpine
 WORKDIR /app
-COPY mock_service.py /usr/local/bin/investigation-engine
+RUN pip install --no-cache-dir requests neo4j
+COPY main.py /usr/local/bin/investigation-engine
 CMD ["python", "/usr/local/bin/investigation-engine"]

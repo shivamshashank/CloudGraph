@@ -88,11 +88,7 @@ cloudgraphUI:
     enabled: true
     className: nginx
     annotations: {}
-    hosts:
-      - host: cloudgraph.local
-        paths:
-          - path: /
-            pathType: Prefix
+    hosts: []
     tls: []
 
 # OpenTelemetry Collector

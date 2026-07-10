@@ -4,6 +4,7 @@ import time
 from unittest.mock import MagicMock
 
 import pytest
+import requests
 from fastapi.testclient import TestClient
 from neo4j.exceptions import Neo4jError, ServiceUnavailable
 
@@ -220,6 +221,79 @@ def test_investigation_trigger_uses_retrieval_context_when_available(monkeypatch
     retrieval_context = body["results"][0]["retrieval_context"]
     assert retrieval_context["source"] == "graphrag"
     assert retrieval_context["top_result"]["name"] == "checkout-service"
+
+
+def test_investigation_trigger_with_multi_agent_consensus(monkeypatch):
+    """Verify that the trigger endpoint delegates to the agent
+    orchestrator successfully.
+    """
+
+    def _fake_execute_query(query, _params=None):
+        if "MATCH (p:Pod)" in query and "WHERE NOT p.status" in query:
+            return [
+                {
+                    "id": "pod-1",
+                    "name": "demo-payment-app",
+                    "status": "CrashLoopBackOff",
+                    "nodeName": "node-1",
+                }
+            ]
+        if (
+            "MATCH (p:Pod)-[:GENERATES]->(l:Log)" in query
+            and "l.level = 'ERROR'" in query
+        ):
+            return [{"msg": "database credentials wrong-password error", "ts": 123}]
+        if "CREATE (i:Incident" in query:
+            return [{"id": "incident-1"}]
+        return []
+
+    class MockResponse:  # pylint: disable=too-few-public-methods
+        """Mock HTTP response."""
+
+        @staticmethod
+        def json():
+            """Return JSON data."""
+            return {
+                "status": "success",
+                "service": "agent-orchestrator",
+                "consensus": {
+                    "title": "Database authentication failure on demo-payment-app",
+                    "summary": "Invalid database credentials detected",
+                    "cause": "Incorrect login password error observed.",
+                    "recommendation": "Check secret configuration credentials.",
+                    "severity": "CRITICAL",
+                    "confidence": 0.94,
+                    "evidence": [
+                        "Consensus Engine confidence: 94%",
+                        "Agent 'logs' signal: auth failure",
+                    ],
+                },
+            }
+
+        status_code = 200
+
+    def _fake_post(*args, **kwargs):  # pylint: disable=unused-argument
+        return MockResponse()
+
+    monkeypatch.setattr(neo4j_client, "execute_query", _fake_execute_query)
+    monkeypatch.setattr(
+        k8s_discovery,
+        "discover_cluster_topology",
+        lambda namespace=None: {"status": "success"},
+    )
+    monkeypatch.setattr(requests, "post", _fake_post)
+
+    response = client.post(
+        "/api/v1/investigations/trigger", json={"namespace": "cloudgraph-system"}
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "success"
+    result = body["results"][0]
+    assert result["title"] == "Database authentication failure on demo-payment-app"
+    assert result["severity"] == "CRITICAL"
+    assert "Consensus Engine confidence: 94%" in result["evidence"]
 
 
 def test_relevant_evidence_endpoint_returns_graph_context(monkeypatch):

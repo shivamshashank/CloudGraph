@@ -1,0 +1,756 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CloudGraph - Incident Workbench</title>
+    <!-- Modern Premium Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      .workbench-grid {
+        display: grid;
+        grid-template-columns: 360px 1fr;
+        gap: 20px;
+        height: calc(100vh - 48px);
+      }
+      .list-pane {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+      }
+      .detail-pane {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        overflow-y: auto;
+      }
+      .workbench-filters {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        padding: 14px 20px;
+        border-bottom: 1px solid var(--border-color);
+        background-color: rgba(255, 255, 255, 0.01);
+      }
+      .filter-select {
+        background-color: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        color: var(--text-main);
+        font-family: var(--font-body);
+        font-size: 12px;
+        padding: 8px 12px;
+        outline: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+      .filter-select:focus {
+        border-color: var(--color-primary);
+      }
+      .incident-scroll-area {
+        flex: 1;
+        overflow-y: auto;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .incident-card {
+        background-color: rgba(255, 255, 255, 0.02);
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        padding: 16px;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+      }
+      .incident-card:hover {
+        background-color: rgba(255, 255, 255, 0.04);
+        border-color: var(--border-hover);
+        transform: translateY(-2px);
+      }
+      .incident-card.active-selected {
+        background-color: rgba(99, 102, 241, 0.06);
+        border-color: var(--color-primary);
+        box-shadow: 0 0 14px rgba(99, 102, 241, 0.15);
+      }
+      .incident-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 8px;
+      }
+      .incident-card-title {
+        font-family: var(--font-heading);
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-main);
+        text-align: left;
+        line-height: 1.4;
+      }
+      .badge-status {
+        font-size: 10px;
+        font-weight: 700;
+        padding: 3px 6px;
+        border-radius: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .status-active {
+        background-color: rgba(239, 68, 68, 0.1);
+        color: #fca5a5;
+        border: 1px solid rgba(239, 68, 68, 0.2);
+      }
+      .status-acknowledged {
+        background-color: rgba(245, 158, 11, 0.1);
+        color: #fcd34d;
+        border: 1px solid rgba(245, 158, 11, 0.2);
+      }
+      .status-investigating {
+        background-color: rgba(168, 85, 247, 0.1);
+        color: #e9d5ff;
+        border: 1px solid rgba(168, 85, 247, 0.2);
+      }
+      .status-resolved {
+        background-color: rgba(16, 185, 129, 0.1);
+        color: #a7f3d0;
+        border: 1px solid rgba(16, 185, 129, 0.2);
+      }
+      .incident-card-time {
+        font-size: 11px;
+        color: var(--text-muted);
+        display: block;
+        margin-top: 6px;
+        text-align: left;
+      }
+      .incident-details-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 16px;
+      }
+      .details-title {
+        font-family: var(--font-heading);
+        font-size: 20px;
+        font-weight: 700;
+        color: #ffffff;
+      }
+      .triage-controls {
+        background-color: rgba(255, 255, 255, 0.01);
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        padding: 16px;
+        margin-bottom: 20px;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        align-items: end;
+      }
+      .triage-field {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        text-align: left;
+      }
+      .triage-field label {
+        font-family: var(--font-heading);
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        letter-spacing: 0.5px;
+      }
+      .triage-select,
+      .triage-input {
+        background-color: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        color: var(--text-main);
+        font-family: var(--font-body);
+        font-size: 13px;
+        padding: 10px;
+        outline: none;
+        width: 100%;
+        transition: border-color 0.3s ease;
+      }
+      .triage-select:focus,
+      .triage-input:focus {
+        border-color: var(--color-primary);
+      }
+      .comments-section {
+        border-top: 1px solid var(--border-color);
+        padding-top: 20px;
+        margin-top: 24px;
+        text-align: left;
+      }
+      .comments-title {
+        font-family: var(--font-heading);
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 16px;
+        color: #ffffff;
+      }
+      .comments-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        max-height: 240px;
+        overflow-y: auto;
+        margin-bottom: 16px;
+        padding-right: 8px;
+      }
+      .comment-item {
+        background-color: rgba(255, 255, 255, 0.01);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 12px;
+      }
+      .comment-meta {
+        display: flex;
+        justify-content: space-between;
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-bottom: 6px;
+      }
+      .comment-author {
+        font-weight: 600;
+        color: var(--color-primary);
+      }
+      .comment-text {
+        font-size: 13px;
+        line-height: 1.4;
+      }
+      .comment-form {
+        display: flex;
+        gap: 12px;
+      }
+      .comment-textarea {
+        flex: 1;
+        background-color: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        color: var(--text-main);
+        font-family: var(--font-body);
+        font-size: 13px;
+        padding: 12px;
+        resize: none;
+        height: 60px;
+        outline: none;
+        transition: border-color 0.3s ease;
+      }
+      .comment-textarea:focus {
+        border-color: var(--color-primary);
+      }
+      .btn-resolve {
+        background: linear-gradient(135deg, var(--color-success), #047857);
+        box-shadow: 0 4px 14px var(--color-success-glow);
+        border: none;
+        border-radius: 6px;
+        color: #ffffff;
+        font-family: var(--font-heading);
+        font-weight: 600;
+        cursor: pointer;
+        padding: 10px 16px;
+        transition: all 0.3s ease;
+      }
+      .btn-resolve:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 18px rgba(16, 185, 129, 0.4);
+      }
+      .incident-empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: var(--text-muted);
+        gap: 16px;
+      }
+      .incident-empty-icon {
+        font-size: 48px;
+        opacity: 0.2;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-container">
+      <!-- Sidebar Navigation & Control Panel -->
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="logo-icon">⚡</span>
+          <h1>CloudGraph</h1>
+        </div>
+
+        <div class="section-title">Operations</div>
+        <div class="control-group">
+          <button
+            id="btn-discover"
+            class="btn btn-primary"
+            onclick="triggerDiscover()"
+          >
+            <span class="btn-icon">🔍</span> Discover Cluster
+          </button>
+          <button
+            id="btn-analyze"
+            class="btn btn-secondary"
+            onclick="triggerAnalyze()"
+          >
+            <span class="btn-icon">🧠</span> Run AI Diagnosis
+          </button>
+        </div>
+
+        <div class="section-title">Navigation</div>
+        <div class="nav-menu">
+          <a href="index.html" class="nav-item">
+            <span class="nav-icon">🗺️</span> Topology Map
+          </a>
+          <a href="diagnosis.html" class="nav-item">
+            <span class="nav-icon">🧠</span> AI Diagnosis
+          </a>
+          <a href="logs.html" class="nav-item">
+            <span class="nav-icon">📺</span> Log Stream
+          </a>
+          <a href="evidence.html" class="nav-item">
+            <span class="nav-icon">🧭</span> Evidence & Search
+          </a>
+          <a href="workbench.html" class="nav-item active">
+            <span class="nav-icon">📥</span> Incident Workbench
+          </a>
+        </div>
+
+        <div class="connection-status">
+          <div class="status-indicator">
+            <span class="indicator-dot online" id="api-dot"></span>
+            <span class="indicator-text"
+              >API: <strong id="api-status">Connecting...</strong></span
+            >
+          </div>
+          <div class="status-indicator">
+            <span class="indicator-dot online" id="db-dot"></span>
+            <span class="indicator-text"
+              >Neo4j: <strong id="db-status">Connecting...</strong></span
+            >
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Dashboard View -->
+      <main class="main-content">
+        <div class="workbench-grid">
+          <!-- Left: Incident List -->
+          <div class="card list-pane">
+            <div class="card-header" style="padding-bottom: 8px">
+              <h2>Active Incident Deck</h2>
+              <span class="card-subtitle"
+                >Triaging queues and resolution statuses</span
+              >
+            </div>
+
+            <div class="workbench-filters">
+              <select
+                id="filter-status"
+                class="filter-select"
+                onchange="renderIncidentList()"
+              >
+                <option value="ALL">All Statuses</option>
+                <option value="Active">Active</option>
+                <option value="Acknowledged">Acknowledged</option>
+                <option value="Investigating">Investigating</option>
+                <option value="Resolved">Resolved</option>
+              </select>
+              <select
+                id="filter-severity"
+                class="filter-select"
+                onchange="renderIncidentList()"
+              >
+                <option value="ALL">All Severities</option>
+                <option value="CRITICAL">Critical</option>
+                <option value="HIGH">High</option>
+                <option value="MEDIUM">Medium</option>
+              </select>
+            </div>
+
+            <div class="incident-scroll-area" id="incident-list-container">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <!-- Right: Details Pane -->
+          <div class="card detail-pane" style="padding: 24px">
+            <div id="details-content-area" style="height: 100%">
+              <div class="incident-empty">
+                <span class="incident-empty-icon">📥</span>
+                <p>Select an active incident from the deck to begin triaging</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+      // Navigation Discover / Analyze Triggers to maintain API bindings
+      function triggerDiscover() {
+        const discoverBtn = document.getElementById("btn-discover");
+        if (discoverBtn) discoverBtn.click();
+      }
+      function triggerAnalyze() {
+        const analyzeBtn = document.getElementById("btn-analyze");
+        if (analyzeBtn) analyzeBtn.click();
+      }
+
+      // Default mock incidents for persistence initialization
+      const INITIAL_SEED_INCIDENTS = [
+        {
+          id: "incident-seed-1",
+          title: "Out Of Memory (OOM) error detected on checkout-pod",
+          severity: "CRITICAL",
+          status: "Active",
+          cause:
+            "The workload memory consumption spiked beyond container limits, triggering K8s kernel OOM-killer.",
+          remediation:
+            "Verify recent resource spec commits. Increase memory limits to 512Mi.",
+          timestamp: Date.now() - 3600000 * 2, // 2 hours ago
+          assigned: "SRE Team",
+          error_logs: [
+            "FATAL: OutOfMemoryError",
+            "Container terminated by OOM killer",
+          ],
+        },
+        {
+          id: "incident-seed-2",
+          title: "Database authentication failure on demo-payment-app",
+          severity: "CRITICAL",
+          status: "Active",
+          cause:
+            "Incorrect database login credentials secret observed in checkout trace logging.",
+          remediation:
+            "Re-run helm vault secrets synchronization. Check database access control lists.",
+          timestamp: Date.now() - 3600000 * 4, // 4 hours ago
+          assigned: "Security Specialist",
+          error_logs: [
+            "Access denied for user 'admin' (using password: YES)",
+            "Authentication failed: wrong-password",
+          ],
+        },
+        {
+          id: "incident-seed-3",
+          title: "High response timeout connection on frontend-pod",
+          severity: "HIGH",
+          status: "Acknowledged",
+          cause:
+            "TCP dial timeouts connecting to downstream checkout-service instances.",
+          remediation:
+            "Verify service topology routing. Inspect checkout pod restart trends.",
+          timestamp: Date.now() - 3600000 * 12, // 12 hours ago
+          assigned: "Operations Team",
+          error_logs: [
+            "Connection timeout after 5000ms",
+            "upstream server failed to reply",
+          ],
+        },
+      ];
+
+      // Load Incidents and Comments from localStorage
+      let incidents = [];
+      let selectedIncidentId = null;
+
+      function loadIncidents() {
+        const saved = localStorage.getItem("cloudgraph_incidents");
+        if (saved) {
+          incidents = JSON.parse(saved);
+        } else {
+          incidents = INITIAL_SEED_INCIDENTS;
+          localStorage.setItem(
+            "cloudgraph_incidents",
+            JSON.stringify(incidents),
+          );
+        }
+      }
+
+      function getIncidentComments(incidentId) {
+        return JSON.parse(
+          localStorage.getItem(`cloudgraph_comments_${incidentId}`) || "[]",
+        );
+      }
+
+      function saveIncidentComments(incidentId, comments) {
+        localStorage.setItem(
+          `cloudgraph_comments_${incidentId}`,
+          JSON.stringify(comments),
+        );
+      }
+
+      function getStatusClass(status) {
+        switch (status) {
+          case "Active":
+            return "status-active";
+          case "Acknowledged":
+            return "status-acknowledged";
+          case "Investigating":
+            return "status-investigating";
+          case "Resolved":
+            return "status-resolved";
+          default:
+            return "";
+        }
+      }
+
+      function getSeverityClass(severity) {
+        switch (severity) {
+          case "CRITICAL":
+            return "rca-badge-critical";
+          case "HIGH":
+            return "rca-badge-high";
+          default:
+            return "rca-badge-healthy";
+        }
+      }
+
+      // Render Incident list on the left pane
+      function renderIncidentList() {
+        const container = document.getElementById("incident-list-container");
+        const statusFilter = document.getElementById("filter-status").value;
+        const severityFilter = document.getElementById("filter-severity").value;
+
+        container.innerHTML = "";
+
+        const filtered = incidents.filter((inc) => {
+          const statusMatch =
+            statusFilter === "ALL" || inc.status === statusFilter;
+          const severityMatch =
+            severityFilter === "ALL" || inc.severity === severityFilter;
+          return statusMatch && severityMatch;
+        });
+
+        if (filtered.length === 0) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <span class="empty-icon">🛡️</span>
+              <p>No incidents match criteria</p>
+            </div>`;
+          return;
+        }
+
+        filtered.forEach((inc) => {
+          const card = document.createElement("div");
+          card.className = `incident-card ${selectedIncidentId === inc.id ? "active-selected" : ""}`;
+          card.onclick = () => selectIncident(inc.id);
+
+          const timeText = new Date(inc.timestamp).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+          const dateText = new Date(inc.timestamp).toLocaleDateString([], {
+            month: "short",
+            day: "numeric",
+          });
+
+          card.innerHTML = `
+            <div class="incident-card-header">
+              <span class="badge-status ${getStatusClass(inc.status)}">${inc.status}</span>
+              <span class="rca-badge ${getSeverityClass(inc.severity)}" style="font-size: 9px; padding: 2px 5px;">${inc.severity}</span>
+            </div>
+            <div class="incident-card-title">${inc.title}</div>
+            <span class="incident-card-time">📅 ${dateText} at ${timeText} | 👤 ${inc.assigned}</span>
+          `;
+          container.appendChild(card);
+        });
+      }
+
+      // Handle selecting an incident and displaying details on the right pane
+      function selectIncident(id) {
+        selectedIncidentId = id;
+        renderIncidentList();
+        renderIncidentDetails();
+      }
+
+      // Render details pane for selected incident
+      function renderIncidentDetails() {
+        const detailsArea = document.getElementById("details-content-area");
+        const inc = incidents.find((i) => i.id === selectedIncidentId);
+
+        if (!inc) {
+          detailsArea.innerHTML = `
+            <div class="incident-empty">
+              <span class="incident-empty-icon">📥</span>
+              <p>Select an active incident from the deck to begin triaging</p>
+            </div>`;
+          return;
+        }
+
+        const comments = getIncidentComments(inc.id);
+        const commentsListHtml = comments
+          .map(
+            (c) => `
+          <div class="comment-item">
+            <div class="comment-meta">
+              <span class="comment-author">${c.author}</span>
+              <span>${new Date(c.timestamp).toLocaleString()}</span>
+            </div>
+            <div class="comment-text">${c.text}</div>
+          </div>
+        `,
+          )
+          .join("");
+
+        const telemetryLogsHtml =
+          inc.error_logs && inc.error_logs.length > 0
+            ? `<div class="rca-block" style="text-align:left; margin-bottom: 20px;">
+               <div class="rca-block-title">Triggering Evidence Logs</div>
+               <div class="rca-logs" style="background-color: rgba(0, 0, 0, 0.2); padding: 12px; border-radius: 6px; border: 1px solid var(--border-color);">
+                 ${inc.error_logs.map((log) => `<div class="rca-log-item" style="font-family: var(--font-mono); font-size: 12px; padding: 4px 0;">🔴 ${log}</div>`).join("")}
+               </div>
+             </div>`
+            : "";
+
+        detailsArea.innerHTML = `
+          <div class="incident-details-header">
+            <div>
+              <div class="details-title" style="text-align: left; line-height:1.4;">${inc.title}</div>
+              <span class="card-subtitle" style="text-align: left;">Incident ID: ${inc.id}</span>
+            </div>
+            <div style="display:flex; gap: 10px; align-items:center;">
+              <span class="rca-badge ${getSeverityClass(inc.severity)}" style="height:fit-content;">${inc.severity}</span>
+              <span class="badge-status ${getStatusClass(inc.status)}" style="height:fit-content;">${inc.status}</span>
+            </div>
+          </div>
+
+          <!-- Triage Control Panel -->
+          <div class="triage-controls">
+            <div class="triage-field">
+              <label>Triage Status</label>
+              <select class="triage-select" id="triage-status-select" onchange="updateIncidentStatus('${inc.id}', this.value)">
+                <option value="Active" ${inc.status === "Active" ? "selected" : ""}>Active</option>
+                <option value="Acknowledged" ${inc.status === "Acknowledged" ? "selected" : ""}>Acknowledged</option>
+                <option value="Investigating" ${inc.status === "Investigating" ? "selected" : ""}>Investigating</option>
+                <option value="Resolved" ${inc.status === "Resolved" ? "selected" : ""}>Resolved</option>
+              </select>
+            </div>
+
+            <div class="triage-field">
+              <label>Owner / Assigned Team</label>
+              <select class="triage-select" id="triage-assign-select" onchange="updateIncidentAssignee('${inc.id}', this.value)">
+                <option value="Unassigned" ${inc.assigned === "Unassigned" ? "selected" : ""}>Unassigned</option>
+                <option value="SRE Team" ${inc.assigned === "SRE Team" ? "selected" : ""}>SRE Team</option>
+                <option value="Operations Team" ${inc.assigned === "Operations Team" ? "selected" : ""}>Operations Team</option>
+                <option value="Security Specialist" ${inc.assigned === "Security Specialist" ? "selected" : ""}>Security Specialist</option>
+                <option value="Core Developer" ${inc.assigned === "Core Developer" ? "selected" : ""}>Core Developer</option>
+              </select>
+            </div>
+
+            <div style="text-align: right;">
+              <button class="btn-resolve" onclick="resolveIncident('${inc.id}')">Resolve Incident</button>
+            </div>
+          </div>
+
+          <!-- RCA Content -->
+          <div class="rca-block" style="text-align:left; margin-bottom: 20px;">
+            <div class="rca-block-title">Root Cause Theory</div>
+            <div class="rca-block-body" style="background-color: rgba(255,255,255,0.01); border: 1px solid var(--border-color); border-radius:6px; padding:12px;">${inc.cause}</div>
+          </div>
+
+          ${telemetryLogsHtml}
+
+          <div class="rca-block" style="text-align:left; margin-bottom: 20px;">
+            <div class="rca-block-title" style="color: #a5b4fc;">Remediation Recommendation</div>
+            <div class="rca-block-body" style="background-color: rgba(255,255,255,0.01); border: 1px solid var(--border-color); border-radius:6px; padding:12px;">${inc.remediation}</div>
+          </div>
+
+          <!-- Interactive Comments / Triage Notes -->
+          <div class="comments-section">
+            <div class="comments-title">Triage Notes & Workspace Collaboration</div>
+            <div class="comments-list" id="comments-container">
+              ${commentsListHtml ? commentsListHtml : '<p style="color:var(--text-muted); font-size:13px; font-style:italic;">No triage notes logged yet.</p>'}
+            </div>
+
+            <form class="comment-form" onsubmit="addTriageComment(event, '${inc.id}')">
+              <textarea class="comment-textarea" id="comment-text-input" placeholder="Type a new triage note, log analysis comment, or status note..." required></textarea>
+              <button type="submit" class="btn btn-primary" style="width: auto; padding: 12px 20px; align-self: flex-end;">Save Note</button>
+            </form>
+          </div>
+        `;
+      }
+
+      // Triage Status Modifier
+      function updateIncidentStatus(id, newStatus) {
+        const inc = incidents.find((i) => i.id === id);
+        if (!inc) return;
+
+        const oldStatus = inc.status;
+        inc.status = newStatus;
+        localStorage.setItem("cloudgraph_incidents", JSON.stringify(incidents));
+
+        // Add auto log comment
+        const comments = getIncidentComments(id);
+        comments.push({
+          author: "System (Triage Engine)",
+          text: `Status updated from **${oldStatus}** to **${newStatus}**.`,
+          timestamp: Date.now(),
+        });
+        saveIncidentComments(id, comments);
+
+        selectIncident(id);
+      }
+
+      // Triage Assignee Modifier
+      function updateIncidentAssignee(id, newAssignee) {
+        const inc = incidents.find((i) => i.id === id);
+        if (!inc) return;
+
+        const oldAssignee = inc.assigned;
+        inc.assigned = newAssignee;
+        localStorage.setItem("cloudgraph_incidents", JSON.stringify(incidents));
+
+        // Add auto log comment
+        const comments = getIncidentComments(id);
+        comments.push({
+          author: "System (Triage Engine)",
+          text: `Ownership assigned from **${oldAssignee}** to **${newAssignee}**.`,
+          timestamp: Date.now(),
+        });
+        saveIncidentComments(id, comments);
+
+        selectIncident(id);
+      }
+
+      // Resolve button trigger
+      function resolveIncident(id) {
+        updateIncidentStatus(id, "Resolved");
+      }
+
+      // Add triage notes comment
+      function addTriageComment(event, id) {
+        event.preventDefault();
+        const textInput = document.getElementById("comment-text-input");
+        const commentText = textInput.value.trim();
+        if (!commentText) return;
+
+        const comments = getIncidentComments(id);
+        comments.push({
+          author: "Lead Triage Analyst (Admin)",
+          text: commentText,
+          timestamp: Date.now(),
+        });
+        saveIncidentComments(id, comments);
+
+        textInput.value = "";
+        renderIncidentDetails();
+      }
+
+      // Initialize page
+      loadIncidents();
+      renderIncidentList();
+    </script>
+  </body>
+</html>
