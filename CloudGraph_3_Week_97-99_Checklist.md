@@ -1,0 +1,179 @@
+# CloudGraph --- 3 Week Roadmap to a 97--99/100 MSc Dissertation
+
+> Goal: Transform CloudGraph from an excellent engineering project into
+> a research contribution with publication potential.
+
+## Success Criteria
+
+- [ ] Complete end-to-end GraphRAG + Multi-Agent pipeline
+- [ ] Introduce **Graph Confidence Propagation (GCP)** (novel
+    algorithm)
+- [ ] Introduce **Graph-Provenance Claim Scoring (GPCS)** (novel
+    algorithm)
+- [ ] 60--80 balanced incident dataset
+- [ ] Full ablation study
+- [ ] Human evaluation (3--5 evaluators)
+- [ ] Statistical analysis (CI + effect sizes)
+- [ ] Dissertation chapters aligned to RQ1--RQ4
+
+------------------------------------------------------------------------
+
+# Week 1 --- Finish the Research System
+
+## Platform
+
+- [ ] End-to-end deployment works
+- [ ] Neo4j + Qdrant integrated
+- [ ] GraphRAG retrieval operational
+- [ ] Multi-agent orchestration complete
+- [ ] RCA report generation complete
+
+## Graph Confidence Propagation (NEW)
+
+### Deliverables
+
+- [ ] Design confidence propagation algorithm
+- [ ] Confidence score for every graph node
+- [ ] Confidence decay across graph edges
+- [ ] Root Cause Confidence
+- [ ] Recommendation Confidence
+- [ ] Confidence visualization in UI
+
+### Documentation
+
+- [ ] Mathematical formulation
+- [ ] Architecture diagram
+- [ ] Pseudocode
+- [ ] Complexity analysis
+
+------------------------------------------------------------------------
+
+# Week 2 --- Novel Research Contribution
+
+## Graph-Provenance Claim Scoring (GPCS)
+
+### Claim Extraction
+
+- [ ] Extract atomic claims from RCA
+- [ ] Classify (Temporal / Causal / State / Relationship)
+
+### Evidence Alignment
+
+- [ ] Semantic retrieval
+- [ ] Graph retrieval
+- [ ] Merge evidence
+
+### Trust Scoring
+
+- [ ] Semantic similarity
+- [ ] Graph proximity
+- [ ] Source reliability
+- [ ] Path-length penalty
+
+### Outputs
+
+- [ ] Unsupported Claim Rate
+- [ ] Claim confidence
+- [ ] Evidence path
+- [ ] UI highlighting
+
+## Baselines
+
+- [ ] Keyword Search
+- [ ] Vector RAG
+- [ ] GraphRAG
+- [ ] GraphRAG + Agents
+- [ ] GraphRAG + Agents + GCP
+- [ ] GraphRAG + Agents + GCP + GPCS
+
+------------------------------------------------------------------------
+
+# Week 3 --- Evaluation & Dissertation
+
+## Dataset
+
+- [ ] 60--80 incidents
+- [ ] Balanced categories
+- [ ] Ground truth labels
+
+## Ablation Study
+
+- [ ] Remove GraphRAG
+- [ ] Remove Agents
+- [ ] Remove GCP
+- [ ] Remove GPCS
+
+Measure: - Accuracy - Precision - Recall - F1 - MTTR reduction -
+Hallucination rate - Latency
+
+## Human Evaluation
+
+- [ ] 3--5 SRE/DevOps reviewers
+- [ ] Blind comparison
+- [ ] Usefulness
+- [ ] Trustworthiness
+- [ ] Explainability
+- [ ] Inter-rater agreement
+
+## Statistics
+
+- [ ] Confidence intervals
+- [ ] Effect size
+- [ ] Significance tests
+
+## Dissertation
+
+- [ ] Methodology
+- [ ] Algorithm design
+- [ ] Experimental setup
+- [ ] Results
+- [ ] Threats to validity
+- [ ] Limitations
+- [ ] Future work
+
+------------------------------------------------------------------------
+
+# Stretch Goals (Only if time remains)
+
+- [ ] Conference paper draft
+- [ ] Demo video
+- [ ] Interactive evidence graph
+- [ ] Live Kubernetes demo
+
+------------------------------------------------------------------------
+
+# Final Submission Checklist
+
+## Research
+
+- [ ] Two named algorithms (GCP + GPCS)
+- [ ] Novel contribution clearly stated
+- [ ] RQ1--RQ4 answered
+
+## Engineering
+
+- [ ] Clean architecture
+- [ ] Tests passing
+- [ ] Reproducible deployment
+
+## Evaluation
+
+- [ ] Baselines
+- [ ] Ablation
+- [ ] Human study
+- [ ] Statistical evidence
+
+## Dissertation Quality
+
+- [ ] Professional figures
+- [ ] High-quality writing
+- [ ] Critical discussion
+- [ ] Honest limitations
+
+# Target Outcome
+
+Expected dissertation score: **97--99/100**
+
+This roadmap prioritizes research depth over feature breadth. Every new
+feature must strengthen the research questions or evaluation; avoid
+adding unrelated engineering work.

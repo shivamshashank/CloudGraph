@@ -834,6 +834,55 @@ body {
   margin-top: 10px;
 }
 
+.rca-confidence-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px dashed var(--border-color);
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 8px;
+}
+
+.rca-confidence-badge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.rca-conf-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  width: 150px;
+  font-weight: 500;
+}
+
+.rca-conf-bar-bg {
+  flex-grow: 1;
+  background-color: rgba(255, 255, 255, 0.05);
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.rca-conf-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.rca-conf-val {
+  font-family: var(--font-heading);
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffffff;
+  width: 40px;
+  text-align: right;
+}
+
 .rca-block {
   background-color: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--border-color);

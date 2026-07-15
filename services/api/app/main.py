@@ -21,9 +21,12 @@ from app.adapters.graph_constructor import (
 from app.adapters.k8s_discovery import discover_cluster_topology
 from app.adapters.loki import ingest_loki_log
 from app.adapters.prometheus import ingest_prometheus_metric
+from app.adapters.tempo import ingest_tempo_trace
 from app.adapters.webhooks import ingest_argocd_deployment, ingest_git_commit
 from app.database.neo4j_client import neo4j_client, NEO4J_CONNECTION_ERRORS
 from app.database.qdrant import qdrant_client
+from app.database.redis_client import redis_client
+from app.research.gcp import GraphConfidencePropagator
 from app.retrieval.graph_traversal import graph_traversal_retriever
 from app.retrieval.hybrid_ranker import hybrid_ranker
 from app.services.semantic_store import SemanticVectorStore
@@ -36,6 +39,7 @@ from app.schemas import (
     InvestigationTrigger,
     EvidenceTrigger,
     GraphRAGSearchPayload,
+    TracePayload,
 )
 from app.helpers import (
     build_relevant_evidence,
@@ -50,6 +54,7 @@ async def lifespan(_app: FastAPI):
     """FastAPI application lifespan context manager for startup and shutdown."""
     neo4j_client.connect()
     qdrant_client.ensure_collections()
+    redis_client.connect()
     yield
     qdrant_client.close()
     neo4j_client.close()
@@ -134,6 +139,7 @@ def post_metric(payload: MetricPayload):
                 "timestamp": payload.timestamp,
             },
         )
+        redis_client.clear_cache()
         return {"status": "success", "metric_id": metric_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -165,7 +171,45 @@ def post_log(payload: LogPayload):
                 "timestamp": payload.timestamp,
             },
         )
+        redis_client.clear_cache()
         return {"status": "success", "log_id": log_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@app.post("/api/v1/telemetry/traces")
+def post_trace(payload: TracePayload):
+    """Ingest a Tempo trace span and index it in the semantic search vector store."""
+    try:
+        result = ingest_tempo_trace(
+            payload.pod_id,
+            payload.pod_name,
+            payload.span_id,
+            payload.trace_id,
+            payload.parent_span_id,
+            payload.service_name,
+            payload.duration,
+            payload.timestamp,
+            payload.status,
+        )
+        trace_id = result[0]["trace_id"] if result else "trace-fallback"
+        semantic_store.index_document(
+            trace_id,
+            (
+                f"Trace span {payload.span_id} from trace {payload.trace_id} "
+                f"service {payload.service_name} duration {payload.duration}ms "
+                f"status {payload.status}"
+            ),
+            {
+                "type": "trace",
+                "label": "Trace",
+                "name": payload.service_name,
+                "pod_name": payload.pod_name,
+                "timestamp": payload.timestamp,
+            },
+        )
+        redis_client.clear_cache()
+        return {"status": "success", "trace_id": trace_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -195,6 +239,7 @@ def post_git_webhook(payload: GitCommitPayload):
                 "timestamp": payload.timestamp,
             },
         )
+        redis_client.clear_cache()
         return {"status": "success", "sha": result[0]["sha"]}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -228,6 +273,7 @@ def post_argocd_webhook(payload: ArgoCDDeploymentPayload):
                 "timestamp": payload.timestamp,
             },
         )
+        redis_client.clear_cache()
         return {
             "status": "success",
             "deployment": result[0]["deployment_name"] if result else None,
@@ -242,6 +288,7 @@ def post_graph_link():
     try:
         linking_results = run_entity_linking()
         dependencies_created = build_service_dependency_map()
+        redis_client.clear_cache()
         return {
             "status": "success",
             "linking": linking_results,
@@ -258,6 +305,7 @@ def post_pod_status(payload: PodStatusPayload):
         history_id = record_state_history(
             payload.pod_id, payload.status, payload.timestamp
         )
+        redis_client.clear_cache()
         return {"status": "success", "history_id": history_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -279,6 +327,7 @@ def trigger_k8s_discovery(namespace: str = "cloudgraph-system"):
                 ),
                 {"label": "Cluster", "name": namespace, "status": "Discovered"},
             )
+        redis_client.clear_cache()
         return result
     except Exception as e:
         traceback.print_exc()
@@ -349,54 +398,60 @@ def get_graph_data():
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-def _investigate_pod(pod: dict[str, Any], namespace: str) -> dict[str, Any]:
+def _investigate_pod(
+    pod: dict[str, Any],
+    namespace: str,
+    llm_provider: str | None = None,
+    llm_api_key: str | None = None,
+    llm_model: str | None = None,
+) -> dict[str, Any]:
     """Execute investigation checks, logs querying, and context extraction for a pod."""
-    errors = neo4j_client.execute_query(
-        """
-        MATCH (p:Pod)-[:GENERATES]->(l:Log)
-        WHERE elementId(p) = $pod_id AND l.level = 'ERROR'
-        RETURN l.message as msg, l.timestamp as ts
-        ORDER BY l.timestamp DESC LIMIT 3
-        """,
-        {"pod_id": pod["id"]},
-    )
-    error_msgs = [e["msg"] for e in errors]
+    error_msgs = [
+        e["msg"]
+        for e in neo4j_client.execute_query(
+            """
+            MATCH (p:Pod)-[:GENERATES]->(l:Log)
+            WHERE elementId(p) = $pod_id AND l.level = 'ERROR'
+            RETURN l.message as msg, l.timestamp as ts
+            ORDER BY l.timestamp DESC LIMIT 3
+            """,
+            {"pod_id": pod["id"]},
+        )
+    ]
 
-    agent_orchestrator_url = os.getenv(
-        "AGENT_ORCHESTRATOR_URL", "http://localhost:8082"
-    ).rstrip("/")
-    called_orchestrator = False
     analysis = None
 
     try:
+        orch_addr = os.getenv("AGENT_ORCHESTRATOR_URL", "http://localhost:8082")
         response = requests.post(
-            f"{agent_orchestrator_url}/orchestrate",
+            f"{orch_addr.rstrip('/')}/orchestrate",
             json={
                 "pod_id": pod["id"],
                 "pod_name": pod["name"],
                 "pod_status": pod["status"],
                 "namespace": namespace,
                 "error_logs": error_msgs,
+                "llm_provider": llm_provider,
+                "llm_api_key": llm_api_key,
+                "llm_model": llm_model,
             },
             timeout=12,
         )
         if response.status_code == 200:
-            res_data = response.json()
-            if res_data.get("status") == "success" and "consensus" in res_data:
-                consensus = res_data["consensus"]
+            rdata = response.json()
+            if rdata.get("status") == "success" and "consensus" in rdata:
                 analysis = {
-                    "title": consensus["title"],
-                    "summary": consensus["summary"],
-                    "cause": consensus["cause"],
-                    "recommendation": consensus["recommendation"],
-                    "severity": consensus["severity"],
-                    "evidence": consensus["evidence"],
+                    "title": rdata["consensus"]["title"],
+                    "summary": rdata["consensus"]["summary"],
+                    "cause": rdata["consensus"]["cause"],
+                    "recommendation": rdata["consensus"]["recommendation"],
+                    "severity": rdata["consensus"]["severity"],
+                    "evidence": rdata["consensus"]["evidence"],
                 }
-                called_orchestrator = True
     except Exception:  # pylint: disable=broad-exception-caught
         pass
 
-    if not called_orchestrator:
+    if not analysis:
         analysis = build_investigation_analysis(
             pod_name=pod["name"],
             pod_status=pod["status"],
@@ -415,6 +470,12 @@ def _investigate_pod(pod: dict[str, Any], namespace: str) -> dict[str, Any]:
             f"Retrieval context: {retrieval_context['summary']}"
         )
 
+    gcp_res = {"root_cause": 0.80, "recommendation": 0.75}
+    try:
+        gcp_res = GraphConfidencePropagator().run_propagation(pod["name"])
+    except Exception:  # pylint: disable=broad-exception-caught
+        pass
+
     incident_id = str(uuid.uuid4())
     neo4j_client.execute_query(
         """
@@ -425,7 +486,9 @@ def _investigate_pod(pod: dict[str, Any], namespace: str) -> dict[str, Any]:
             status: "Open",
             timestamp: $timestamp,
             severity: $severity,
-            recommendation: $recommendation
+            recommendation: $recommendation,
+            root_cause_confidence: $root_cause_conf,
+            recommendation_confidence: $rec_conf
         })
         WITH i
         MATCH (p:Pod) WHERE elementId(p) = $pod_id
@@ -440,6 +503,8 @@ def _investigate_pod(pod: dict[str, Any], namespace: str) -> dict[str, Any]:
             "severity": analysis["severity"],
             "recommendation": analysis["recommendation"],
             "pod_id": pod["id"],
+            "root_cause_conf": gcp_res["root_cause"],
+            "rec_conf": gcp_res["recommendation"],
         },
     )
 
@@ -454,6 +519,8 @@ def _investigate_pod(pod: dict[str, Any], namespace: str) -> dict[str, Any]:
             "label": "Incident",
             "name": analysis["title"],
             "status": "Open",
+            "root_cause_confidence": gcp_res["root_cause"],
+            "recommendation_confidence": gcp_res["recommendation"],
         },
     )
     semantic_store.index_document(
@@ -479,6 +546,8 @@ def _investigate_pod(pod: dict[str, Any], namespace: str) -> dict[str, Any]:
         "relevant_evidence": evidence_context["evidence"],
         "retrieval_context": retrieval_context,
         "timestamp": int(time.time()),
+        "root_cause_confidence": gcp_res["root_cause"],
+        "recommendation_confidence": gcp_res["recommendation"],
     }
 
 
@@ -504,11 +573,18 @@ def trigger_investigation(payload: InvestigationTrigger):
             LIMIT 5
             """
             anomalous_pods = neo4j_client.execute_query(log_anomaly_query)
-
         investigations = []
         if anomalous_pods:
             for pod in anomalous_pods:
-                investigations.append(_investigate_pod(pod, payload.namespace))
+                investigations.append(
+                    _investigate_pod(
+                        pod,
+                        payload.namespace,
+                        llm_provider=payload.llm_provider,
+                        llm_api_key=payload.llm_api_key,
+                        llm_model=payload.llm_model,
+                    )
+                )
         else:
             investigations.append(
                 {
@@ -661,6 +737,66 @@ def _process_graph_search_record(
     }, graph_hits
 
 
+def _build_search_payload(
+    query: str,
+    search_method: str,
+    payload: GraphRAGSearchPayload,
+    data: dict,
+) -> dict:
+    """Construct search result payload based on chosen method."""
+    if search_method == "keyword":
+        return {
+            "status": "success",
+            "query": query,
+            "method": search_method,
+            "retrieval": {
+                "depth": payload.depth,
+                "start_time": payload.start_time,
+                "end_time": payload.end_time,
+                "ranking_formula": "keyword-only",
+            },
+            "results": data["results"],
+        }
+    if search_method == "vector":
+        return {
+            "status": "success",
+            "query": query,
+            "method": search_method,
+            "retrieval": {
+                "depth": payload.depth,
+                "start_time": payload.start_time,
+                "end_time": payload.end_time,
+                "ranking_formula": "vector-only",
+            },
+            "results": data["semantic_results"],
+        }
+
+    ref_time = payload.end_time or int(time.time())
+    ranked = hybrid_ranker.rank(
+        data["semantic_hits"],
+        data["graph_hits"],
+        reference_time=ref_time,
+        limit=10,
+    )
+    hybrid_items = [format_hybrid_result(item) for item in ranked]
+    if not hybrid_items:
+        hybrid_items = data["semantic_results"] + hybrid_items
+        hybrid_items.sort(key=lambda item: item.get("score", 0.0), reverse=True)
+
+    return {
+        "status": "success",
+        "query": query,
+        "method": search_method,
+        "retrieval": {
+            "depth": payload.depth,
+            "start_time": payload.start_time,
+            "end_time": payload.end_time,
+            "ranking_formula": hybrid_ranker.FORMULA,
+        },
+        "results": hybrid_items,
+    }
+
+
 @app.post("/api/v1/graphrag/search")
 def graphrag_search(payload: GraphRAGSearchPayload, method: str | None = None):
     """Search graphrag context by keyword, semantic vector, or hybrid ranking."""
@@ -675,6 +811,16 @@ def graphrag_search(payload: GraphRAGSearchPayload, method: str | None = None):
                 status_code=400,
                 detail="method must be one of: keyword, vector, hybrid",
             )
+
+        # Check cache
+        cache_key = (
+            f"graphrag:search:{query}:{search_method}:{payload.depth}:"
+            f"{payload.start_time}:{payload.end_time}"
+        )
+        if redis_client.enabled:
+            cached_res = redis_client.get(cache_key)
+            if cached_res:
+                return cached_res
 
         raw_results = neo4j_client.execute_query(
             """
@@ -706,99 +852,60 @@ def graphrag_search(payload: GraphRAGSearchPayload, method: str | None = None):
         results = []
         graph_hits = []
         for record in raw_results:
-            res, hts = _process_graph_search_record(
+            res_and_hts = _process_graph_search_record(
                 record,
                 query,
                 payload.depth,
                 payload.start_time,
                 payload.end_time,
             )
-            results.append(res)
-            graph_hits.extend(hts)
+            results.append(res_and_hts[0])
+            graph_hits.extend(res_and_hts[1])
 
-        if search_method == "keyword":
-            return {
-                "status": "success",
-                "query": query,
-                "method": search_method,
-                "retrieval": {
-                    "depth": payload.depth,
-                    "start_time": payload.start_time,
-                    "end_time": payload.end_time,
-                    "ranking_formula": "keyword-only",
-                },
-                "results": results,
+        semantic_results = [
+            {
+                "id": hit["id"],
+                "label": hit["metadata"].get("label", "Node"),
+                "type": str(hit["metadata"].get("label", "Node")).lower(),
+                "name": hit["metadata"].get("name", hit["id"]),
+                "status": hit["metadata"].get("status", "Active"),
+                "evidence_chain": [
+                    {
+                        "type": "semantic",
+                        "label": "Embedding",
+                        "name": hit["text"],
+                    }
+                ],
+                "context": [
+                    {
+                        "name": "Semantic text match",
+                        "type": "semantic",
+                        "relationship": "matched_text",
+                    }
+                ],
+                "related": [],
+                "score": round(hit["score"], 3),
+                "sources": ["vector"],
+                "detail": hit["text"],
             }
-
-        semantic_results = []
-        for hit in semantic_hits:
-            semantic_results.append(
-                {
-                    "id": hit["id"],
-                    "label": hit["metadata"].get("label", "Node"),
-                    "type": str(hit["metadata"].get("label", "Node")).lower(),
-                    "name": hit["metadata"].get("name", hit["id"]),
-                    "status": hit["metadata"].get("status", "Active"),
-                    "evidence_chain": [
-                        {
-                            "type": "semantic",
-                            "label": "Embedding",
-                            "name": hit["text"],
-                        }
-                    ],
-                    "context": [
-                        {
-                            "name": "Semantic text match",
-                            "type": "semantic",
-                            "relationship": "matched_text",
-                        }
-                    ],
-                    "related": [],
-                    "score": round(hit["score"], 3),
-                    "sources": ["vector"],
-                    "detail": hit["text"],
-                }
-            )
-
-        if search_method == "vector":
-            return {
-                "status": "success",
-                "query": query,
-                "method": search_method,
-                "retrieval": {
-                    "depth": payload.depth,
-                    "start_time": payload.start_time,
-                    "end_time": payload.end_time,
-                    "ranking_formula": "vector-only",
-                },
-                "results": semantic_results,
-            }
-
-        results = [
-            format_hybrid_result(item)
-            for item in hybrid_ranker.rank(
-                semantic_hits,
-                graph_hits,
-                reference_time=payload.end_time or int(time.time()),
-                limit=10,
-            )
+            for hit in semantic_hits
         ]
-        if not results:
-            results = semantic_results + results
-            results.sort(key=lambda item: item.get("score", 0.0), reverse=True)
 
-        return {
-            "status": "success",
-            "query": query,
-            "method": search_method,
-            "retrieval": {
-                "depth": payload.depth,
-                "start_time": payload.start_time,
-                "end_time": payload.end_time,
-                "ranking_formula": hybrid_ranker.FORMULA,
+        res_payload = _build_search_payload(
+            query,
+            search_method,
+            payload,
+            {
+                "results": results,
+                "semantic_results": semantic_results,
+                "semantic_hits": semantic_hits,
+                "graph_hits": graph_hits,
             },
-            "results": results,
-        }
+        )
+
+        if redis_client.enabled:
+            redis_client.set(cache_key, res_payload, ex=300)
+        return res_payload
     except HTTPException as e:
         raise e
     except Exception as e:
@@ -842,6 +949,7 @@ def reset_demo():
     """Clear all nodes and relationships in the Neo4j database graph."""
     try:
         neo4j_client.execute_query("MATCH (n) DETACH DELETE n")
+        redis_client.clear_cache()
         return {"status": "success", "message": "Graph cleared"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e

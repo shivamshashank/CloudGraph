@@ -8,6 +8,7 @@ import os
 import http.server
 import socketserver
 from typing import List, Dict, Any
+import requests
 
 try:
     from neo4j import GraphDatabase
@@ -15,6 +16,101 @@ try:
     NEO4J_AVAILABLE = True
 except ImportError:
     NEO4J_AVAILABLE = False
+
+
+def call_llm(
+    prompt: str,
+    system_prompt: str = (
+        "You are a helpful AIOps assistant. Output strictly valid JSON."
+    ),
+    provider: str = "",
+    api_key: str = "",
+    model: str = "",
+) -> dict:
+    """Make direct HTTP request to configured LLM provider and return parsed JSON."""
+    provider = (provider or os.getenv("LLM_PROVIDER", "openai")).lower().strip()
+    api_key = (
+        api_key
+        or os.getenv("OPENAI_API_KEY")
+        or os.getenv("GEMINI_API_KEY")
+        or os.getenv("ANTHROPIC_API_KEY")
+    )
+
+    if not api_key:
+        raise ValueError("No API Key available for LLM service")
+
+    if not model:
+        if provider == "openai":
+            model = os.getenv("LLM_MODEL", "gpt-4o-mini")
+        elif provider == "gemini":
+            model = os.getenv("LLM_MODEL", "gemini-1.5-flash")
+        elif provider == "claude":
+            model = os.getenv("LLM_MODEL", "claude-3-5-sonnet-latest")
+
+    if provider == "openai":
+        url = "https://api.openai.com/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt},
+            ],
+            "response_format": {"type": "json_object"},
+            "temperature": 0.1,
+        }
+        res = requests.post(url, headers=headers, json=payload, timeout=20)
+        res.raise_for_status()
+        content = res.json()["choices"][0]["message"]["content"]
+        return json.loads(content)
+
+    if provider == "gemini":
+        url = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt},
+            ],
+            "response_format": {"type": "json_object"},
+            "temperature": 0.1,
+        }
+        res = requests.post(url, headers=headers, json=payload, timeout=20)
+        res.raise_for_status()
+        content = res.json()["choices"][0]["message"]["content"]
+        return json.loads(content)
+
+    if provider == "claude":
+        url = "https://api.anthropic.com/v1/messages"
+        headers = {
+            "x-api-key": api_key,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+        }
+        payload = {
+            "model": model,
+            "max_tokens": 4000,
+            "system": system_prompt,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.1,
+        }
+        res = requests.post(url, headers=headers, json=payload, timeout=20)
+        res.raise_for_status()
+        content = res.json()["content"][0]["text"]
+        if "{" in content:
+            start = content.index("{")
+            end = content.rindex("}") + 1
+            content = content[start:end]
+        return json.loads(content)
+
+    raise ValueError(f"Unsupported LLM provider: {provider}")
 
 
 class Neo4jClient:
@@ -28,7 +124,7 @@ class Neo4jClient:
             self.user, self.password = auth.split("/", 1)
         else:
             self.user = os.getenv("NEO4J_USER", "neo4j")
-            self.password = os.getenv("NEO4J_PASSWORD", "cloudgraph_dev_password")
+            self.password = os.getenv("NEO4J_PASSWORD", "")
         self.driver = None
 
     def connect(self):
@@ -59,256 +155,94 @@ neo4j_client = Neo4jClient()
 
 
 # Specialist Agents Definition
-def run_monitoring_agent(pod_name: str) -> Dict[str, Any]:
-    """Monitoring Agent: Inspects metric trends and utilization anomalies."""
-    finding = "Pod resource utilization metrics are within normal operational limits."
-    confidence = 0.8
-    metadata = {}
-
+def _call_llm_agent(
+    prompt: str,
+    system_prompt: str,
+    llm_provider: str | None,
+    llm_api_key: str | None,
+    llm_model: str | None,
+) -> dict | None:
+    """Helper to execute LLM calls for agents, catching exceptions."""
     try:
-        if NEO4J_AVAILABLE:
-            query = """
-            MATCH (p:Pod {name: $pod_name})-[:GENERATES]->(m:Metric)
-            RETURN m.name as name, m.value as value, m.timestamp as ts
-            ORDER BY m.timestamp DESC LIMIT 10
-            """
-            records = neo4j_client.execute_query(query, {"pod_name": pod_name})
-            if records:
-                cpu_vals = [r["value"] for r in records if "cpu" in r["name"].lower()]
-                mem_vals = [
-                    r["value"]
-                    for r in records
-                    if "memory" in r["name"].lower() or "mem" in r["name"].lower()
-                ]
+        provider = (llm_provider or os.getenv("LLM_PROVIDER", "")).strip().lower()
+        api_key = (
+            llm_api_key
+            or os.getenv("OPENAI_API_KEY")
+            or os.getenv("GEMINI_API_KEY")
+            or os.getenv("ANTHROPIC_API_KEY")
+            or ""
+        ).strip()
 
-                anomalies = []
-                if cpu_vals:
-                    avg_cpu = sum(cpu_vals) / len(cpu_vals)
-                    if avg_cpu > 80.0:
-                        anomalies.append(f"High CPU usage ({avg_cpu:.1f}%)")
-                        confidence = 0.9
-                    elif max(cpu_vals) > 95.0:
-                        anomalies.append(f"CPU spike detected ({max(cpu_vals):.1f}%)")
-                        confidence = 0.88
-
-                if mem_vals:
-                    avg_mem = sum(mem_vals) / len(mem_vals)
-                    if avg_mem > 90.0:
-                        anomalies.append(f"Memory saturation ({avg_mem:.1f}%)")
-                        confidence = 0.92
-
-                if anomalies:
-                    finding = f"Metric anomalies observed: {', '.join(anomalies)}."
-                metadata = {
-                    "cpu_values": cpu_vals,
-                    "memory_values": mem_vals,
-                    "anomalies": anomalies,
-                }
+        if provider and api_key:
+            return call_llm(
+                prompt=prompt,
+                system_prompt=system_prompt,
+                provider=provider,
+                api_key=api_key,
+                model=llm_model,
+            )
     except Exception as exc:
-        finding = f"Monitoring metrics unreachable (offline fallback): {str(exc)}"
-        confidence = 0.5
-
-    return {
-        "name": "monitoring",
-        "finding": finding,
-        "confidence": confidence,
-        "metadata": metadata,
-    }
+        print(f"LLM Agent call failed: {str(exc)}")
+    return None
 
 
-def run_log_agent(pod_name: str, error_logs: List[str]) -> Dict[str, Any]:
-    """Log Agent: Performs classification and error pattern recognition."""
-    finding = "No critical error signatures detected in application logs."
-    confidence = 0.6
-    metadata = {}
-
-    # Query from database if list is empty
-    logs_to_scan = list(error_logs)
-    if not logs_to_scan and NEO4J_AVAILABLE:
-        try:
-            query = """
-            MATCH (p:Pod {name: $pod_name})-[:GENERATES]->(l:Log)
-            WHERE l.level = 'ERROR'
-            RETURN l.message as msg, l.timestamp as ts
-            ORDER BY l.timestamp DESC LIMIT 5
-            """
-            records = neo4j_client.execute_query(query, {"pod_name": pod_name})
-            logs_to_scan = [r["msg"] for r in records]
-        except Exception:
-            pass
-
-    if logs_to_scan:
-        error_text = " ".join(logs_to_scan).lower()
-        finding = "Analyzed log streams. Standard runtime errors observed."
-        confidence = 0.7
-        category = "general"
-
-        if (
-            "oom" in error_text
-            or "out of memory" in error_text
-            or "oomkilled" in error_text
-        ):
-            finding = "Out-Of-Memory (OOM) signature detected in error logs."
-            confidence = 0.96
-            category = "oom"
-        elif any(
-            kw in error_text
-            for kw in [
-                "connection refused",
-                "dial tcp",
-                "timeout",
-                "network unreachable",
-            ]
-        ):
-            finding = (
-                "Network connection failures or downstream timeout errors detected."
-            )
-            confidence = 0.92
-            category = "network"
-        elif any(
-            kw in error_text
-            for kw in [
-                "password",
-                "unauthorized",
-                "access denied",
-                "auth",
-                "credential",
-                "wrong-password",
-            ]
-        ):
-            finding = "Authentication/Credential failure signature detected in logs."
-            confidence = 0.94
-            category = "auth"
-        elif "crashloop" in error_text or "panic" in error_text:
-            finding = "Application runtime crash loop or panic trace detected."
-            confidence = 0.88
-            category = "crash"
-
-        metadata = {"category": category, "scanned_logs_count": len(logs_to_scan)}
-
-    return {
-        "name": "logs",
-        "finding": finding,
-        "confidence": confidence,
-        "metadata": metadata,
-    }
-
-
-def run_deployment_agent(pod_name: str) -> Dict[str, Any]:
-    """Deployment Agent: Correlates rollout states, replicasets, and git commits."""
-    finding = "No recent rollout changes or code deployment regressions registered."
-    confidence = 0.6
-    metadata = {}
-
-    try:
-        if NEO4J_AVAILABLE:
-            query = """
-            MATCH (p:Pod {name: $pod_name})<-[:MANAGES]-(d:Deployment)
-            OPTIONAL MATCH (d)-[:UPDATED_BY|TRIGGERED_BY]->(c:Commit)
-            RETURN d.name as name, d.status as status, c.sha as sha,
-                   c.message as commit_msg
-            LIMIT 1
-            """
-            records = neo4j_client.execute_query(query, {"pod_name": pod_name})
-            if records:
-                row = records[0]
-                finding = (
-                    f"Correlated with deployment rollout '{row['name']}' "
-                    f"(status: {row['status']})."
-                )
-                recent_change = True
-                if row.get("sha"):
-                    finding += (
-                        f" Active git commit revision: {row['sha'][:8]} "
-                        f"('{row['commit_msg']}')."
-                    )
-                    confidence = 0.85
-                metadata = {
-                    "deployment_name": row["name"],
-                    "status": row["status"],
-                    "commit_sha": row.get("sha"),
-                    "recent_change": recent_change,
-                }
-    except Exception:
-        pass
-
-    return {
-        "name": "deployments",
-        "finding": finding,
-        "confidence": confidence,
-        "metadata": metadata,
-    }
-
-
-def run_topology_agent(pod_name: str) -> Dict[str, Any]:
-    """Topology Agent: Analyzes cascade paths and scheduled host neighbors."""
-    finding = "Pod dependency tree and networking paths are fully operational."
-    confidence = 0.7
-    metadata = {}
-
-    try:
-        if NEO4J_AVAILABLE:
-            # Query Service dependencies
-            query = """
-            MATCH (p:Pod {name: $pod_name})-[:BELONGS_TO]->(s:Service)
-            MATCH (s)-[:CALLS]->(other:Service)
-            RETURN other.name as service
-            """
-            dep_records = neo4j_client.execute_query(query, {"pod_name": pod_name})
-            dependencies = [d["service"] for d in dep_records]
-
-            # Query scheduling neighbors
-            node_query = """
-            MATCH (p:Pod {name: $pod_name})-[:RUNS_ON]->(n:Node)
-            MATCH (n)<-[:RUNS_ON]-(other:Pod)
-            WHERE NOT other.status IN ['Running', 'Succeeded']
-            RETURN n.name as node, collect(other.name) as bad_pods
-            """
-            node_records = neo4j_client.execute_query(
-                node_query, {"pod_name": pod_name}
-            )
-
-            finding = "Active dependency hierarchy mapped."
-            if dependencies:
-                finding += f" Relies on external services: {', '.join(dependencies)}."
-
-            noisy_neighbors = []
-            if node_records:
-                node_name = node_records[0]["node"]
-                noisy_neighbors = node_records[0]["bad_pods"]
-                if noisy_neighbors:
-                    finding += (
-                        f" Warning: Scheduled on host '{node_name}' "
-                        f"alongside {len(noisy_neighbors)} failing pods."
-                    )
-                    confidence = 0.86
-
-            metadata = {
-                "dependencies": dependencies,
-                "noisy_neighbors": noisy_neighbors,
-            }
-    except Exception:
-        pass
-
-    return {
-        "name": "topology",
-        "finding": finding,
-        "confidence": confidence,
-        "metadata": metadata,
-    }
-
-
-def run_security_agent(pod_name: str, error_logs: List[str]) -> Dict[str, Any]:
-    """Security Agent: Reviews IAM access privileges and credentials."""
-    finding = "No security breaches, secret reference warnings, or RBAC alerts."
+def _analyze_metrics_rules(metadata: dict) -> tuple[str, float]:
+    """Helper to run rule-based metrics analysis."""
+    cpu_vals = metadata.get("cpu_values", [])
+    mem_vals = metadata.get("memory_values", [])
+    anomalies = []
     confidence = 0.8
-    metadata = {}
+    finding = "Pod resource utilization metrics are within normal operational limits."
 
-    logs_text = " ".join(error_logs).lower()
-    threat_detected = False
+    if cpu_vals:
+        avg_cpu = sum(cpu_vals) / len(cpu_vals)
+        if avg_cpu > 80.0:
+            anomalies.append(f"High CPU usage ({avg_cpu:.1f}%)")
+            confidence = 0.9
+        elif max(cpu_vals) > 95.0:
+            anomalies.append(f"CPU spike detected ({max(cpu_vals):.1f}%)")
+            confidence = 0.88
 
-    if any(
-        kw in logs_text
+    if mem_vals:
+        avg_mem = sum(mem_vals) / len(mem_vals)
+        if avg_mem > 90.0:
+            anomalies.append(f"Memory saturation ({avg_mem:.1f}%)")
+            confidence = 0.92
+
+    if anomalies:
+        finding = f"Metric anomalies observed: {', '.join(anomalies)}."
+    metadata["anomalies"] = anomalies
+    return finding, confidence
+
+
+def _analyze_logs_rules(error_text: str, logs_count: int) -> tuple[str, float, dict]:
+    """Helper to run rule-based log classification."""
+    finding = "Analyzed log streams. Standard runtime errors observed."
+    confidence = 0.7
+    category = "general"
+
+    if (
+        "oom" in error_text
+        or "out of memory" in error_text
+        or "oomkilled" in error_text
+    ):
+        finding = "Out-Of-Memory (OOM) signature detected in error logs."
+        confidence = 0.96
+        category = "oom"
+    elif any(
+        kw in error_text
+        for kw in [
+            "connection refused",
+            "dial tcp",
+            "timeout",
+            "network unreachable",
+        ]
+    ):
+        finding = "Network connection failures or downstream timeout errors detected."
+        confidence = 0.92
+        category = "network"
+    elif any(
+        kw in error_text
         for kw in [
             "password",
             "unauthorized",
@@ -318,39 +252,456 @@ def run_security_agent(pod_name: str, error_logs: List[str]) -> Dict[str, Any]:
             "wrong-password",
         ]
     ):
-        finding = (
-            "Potential credential exposure or authorization "
-            "failure captured in logs."
-        )
+        finding = "Authentication/Credential failure signature detected in logs."
         confidence = 0.94
+        category = "auth"
+    elif "crashloop" in error_text or "panic" in error_text:
+        finding = "Application runtime crash loop or panic trace detected."
+        confidence = 0.88
+        category = "crash"
+
+    return (
+        finding,
+        confidence,
+        {
+            "category": category,
+            "scanned_logs_count": logs_count,
+        },
+    )
+
+
+def _analyze_deployments_rules(
+    deployment_info: dict, _metadata: dict
+) -> tuple[str, float]:
+    """Helper to run rule-based deployment analysis."""
+    finding = (
+        f"Correlated with deployment rollout '{deployment_info['name']}' "
+        f"(status: {deployment_info['status']})."
+    )
+    confidence = 0.6
+    if deployment_info.get("sha"):
+        finding += (
+            f" Active git commit revision: {deployment_info['sha'][:8]} "
+            f"('{deployment_info['commit_msg']}')."
+        )
+        confidence = 0.85
+    return finding, confidence
+
+
+def _analyze_topology_rules(topology_info: dict, _metadata: dict) -> tuple[str, float]:
+    """Helper to run rule-based topology neighbor analysis."""
+    dependencies = topology_info.get("dependencies", [])
+    noisy_neighbors = topology_info.get("noisy_neighbors", [])
+    node_name = topology_info.get("node_name", "")
+
+    finding = "Active dependency hierarchy mapped."
+    confidence = 0.7
+    if dependencies:
+        finding += f" Relies on external services: {', '.join(dependencies)}."
+
+    if noisy_neighbors:
+        finding += (
+            f" Warning: Scheduled on host '{node_name}' "
+            f"alongside {len(noisy_neighbors)} failing pods."
+        )
+        confidence = 0.86
+    return finding, confidence
+
+
+def _analyze_security_rules(metadata: dict, threat_detected: bool) -> tuple[str, float]:
+    """Helper to run rule-based security classification."""
+    confidence = 0.8
+    if threat_detected:
+        if "log_sample" in metadata:
+            finding = (
+                f"Credential or unauthorized permission logs "
+                f"detected: '{metadata['log_sample']}'."
+            )
+            confidence = 0.95
+        else:
+            finding = (
+                "Potential credential exposure or authorization "
+                "failure captured in logs."
+            )
+            confidence = 0.94
+    else:
+        finding = "No security breaches, secret reference warnings, or RBAC alerts."
+    return finding, confidence
+
+
+def run_monitoring_agent(
+    pod_name: str,
+    llm_provider: str | None = None,
+    llm_api_key: str | None = None,
+    llm_model: str | None = None,
+) -> Dict[str, Any]:
+    """Monitoring Agent: Inspects metric trends and utilization anomalies."""
+    finding = "Pod resource utilization metrics are within normal operational limits."
+    confidence = 0.8
+    metadata = {}
+    metrics_log = []
+
+    try:
+        if NEO4J_AVAILABLE:
+            records = neo4j_client.execute_query(
+                """
+                MATCH (p:Pod {name: $pod_name})-[:GENERATES]->(m:Metric)
+                RETURN m.name as name, m.value as value, m.timestamp as ts
+                ORDER BY m.timestamp DESC LIMIT 10
+                """,
+                {"pod_name": pod_name},
+            )
+            if records:
+                metrics_log = records
+                metadata = {
+                    "cpu_values": [
+                        r["value"] for r in records if "cpu" in r["name"].lower()
+                    ],
+                    "memory_values": [
+                        r["value"]
+                        for r in records
+                        if "memory" in r["name"].lower() or "mem" in r["name"].lower()
+                    ],
+                }
+    except Exception as exc:
+        finding = f"Monitoring metrics unreachable (offline fallback): {str(exc)}"
+        confidence = 0.5
+
+    # Attempt LLM reasoning if database returned metrics
+    if metrics_log:
+        prompt = (
+            f"You are a Specialist Monitoring Agent.\n"
+            f"Analyze metrics for Pod '{pod_name}' to check "
+            f"for anomalies.\n\n"
+            f"Metrics:\n{json.dumps(metrics_log, indent=2)}\n\n"
+            "Output JSON with: 'finding', 'confidence', 'anomalies'."
+        )
+        system_prompt = "You are a monitoring specialist AI. You output strictly JSON."
+
+        llm_res = _call_llm_agent(
+            prompt, system_prompt, llm_provider, llm_api_key, llm_model
+        )
+
+        if llm_res and "finding" in llm_res and "confidence" in llm_res:
+            return {
+                "name": "monitoring",
+                "finding": str(llm_res["finding"]),
+                "confidence": round(float(llm_res["confidence"]), 2),
+                "metadata": {
+                    **metadata,
+                    "anomalies": llm_res.get("anomalies", []),
+                },
+            }
+
+    if metrics_log:
+        finding, confidence = _analyze_metrics_rules(metadata)
+
+    return {
+        "name": "monitoring",
+        "finding": finding,
+        "confidence": confidence,
+        "metadata": metadata,
+    }
+
+
+def run_log_agent(
+    pod_name: str,
+    error_logs: List[str],
+    llm_provider: str | None = None,
+    llm_api_key: str | None = None,
+    llm_model: str | None = None,
+) -> Dict[str, Any]:
+    """Log Agent: Performs classification and error pattern recognition."""
+    finding = "No critical error signatures detected in application logs."
+    confidence = 0.6
+    metadata = {}
+
+    # Query from database if list is empty
+    logs_to_scan = list(error_logs)
+    if not logs_to_scan and NEO4J_AVAILABLE:
+        try:
+            records = neo4j_client.execute_query(
+                """
+                MATCH (p:Pod {name: $pod_name})-[:GENERATES]->(l:Log)
+                WHERE l.level = 'ERROR'
+                RETURN l.message as msg, l.timestamp as ts
+                ORDER BY l.timestamp DESC LIMIT 5
+                """,
+                {"pod_name": pod_name},
+            )
+            logs_to_scan = [r["msg"] for r in records]
+        except Exception:
+            pass
+
+    if logs_to_scan:
+        prompt = (
+            f"You are a Specialist Log Agent.\n"
+            f"Analyze logs for Pod '{pod_name}' to check "
+            f"for failure patterns.\n\n"
+            f"Logs:\n{chr(10).join(logs_to_scan)}\n\n"
+            "Output JSON with: 'finding', 'confidence', 'category'."
+        )
+        system_prompt = (
+            "You are a log analysis specialist AI. You output strictly JSON."
+        )
+
+        llm_res = _call_llm_agent(
+            prompt, system_prompt, llm_provider, llm_api_key, llm_model
+        )
+
+        if llm_res and "finding" in llm_res and "confidence" in llm_res:
+            return {
+                "name": "logs",
+                "finding": str(llm_res["finding"]),
+                "confidence": round(float(llm_res["confidence"]), 2),
+                "metadata": {
+                    "category": llm_res.get("category", "general"),
+                    "scanned_logs_count": len(logs_to_scan),
+                },
+            }
+
+        error_text = " ".join(logs_to_scan).lower()
+        finding, confidence, metadata = _analyze_logs_rules(
+            error_text, len(logs_to_scan)
+        )
+
+    return {
+        "name": "logs",
+        "finding": finding,
+        "confidence": confidence,
+        "metadata": metadata,
+    }
+
+
+def run_deployment_agent(
+    pod_name: str,
+    llm_provider: str | None = None,
+    llm_api_key: str | None = None,
+    llm_model: str | None = None,
+) -> Dict[str, Any]:
+    """Deployment Agent: Correlates rollout states, replicasets, and git commits."""
+    finding = "No recent rollout changes or code deployment regressions registered."
+    confidence = 0.6
+    metadata = {}
+    deployment_info = {}
+
+    try:
+        if NEO4J_AVAILABLE:
+            records = neo4j_client.execute_query(
+                """
+                MATCH (p:Pod {name: $pod_name})<-[:MANAGES]-(d:Deployment)
+                OPTIONAL MATCH (d)-[:UPDATED_BY|TRIGGERED_BY]->(c:Commit)
+                RETURN d.name as name, d.status as status, c.sha as sha,
+                       c.message as commit_msg
+                LIMIT 1
+                """,
+                {"pod_name": pod_name},
+            )
+            if records:
+                deployment_info = records[0]
+                metadata = {
+                    "deployment_name": deployment_info["name"],
+                    "status": deployment_info["status"],
+                    "commit_sha": deployment_info.get("sha"),
+                    "recent_change": True,
+                }
+    except Exception:
+        pass
+
+    if deployment_info:
+        prompt = (
+            f"You are a Specialist Deployment Agent.\n"
+            f"Analyze deployment and Git status for Pod '{pod_name}' "
+            f"to check for regressions.\n\n"
+            f"Deployment info:\n{json.dumps(deployment_info, indent=2)}\n\n"
+            "Output JSON with: 'finding', 'confidence'."
+        )
+        system_prompt = (
+            "You are a deployment rollout analysis specialist AI. "
+            "You output strictly JSON."
+        )
+
+        llm_res = _call_llm_agent(
+            prompt, system_prompt, llm_provider, llm_api_key, llm_model
+        )
+
+        if llm_res and "finding" in llm_res and "confidence" in llm_res:
+            return {
+                "name": "deployments",
+                "finding": str(llm_res["finding"]),
+                "confidence": round(float(llm_res["confidence"]), 2),
+                "metadata": metadata,
+            }
+
+        finding, confidence = _analyze_deployments_rules(deployment_info, metadata)
+
+    return {
+        "name": "deployments",
+        "finding": finding,
+        "confidence": confidence,
+        "metadata": metadata,
+    }
+
+
+def run_topology_agent(
+    pod_name: str,
+    llm_provider: str | None = None,
+    llm_api_key: str | None = None,
+    llm_model: str | None = None,
+) -> Dict[str, Any]:
+    """Topology Agent: Analyzes cascade paths and scheduled host neighbors."""
+    finding = "Pod dependency tree and networking paths are fully operational."
+    confidence = 0.7
+    metadata = {}
+    topology_info = {}
+
+    try:
+        if NEO4J_AVAILABLE:
+            dep_records = neo4j_client.execute_query(
+                """
+                MATCH (p:Pod {name: $pod_name})-[:BELONGS_TO]->(s:Service)
+                MATCH (s)-[:CALLS]->(other:Service)
+                RETURN other.name as service
+                """,
+                {"pod_name": pod_name},
+            )
+            node_records = neo4j_client.execute_query(
+                """
+                MATCH (p:Pod {name: $pod_name})-[:RUNS_ON]->(n:Node)
+                MATCH (n)<-[:RUNS_ON]-(other:Pod)
+                WHERE NOT other.status IN ['Running', 'Succeeded']
+                RETURN n.name as node, collect(other.name) as bad_pods
+                """,
+                {"pod_name": pod_name},
+            )
+
+            topology_info = {
+                "dependencies": [d["service"] for d in dep_records],
+                "node_name": node_records[0]["node"] if node_records else "",
+                "noisy_neighbors": (
+                    node_records[0]["bad_pods"] if node_records else []
+                ),
+            }
+            metadata = {
+                "dependencies": topology_info["dependencies"],
+                "noisy_neighbors": topology_info["noisy_neighbors"],
+            }
+    except Exception:
+        pass
+
+    if topology_info:
+        prompt = (
+            f"You are a Specialist Topology Agent.\n"
+            f"Analyze topology for Pod '{pod_name}' to check "
+            f"for noisy neighbors.\n\n"
+            f"Topology:\n{json.dumps(topology_info, indent=2)}\n\n"
+            "Output JSON with: 'finding', 'confidence'."
+        )
+        system_prompt = "You are a topology specialist AI. You output strictly JSON."
+
+        llm_res = _call_llm_agent(
+            prompt, system_prompt, llm_provider, llm_api_key, llm_model
+        )
+
+        if llm_res and "finding" in llm_res and "confidence" in llm_res:
+            return {
+                "name": "topology",
+                "finding": str(llm_res["finding"]),
+                "confidence": round(float(llm_res["confidence"]), 2),
+                "metadata": metadata,
+            }
+
+        finding, confidence = _analyze_topology_rules(topology_info, metadata)
+
+    return {
+        "name": "topology",
+        "finding": finding,
+        "confidence": confidence,
+        "metadata": metadata,
+    }
+
+
+def run_security_agent(
+    pod_name: str,
+    error_logs: List[str],
+    llm_provider: str | None = None,
+    llm_api_key: str | None = None,
+    llm_model: str | None = None,
+) -> Dict[str, Any]:
+    """Security Agent: Reviews IAM access privileges and credentials."""
+    finding = "No security breaches, secret reference warnings, or RBAC alerts."
+    confidence = 0.8
+    metadata = {}
+    threat_detected = False
+    security_logs = []
+
+    if any(
+        kw in " ".join(error_logs).lower()
+        for kw in [
+            "password",
+            "unauthorized",
+            "access denied",
+            "auth",
+            "credential",
+            "wrong-password",
+        ]
+    ):
         threat_detected = True
+        security_logs = error_logs
         metadata = {"category": "credentials"}
     else:
         try:
             if NEO4J_AVAILABLE:
-                query = """
-                MATCH (p:Pod {name: $pod_name})-[:GENERATES]->(l:Log)
-                WHERE l.message CONTAINS 'password'
-                   OR l.message CONTAINS 'unauthorized'
-                   OR l.message CONTAINS 'access denied'
-                   OR l.message CONTAINS 'auth'
-                RETURN l.message as msg
-                LIMIT 1
-                """
-                records = neo4j_client.execute_query(query, {"pod_name": pod_name})
+                records = neo4j_client.execute_query(
+                    """
+                    MATCH (p:Pod {name: $pod_name})-[:GENERATES]->(l:Log)
+                    WHERE l.message CONTAINS 'password'
+                       OR l.message CONTAINS 'unauthorized'
+                       OR l.message CONTAINS 'access denied'
+                       OR l.message CONTAINS 'auth'
+                    RETURN l.message as msg
+                    LIMIT 3
+                    """,
+                    {"pod_name": pod_name},
+                )
                 if records:
-                    finding = (
-                        f"Credential or unauthorized permission logs "
-                        f"detected: '{records[0]['msg']}'."
-                    )
-                    confidence = 0.95
                     threat_detected = True
+                    security_logs = [r["msg"] for r in records]
                     metadata = {
                         "category": "credentials",
                         "log_sample": records[0]["msg"],
                     }
         except Exception:
             pass
+
+    if threat_detected:
+        prompt = (
+            f"You are a Specialist Security Agent.\n"
+            f"Analyze logs for Pod '{pod_name}' to check "
+            f"for credential leaks.\n\n"
+            f"Logs:\n{chr(10).join(security_logs)}\n\n"
+            "Output JSON with: 'finding', 'confidence', 'threat_detected'."
+        )
+        system_prompt = (
+            "You are a security analysis specialist AI. You output strictly JSON."
+        )
+
+        llm_res = _call_llm_agent(
+            prompt, system_prompt, llm_provider, llm_api_key, llm_model
+        )
+
+        if llm_res and "finding" in llm_res and "confidence" in llm_res:
+            return {
+                "name": "security",
+                "finding": str(llm_res["finding"]),
+                "confidence": round(float(llm_res["confidence"]), 2),
+                "metadata": {
+                    **metadata,
+                    "threat_detected": bool(llm_res.get("threat_detected", True)),
+                },
+            }
+
+        finding, confidence = _analyze_security_rules(metadata, threat_detected)
 
     metadata["threat_detected"] = threat_detected
     return {
@@ -412,13 +763,26 @@ class InvestigationHandler(http.server.BaseHTTPRequestHandler):
         pod_name = payload.get("pod_name", "unknown")
         pod_status = payload.get("pod_status", "Unknown")
         error_logs = payload.get("error_logs", [])
+        llm_provider = payload.get("llm_provider")
+        llm_api_key = payload.get("llm_api_key")
+        llm_model = payload.get("llm_model")
 
         # Execute all 5 specialized agents
-        monitoring_res = run_monitoring_agent(pod_name)
-        logs_res = run_log_agent(pod_name, error_logs)
-        deployments_res = run_deployment_agent(pod_name)
-        topology_res = run_topology_agent(pod_name)
-        security_res = run_security_agent(pod_name, error_logs)
+        monitoring_res = run_monitoring_agent(
+            pod_name, llm_provider, llm_api_key, llm_model
+        )
+        logs_res = run_log_agent(
+            pod_name, error_logs, llm_provider, llm_api_key, llm_model
+        )
+        deployments_res = run_deployment_agent(
+            pod_name, llm_provider, llm_api_key, llm_model
+        )
+        topology_res = run_topology_agent(
+            pod_name, llm_provider, llm_api_key, llm_model
+        )
+        security_res = run_security_agent(
+            pod_name, error_logs, llm_provider, llm_api_key, llm_model
+        )
 
         # Build response
         self._send_json(

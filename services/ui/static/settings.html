@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CloudGraph - LLM Settings</title>
+    <!-- Modern Premium Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      .settings-container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 40px 20px;
+      }
+      .form-group {
+        margin-bottom: 24px;
+      }
+      .form-label {
+        display: block;
+        font-family: var(--font-heading);
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: #a5b4fc;
+      }
+      .form-select,
+      .form-input {
+        width: 100%;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        color: var(--text-main);
+        font-family: var(--font-body);
+        font-size: 14px;
+        padding: 12px 16px;
+        outline: none;
+        transition: all 0.3s ease;
+      }
+      .form-select:focus,
+      .form-input:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 10px rgba(99, 102, 241, 0.2);
+        background: rgba(255, 255, 255, 0.06);
+      }
+      .form-desc {
+        font-size: 12px;
+        color: var(--text-muted);
+        margin-top: 6px;
+      }
+      .settings-actions {
+        display: flex;
+        gap: 16px;
+        margin-top: 32px;
+      }
+      .alert-box {
+        padding: 16px;
+        border-radius: 8px;
+        margin-bottom: 24px;
+        font-size: 14px;
+        display: none;
+      }
+      .alert-success {
+        background-color: rgba(16, 185, 129, 0.1);
+        border: 1px solid rgba(16, 185, 129, 0.2);
+        color: #6ee7b7;
+      }
+      .alert-error {
+        background-color: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.2);
+        color: #fca5a5;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-container">
+      <!-- Sidebar Navigation & Control Panel -->
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="logo-icon">⚡</span>
+          <h1>CloudGraph</h1>
+        </div>
+
+        <div class="section-title">Navigation</div>
+        <div class="nav-menu">
+          <a href="index.html" class="nav-item">
+            <span class="nav-icon">🗺️</span> Topology Map
+          </a>
+          <a href="diagnosis.html" class="nav-item">
+            <span class="nav-icon">🧠</span> AI Diagnosis
+          </a>
+          <a href="logs.html" class="nav-item">
+            <span class="nav-icon">📺</span> Log Stream
+          </a>
+          <a href="evidence.html" class="nav-item">
+            <span class="nav-icon">🧭</span> Evidence & Search
+          </a>
+          <a href="workbench.html" class="nav-item">
+            <span class="nav-icon">📥</span> Incident Workbench
+          </a>
+          <a href="settings.html" class="nav-item active" id="nav-settings">
+            <span class="nav-icon">⚙️</span> LLM Settings
+          </a>
+        </div>
+
+        <div class="connection-status">
+          <div class="status-indicator">
+            <span class="indicator-dot online" id="api-dot"></span>
+            <span class="indicator-text"
+              >API: <strong id="api-status">Connecting...</strong></span
+            >
+          </div>
+          <div class="status-indicator">
+            <span class="indicator-dot online" id="db-dot"></span>
+            <span class="indicator-text"
+              >Neo4j: <strong id="db-status">Connecting...</strong></span
+            >
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Dashboard View -->
+      <main class="main-content" style="overflow-y: auto">
+        <div class="settings-container">
+          <div class="card" style="padding: 32px">
+            <div class="card-header" style="margin-bottom: 24px">
+              <h2>LLM Settings Configuration</h2>
+              <span class="card-subtitle"
+                >Select LLM provider and configure credentials to enable real
+                AI-powered Multi-Agent investigation.</span
+              >
+            </div>
+
+            <div id="settings-alert" class="alert-box"></div>
+
+            <form id="settings-form">
+              <div class="form-group">
+                <label class="form-label" for="llm-provider"
+                  >LLM Provider</label
+                >
+                <select id="llm-provider" class="form-select">
+                  <option value="openai">OpenAI (GPT Models)</option>
+                  <option value="gemini">
+                    Google Gemini (v1beta OpenAI endpoint)
+                  </option>
+                  <option value="claude">Anthropic Claude</option>
+                </select>
+                <div class="form-desc">
+                  Select the LLM service to power agentic consensus.
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="llm-api-key">API Key</label>
+                <input
+                  type="password"
+                  id="llm-api-key"
+                  class="form-input"
+                  placeholder="••••••••••••••••••••••••••••••••"
+                />
+                <div class="form-desc">
+                  Credentials are saved locally in your browser (localStorage)
+                  and never cached on the backend.
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="llm-model"
+                  >Custom Model Name (Optional)</label
+                >
+                <input
+                  type="text"
+                  id="llm-model"
+                  class="form-input"
+                  placeholder="e.g. gpt-4o-mini, gemini-1.5-flash"
+                />
+                <div class="form-desc">
+                  Leave blank to use the standard default model for the selected
+                  provider.
+                </div>
+              </div>
+
+              <div class="settings-actions">
+                <button
+                  type="submit"
+                  class="btn btn-primary"
+                  style="width: auto"
+                >
+                  <span class="btn-icon">💾</span> Save Settings
+                </button>
+                <button
+                  type="button"
+                  id="btn-reset-settings"
+                  class="btn btn-secondary"
+                  style="width: auto; margin-left: auto"
+                >
+                  <span class="btn-icon">🗑️</span> Clear Credentials
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- App bindings for connections status polling -->
+    <script src="app.js"></script>
+    <script src="settings.js"></script>
+  </body>
+</html>

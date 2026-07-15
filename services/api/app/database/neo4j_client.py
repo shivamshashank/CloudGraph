@@ -35,7 +35,7 @@ class Neo4jClient:
             self.password = parts[1]
         else:
             self.user = os.getenv("NEO4J_USER", "neo4j")
-            self.password = os.getenv("NEO4J_PASSWORD", "cloudgraph_dev_password")
+            self.password = os.getenv("NEO4J_PASSWORD", "")
         self.driver = None
 
     def connect(self):
