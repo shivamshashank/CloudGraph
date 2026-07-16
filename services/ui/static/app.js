@@ -14,6 +14,7 @@ window.CloudGraph = {
   streamLogs: null,
   addLogLine: null,
   renderGraph: null,
+  showToast: null,
 };
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -60,6 +61,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (btnAnalyze) {
     btnAnalyze.addEventListener("click", () => {
+      const settings = JSON.parse(
+        localStorage.getItem("cloudgraph_llm_settings") || "{}",
+      );
+      if (!settings.api_key) {
+        showToast(
+          "Please add an AI API Key in LLM Settings before running AI Diagnosis.",
+          "error",
+        );
+        setTimeout(() => {
+          window.location.href = "settings.html";
+        }, 1500);
+        return;
+      }
       if (!isDiagnosisPage) {
         window.location.href = "diagnosis.html?run=true";
       } else if (typeof window.CloudGraph.runInvestigation === "function") {
@@ -239,7 +253,37 @@ document.addEventListener("DOMContentLoaded", () => {
     if (statServices) statServices.textContent = s;
   }
 
+  // Toast Helper
+  function showToast(message, type = "info") {
+    let container = document.getElementById("toast-container");
+    if (!container) {
+      container = document.createElement("div");
+      container.id = "toast-container";
+      container.className = "toast-container";
+      document.body.appendChild(container);
+    }
+    const toast = document.createElement("div");
+    toast.className = `toast toast-${type}`;
+
+    let icon = "ℹ️";
+    if (type === "error") icon = "❌";
+    else if (type === "success") icon = "✅";
+
+    toast.innerHTML = `<span class="toast-icon">${icon}</span><span class="toast-msg">${message}</span>`;
+    container.appendChild(toast);
+
+    // Trigger transition
+    setTimeout(() => toast.classList.add("show"), 10);
+
+    // Remove after 4s
+    setTimeout(() => {
+      toast.classList.remove("show");
+      setTimeout(() => toast.remove(), 300);
+    }, 4000);
+  }
+
   // Register shared hooks
   window.CloudGraph.fetchGraph = fetchGraph;
   window.CloudGraph.checkHealth = checkHealth;
+  window.CloudGraph.showToast = showToast;
 });

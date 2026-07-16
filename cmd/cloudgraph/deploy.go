@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -931,6 +932,11 @@ func runStatus() {
 		printWarning("Qdrant not reachable or collections are not yet available")
 	}
 	fmt.Printf("CloudGraph API: http://%s/api/\n", publicIP)
+	fmt.Printf("Neo4j Browser: http://%s:7474/\n", publicIP)
+	u, p := getNeo4jAuth(namespace)
+	fmt.Printf("  └─ Username: %s\n", u)
+	fmt.Printf("  └─ Password: %s\n", p)
+	fmt.Printf("Qdrant Dashboard: http://%s:6333/dashboard\n", publicIP)
 }
 
 func runDeploy() {
@@ -976,6 +982,7 @@ func runDeploy() {
 	createNamespace()
 	installCloudGraph()
 	waitForDeployment()
+	startDatabasePortForwards("cloudgraph-system")
 
 	qdrantCollections := qdrantCollectionSummaryFunc("cloudgraph-system")
 	if len(qdrantCollections) > 0 {
@@ -990,6 +997,11 @@ func runDeploy() {
 	fmt.Println("  kubectl get pods -n cloudgraph-system")
 	fmt.Println("")
 	fmt.Printf("Access your UI at http://%s/ and API at http://%s/api/\n", publicIP, publicIP)
+	fmt.Printf("Neo4j Browser: http://%s:7474/\n", publicIP)
+	u, p := getNeo4jAuth("cloudgraph-system")
+	fmt.Printf("  └─ Username: %s\n", u)
+	fmt.Printf("  └─ Password: %s\n", p)
+	fmt.Printf("Qdrant Dashboard: http://%s:6333/dashboard\n", publicIP)
 	fmt.Println("")
 }
 
@@ -998,4 +1010,54 @@ func waitForDeployment() {
 	_ = runCmd("kubectl", "wait", "--for=condition=available", "--timeout=600s",
 		"deployment", "-l", "app.kubernetes.io/instance=cloudgraph", "-n", "cloudgraph-system")
 	printSuccess("CloudGraph pods are ready")
+}
+
+func startDatabasePortForwards(namespace string) {
+	printInfo("Configuring database public access tunnels...")
+
+	// Kill any existing port-forward processes first
+	_ = exec.Command("pkill", "-f", "kubectl port-forward").Run()
+
+	// Discover Neo4j service
+	neo4jSvc := "cloudgraph-neo4j-lb-neo4j"
+	if err := exec.Command("kubectl", "get", "svc", neo4jSvc, "-n", namespace).Run(); err != nil {
+		neo4jSvc = "cloudgraph"
+	}
+
+	// Discover Qdrant service
+	qdrantSvc := discoverQdrantService(namespace)
+	if qdrantSvc == "" {
+		qdrantSvc = "cloudgraph-qdrant"
+	}
+
+	// Run background port-forwards using nohup and sh (bind to 0.0.0.0 for public access)
+	neo4jCmdStr := fmt.Sprintf("nohup kubectl port-forward -n %s svc/%s 7474:7474 --address 0.0.0.0 >/dev/null 2>&1 &", namespace, neo4jSvc)
+	qdrantCmdStr := fmt.Sprintf("nohup kubectl port-forward -n %s svc/%s 6333:6333 --address 0.0.0.0 >/dev/null 2>&1 &", namespace, qdrantSvc)
+
+	_ = exec.Command("sh", "-c", neo4jCmdStr).Run()
+	_ = exec.Command("sh", "-c", qdrantCmdStr).Run()
+
+	printSuccess("Tunnels configured: Neo4j (7474) & Qdrant (6333)")
+}
+
+func getNeo4jAuth(namespace string) (string, string) {
+	if !commandExists("kubectl") {
+		return "neo4j", "unknown"
+	}
+	out, err := exec.Command("kubectl", "get", "secret", "cloudgraph-neo4j-auth",
+		"-n", namespace, "-o", "jsonpath={.data.NEO4J_AUTH}").Output()
+	if err != nil || len(out) == 0 {
+		return "neo4j", "unknown"
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(strings.TrimSpace(string(out)))
+	if err != nil {
+		return "neo4j", "unknown"
+	}
+
+	parts := strings.SplitN(string(decoded), "/", 2)
+	if len(parts) == 2 {
+		return parts[0], parts[1]
+	}
+	return "neo4j", string(decoded)
 }

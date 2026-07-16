@@ -10,6 +10,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Trigger Investigation / Root Cause Analysis
   async function runInvestigation() {
+    const settings = JSON.parse(
+      localStorage.getItem("cloudgraph_llm_settings") || "{}",
+    );
+    if (!settings.api_key) {
+      if (typeof window.CloudGraph.showToast === "function") {
+        window.CloudGraph.showToast(
+          "Please add an AI API Key in LLM Settings before running AI Diagnosis.",
+          "error",
+        );
+      }
+      setTimeout(() => {
+        window.location.href = "settings.html";
+      }, 1500);
+      return;
+    }
+
     if (rcaOutput) {
       rcaOutput.innerHTML = `
                 <div class="empty-state">
@@ -18,9 +34,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 </div>`;
     }
     try {
-      const settings = JSON.parse(
-        localStorage.getItem("cloudgraph_llm_settings") || "{}",
-      );
       const res = await fetch(
         `${window.CloudGraph.API_BASE}/api/v1/investigations/trigger`,
         {

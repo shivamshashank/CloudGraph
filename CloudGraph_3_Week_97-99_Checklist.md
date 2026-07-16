@@ -6,10 +6,11 @@
 ## Success Criteria
 
 - [ ] Complete end-to-end GraphRAG + Multi-Agent pipeline
-- [ ] Introduce **Graph Confidence Propagation (GCP)** (novel
+- [x] Introduce **Graph Confidence Propagation (GCP)** (novel
     algorithm)
 - [ ] Introduce **Graph-Provenance Claim Scoring (GPCS)** (novel
     algorithm)
+- [ ] LLM Context Explorer UI comparing raw data for all 4 configs
 - [ ] 60--80 balanced incident dataset
 - [ ] Full ablation study
 - [ ] Human evaluation (3--5 evaluators)
@@ -22,29 +23,29 @@
 
 ## Platform
 
-- [ ] End-to-end deployment works
-- [ ] Neo4j + Qdrant integrated
-- [ ] GraphRAG retrieval operational
-- [ ] Multi-agent orchestration complete
-- [ ] RCA report generation complete
+- [x] End-to-end deployment works
+- [x] Neo4j + Qdrant integrated
+- [x] GraphRAG retrieval operational
+- [x] Multi-agent orchestration complete
+- [x] RCA report generation complete
 
 ## Graph Confidence Propagation (NEW)
 
 ### Deliverables
 
-- [ ] Design confidence propagation algorithm
-- [ ] Confidence score for every graph node
-- [ ] Confidence decay across graph edges
-- [ ] Root Cause Confidence
-- [ ] Recommendation Confidence
-- [ ] Confidence visualization in UI
+- [x] Design confidence propagation algorithm
+- [x] Confidence score for every graph node
+- [x] Confidence decay across graph edges
+- [x] Root Cause Confidence
+- [x] Recommendation Confidence
+- [x] Confidence visualization in UI
 
 ### Documentation
 
-- [ ] Mathematical formulation
-- [ ] Architecture diagram
-- [ ] Pseudocode
-- [ ] Complexity analysis
+- [x] Mathematical formulation
+- [x] Architecture diagram
+- [x] Pseudocode
+- [x] Complexity analysis
 
 ------------------------------------------------------------------------
 
@@ -85,6 +86,14 @@
 - [ ] GraphRAG + Agents
 - [ ] GraphRAG + Agents + GCP
 - [ ] GraphRAG + Agents + GCP + GPCS
+
+## LLM Context Explorer (NEW)
+
+### Deliverables
+
+- [ ] Implement backend endpoint `/api/v1/investigations/context-comparison` returning raw payloads for all 4 parts
+- [ ] Create UI Context Explorer tab inside AI Diagnosis page
+- [ ] Add 4-way toggles in UI to display exact logs, metrics, and prompts sent under each configuration
 
 ------------------------------------------------------------------------
 
