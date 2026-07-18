@@ -98,6 +98,9 @@ class InvestigationTrigger(BaseModel):
     """Trigger payload configuration for running automated fault investigation."""
 
     namespace: str = "cloudgraph-system"
+    llm_provider: str | None = None
+    llm_api_key: str | None = None
+    llm_model: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert payload model to dictionary representation."""
@@ -191,3 +194,28 @@ class GraphRAGSearchPayload(BaseModel):
     def get_summary(self) -> str:
         """Generate human-readable summary of the search config."""
         return f"GraphRAG search query '{self.query}' method: {self.method}"
+
+
+class TracePayload(BaseModel):
+    """Payload model for Tempo trace spans ingestion."""
+
+    pod_id: str
+    pod_name: str
+    span_id: str
+    trace_id: str
+    parent_span_id: str
+    service_name: str
+    duration: float
+    timestamp: int
+    status: str
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert payload model to dictionary representation."""
+        return self.model_dump()
+
+    def get_summary(self) -> str:
+        """Generate human-readable summary of the trace payload."""
+        return (
+            f"Trace {self.trace_id} Span {self.span_id}: "
+            f"{self.service_name} ({self.duration}ms)"
+        )

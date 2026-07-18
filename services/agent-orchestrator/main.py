@@ -9,17 +9,110 @@ import os
 import http.server
 import socketserver
 from typing import List, Dict, Any
+import requests
 
 INVESTIGATION_ENGINE_URL = os.getenv(
     "INVESTIGATION_ENGINE_URL", "http://localhost:8081"
 ).rstrip("/")
 
 
-class ConsensusEngine:
-    """Consensus Engine: Aggregates findings from specialized agents
+def call_llm(
+    prompt: str,
+    system_prompt: str = (
+        "You are a helpful AIOps assistant. Output strictly valid JSON."
+    ),
+    provider: str = "",
+    api_key: str = "",
+    model: str = "",
+) -> dict:
+    """Make direct HTTP request to configured LLM provider and return parsed JSON."""
+    provider = (provider or os.getenv("LLM_PROVIDER", "openai")).lower().strip()
+    api_key = (
+        api_key
+        or os.getenv("OPENAI_API_KEY")
+        or os.getenv("GEMINI_API_KEY")
+        or os.getenv("ANTHROPIC_API_KEY")
+    )
 
-    and computes unified MTTR metrics.
-    """
+    if not api_key:
+        raise ValueError("No API Key available for LLM service")
+
+    if not model:
+        if provider == "openai":
+            model = os.getenv("LLM_MODEL", "gpt-4o-mini")
+        elif provider == "gemini":
+            model = os.getenv("LLM_MODEL", "gemini-1.5-flash")
+        elif provider == "claude":
+            model = os.getenv("LLM_MODEL", "claude-3-5-sonnet-latest")
+
+    if provider == "openai":
+        url = "https://api.openai.com/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt},
+            ],
+            "response_format": {"type": "json_object"},
+            "temperature": 0.1,
+        }
+        res = requests.post(url, headers=headers, json=payload, timeout=20)
+        res.raise_for_status()
+        content = res.json()["choices"][0]["message"]["content"]
+        return json.loads(content)
+
+    if provider == "gemini":
+        url = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt},
+            ],
+            "response_format": {"type": "json_object"},
+            "temperature": 0.1,
+        }
+        res = requests.post(url, headers=headers, json=payload, timeout=20)
+        res.raise_for_status()
+        content = res.json()["choices"][0]["message"]["content"]
+        return json.loads(content)
+
+    if provider == "claude":
+        url = "https://api.anthropic.com/v1/messages"
+        headers = {
+            "x-api-key": api_key,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+        }
+        payload = {
+            "model": model,
+            "max_tokens": 4000,
+            "system": system_prompt,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.1,
+        }
+        res = requests.post(url, headers=headers, json=payload, timeout=20)
+        res.raise_for_status()
+        content = res.json()["content"][0]["text"]
+        if "{" in content:
+            start = content.index("{")
+            end = content.rindex("}") + 1
+            content = content[start:end]
+        return json.loads(content)
+
+    raise ValueError(f"Unsupported LLM provider: {provider}")
+
+
+class ConsensusEngine:
+    """Consensus Engine for aggregating multi-agent findings."""
 
     WEIGHTS = {
         "monitoring": 0.20,
@@ -31,12 +124,109 @@ class ConsensusEngine:
 
     @classmethod
     def resolve_incident(
+        cls,
+        agents: List[Dict[str, Any]],
+        pod_name: str,
+        pod_status: str,
+        llm_config: Dict[str, Any] | None = None,
+    ) -> Dict[str, Any]:
+        """Aggregate agent findings, determine root cause, compute consensus.
+
+        Uses LLM if available.
+        """
+        llm_config = llm_config or {}
+        llm_provider = llm_config.get("provider")
+        llm_api_key = llm_config.get("api_key")
+        llm_model = llm_config.get("model")
+
+        # Try LLM first
+        try:
+            provider = (llm_provider or os.getenv("LLM_PROVIDER", "")).strip().lower()
+            api_key = (
+                llm_api_key
+                or os.getenv("OPENAI_API_KEY")
+                or os.getenv("GEMINI_API_KEY")
+                or os.getenv("ANTHROPIC_API_KEY")
+                or ""
+            ).strip()
+
+            if provider and api_key:
+                agent_findings = "\n".join(
+                    [
+                        f"- {a['name'].upper()} Agent "
+                        f"(Conf: {a['confidence']}): {a['finding']}"
+                        for a in agents
+                    ]
+                )
+
+                prompt = (
+                    f"You are the Lead Consensus Orchestrator in an AIOps pipeline.\n"
+                    f"You received telemetry from 5 agents for pod '{pod_name}' "
+                    f"(Status: '{pod_status}'):\n\n"
+                    f"{agent_findings}\n\n"
+                    f"Correlate these findings to determine the root cause.\n"
+                    f"Your response MUST be a JSON object with fields:\n"
+                    f"- 'title': A short title "
+                    f"(e.g. 'OOM Killed on billing-service').\n"
+                    f"- 'summary': A high-level description of impact.\n"
+                    f"- 'cause': A detailed explanation of the root cause.\n"
+                    f"- 'recommendation': Actionable SRE remediation steps.\n"
+                    f"- 'severity': 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW', or 'NONE'.\n"
+                    f"- 'confidence': score between 0.0 and 1.0.\n"
+                    f"- 'evidence': list of decision path messages.\n"
+                )
+
+                system_prompt = (
+                    "You are an expert AIOps consensus engine. "
+                    "You output strictly JSON."
+                )
+
+                llm_res = call_llm(
+                    prompt=prompt,
+                    system_prompt=system_prompt,
+                    provider=provider,
+                    api_key=api_key,
+                    model=llm_model,
+                )
+
+                required = [
+                    "title",
+                    "summary",
+                    "cause",
+                    "recommendation",
+                    "severity",
+                    "confidence",
+                    "evidence",
+                ]
+                if all(k in llm_res for k in required):
+                    pct = int(float(llm_res["confidence"]) * 100)
+                    return {
+                        "title": str(llm_res["title"]),
+                        "summary": str(llm_res["summary"]),
+                        "cause": str(llm_res["cause"]),
+                        "recommendation": str(llm_res["recommendation"]),
+                        "severity": str(llm_res["severity"]).upper(),
+                        "relevant_evidence": [
+                            {"label": a["name"].upper(), "detail": a["finding"]}
+                            for a in agents
+                        ],
+                        "evidence": [f"Consensus Engine confidence: {pct}%"]
+                        + list(llm_res["evidence"]),
+                        "agents": agents,
+                    }
+        except Exception as e:
+            print(
+                "ConsensusEngine LLM resolution failed, "
+                f"falling back to rule-based logic: {str(e)}"
+            )
+
+        return cls._resolve_fallback(agents, pod_name, pod_status)
+
+    @classmethod
+    def _resolve_fallback(
         cls, agents: List[Dict[str, Any]], pod_name: str, pod_status: str
     ) -> Dict[str, Any]:
-        """Aggregate agent findings, determine root cause, compute
-
-        consensus confidence and recommendations.
-        """
+        """Rule-based fallback for consensus resolution when LLM is unavailable."""
         # Map agent name -> details
         agent_map = {agent["name"]: agent for agent in agents}
 
@@ -103,7 +293,7 @@ class ConsensusEngine:
         evidence.append(f"Consensus Engine confidence: {int(confidence * 100)}%")
 
         for agent in agents:
-            if agent["confidence"] >= 0.7:
+            if agent.get("confidence", 0) >= 0.7:
                 evidence.append(
                     f"Agent '{agent['name']}' signal: {agent['finding']} "
                     f"(Confidence: {agent['confidence']})"
@@ -155,25 +345,36 @@ class OrchestratorHandler(http.server.BaseHTTPRequestHandler):
             pod_name = payload.get("pod_name", "unknown")
             pod_status = payload.get("pod_status", "Unknown")
             error_logs = payload.get("error_logs", [])
+            llm_provider = payload.get("llm_provider")
+            llm_api_key = payload.get("llm_api_key")
+            llm_model = payload.get("llm_model")
 
             # Forward to investigation-engine
-            import requests
-
             engine_res = requests.post(
                 f"{INVESTIGATION_ENGINE_URL}/analyze",
                 json={
                     "pod_name": pod_name,
                     "pod_status": pod_status,
                     "error_logs": error_logs,
+                    "llm_provider": llm_provider,
+                    "llm_api_key": llm_api_key,
+                    "llm_model": llm_model,
                 },
-                timeout=5,
+                timeout=12,
             )
 
             if engine_res.status_code == 200:
                 engine_data = engine_res.json()
                 agents = engine_data.get("agents", [])
                 consensus_res = ConsensusEngine.resolve_incident(
-                    agents, pod_name, pod_status
+                    agents,
+                    pod_name,
+                    pod_status,
+                    llm_config={
+                        "provider": llm_provider,
+                        "api_key": llm_api_key,
+                        "model": llm_model,
+                    },
                 )
                 self._send_json(
                     200,
@@ -221,8 +422,16 @@ class OrchestratorHandler(http.server.BaseHTTPRequestHandler):
                     "confidence": 0.5,
                 },
             ]
+            has_payload = "payload" in locals()
             consensus_res = ConsensusEngine.resolve_incident(
-                fallback_agents, pod_name, pod_status
+                fallback_agents,
+                pod_name,
+                pod_status,
+                llm_config={
+                    "provider": payload.get("llm_provider") if has_payload else None,
+                    "api_key": payload.get("llm_api_key") if has_payload else None,
+                    "model": payload.get("llm_model") if has_payload else None,
+                },
             )
             self._send_json(
                 200,

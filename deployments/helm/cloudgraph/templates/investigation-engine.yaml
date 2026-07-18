@@ -65,6 +65,10 @@ spec:
               value: "cloudgraph-qdrant.{{ .Values.global.namespace }}.svc.cluster.local"
             - name: PORT
               value: "8081"
+            - name: OPENAI_API_KEY
+              value: {{ .Values.global.openaiApiKey | quote }}
+            - name: LLM_MODEL
+              value: {{ .Values.global.llmModel | quote }}
           ports:
             - name: http
               containerPort: 8081
