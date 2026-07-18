@@ -25,13 +25,13 @@ implemented," and this audit follows that discipline.
 
 ### Partially implemented / placeholder
 
-- [x] Investigation workflow is microservice-driven and utilizes a real consensus-weighted multi-agent engine
+- [x] Investigation workflow is microservice-driven and includes a consensus-weighted multi-agent engine; it can use LLMs when configured, but retains rule-based fallback behavior.
 - [x] Investigation Engine and Agent Orchestrator are real services resolving telemetry via Neo4j
 - [~] Dependency mapping and evidence-chain UI rendering are only partial scaffolding
 
 ### Not implemented yet
 
-- [ ] Qdrant + embeddings + GraphRAG retrieval
+- [x] Qdrant + embeddings + GraphRAG retrieval
 - [ ] LangGraph multi-agent workflow and consensus engine
 - [ ] Full evaluation benchmark and baseline comparison pipeline
 - [ ] Dissertation-ready RCA and recommendation system
@@ -44,14 +44,14 @@ Weeks 1–3 are **genuinely done**: research/design docs, Kubernetes +
 observability stack (Prometheus/Grafana/Loki/OTel), Neo4j schema, and real
 ingestion adapters (metrics, logs, git, ArgoCD) with a working FastAPI backend
 and a solid Go CLI/Helm installer. From Week 4 onward (GraphRAG retrieval,
-multi-agent LangGraph system, RCA engine, benchmark dataset, evaluation,
-dissertation writing) **almost nothing is implemented yet** — the three
-"brains" of the project (Investigation Engine, Agent Orchestrator, and the
-current `/investigations/trigger` logic) are either empty mock servers or
-simple if/else keyword rules, not GraphRAG/LLM/multi-agent systems. The
-main documentation drift has now been cleaned up so the current tested path is
-clearly Helm + kubeadm/Rancher, while historical AWS/Terraform references are
-marked as optional or deferred.
+LLM-capable investigation orchestration, RCA engine, benchmark dataset,
+evaluation, dissertation writing) the code is partially real: GraphRAG
+search/retrieve is implemented and the services are capable of calling LLMs,
+but the end-to-end agent/consensus flow still relies on rule-based fallback
+when orchestration or LLM configuration is unavailable. The main documentation
+drift has now been cleaned up so the current tested path is clearly Helm +
+kubeadm/Rancher, while historical AWS/Terraform references are marked as
+optional or deferred.
 
 ---
 
@@ -164,8 +164,8 @@ marked as optional or deferred.
 | Item | Reality |
 | --- | --- |
 | **Qdrant** | Fully integrated in the codebase. An active vector-embedding pipeline instantiates the Qdrant client, generates text embeddings using SentenceTransformers, indexes pod log anomalies, cluster metrics, and commits, and queries the vector store directly for GraphRAG search/retrieve queries. Verified with unit and integration tests. |
-| **Redis** | Declared in Helm chart as a dependency (`Chart.yaml`) and referenced as `REDIS_HOST` env var in templates (e.g., `deployment/helm/cloudgraph/templates/api.yaml`), but **no service code** (API, orchestrator, engine) ever imports a Redis client or uses it for caching/queueing. It's installed but completely unused. |
-| **CRDs** | `values.yaml` (line 250: `crds.enabled: true`) declares CRD support, but **no actual CRD manifests exist in the Helm chart** (`deployments/helm/cloudgraph/templates/`). This is a configuration flag with no backing implementation. |
+| **Redis** | Integrated as a cache for GraphRAG search results in `services/api/app/main.py` via `services/api/app/database/redis_client.py`. Redis is still optional in the Helm chart and is only injected into pods when `redis.enabled=true`. |
+| **CRDs** | `values.yaml` previously declared `crds.enabled: true`, but no actual CRD manifests exist in the Helm chart templates. That key has now been removed from the Helm chart values. |
 
 ### GraphRAG Retrieval (Implemented)
 
@@ -296,8 +296,8 @@ All changes follow the **"preserve design narrative while clarifying shipped rea
 - [ ] No secrets management — Neo4j password is a literal `"changeme"` / `cloudgraph_dev_password` in multiple files.
 - [ ] No TLS, network policies, or pod disruption budgets.
 - [ ] No OpenAPI/Swagger docs beyond FastAPI's auto-generated schema.
-- [ ] No CRDs despite `crds.enabled: true`.
-- [ ] Redis declared but entirely unused.
+- [x] Stale CRD configuration removed from Helm values; the chart still has no custom resource manifests.
+- [x] Redis is now wired and used for GraphRAG caching.
 - [ ] No end-to-end test proving telemetry → graph → retrieval → RCA in one pass (the single most valuable missing test).
 
 ---

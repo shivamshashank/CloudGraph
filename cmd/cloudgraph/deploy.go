@@ -1031,7 +1031,7 @@ func startDatabasePortForwards(namespace string) {
 	}
 
 	// Run background port-forwards using nohup and sh (bind to 0.0.0.0 for public access)
-	neo4jCmdStr := fmt.Sprintf("nohup kubectl port-forward -n %s svc/%s 7474:7474 --address 0.0.0.0 >/dev/null 2>&1 &", namespace, neo4jSvc)
+	neo4jCmdStr := fmt.Sprintf("nohup kubectl port-forward -n %s svc/%s 7474:7474 7687:7687 --address 0.0.0.0 >/dev/null 2>&1 &", namespace, neo4jSvc)
 	qdrantCmdStr := fmt.Sprintf("nohup kubectl port-forward -n %s svc/%s 6333:6333 --address 0.0.0.0 >/dev/null 2>&1 &", namespace, qdrantSvc)
 
 	_ = exec.Command("sh", "-c", neo4jCmdStr).Run()

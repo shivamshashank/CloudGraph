@@ -99,14 +99,13 @@ The installation deploys the complete CloudGraph stack:
 
 - **Neo4j**: Knowledge graph database (stores infrastructure relationships)
 - **Qdrant**: Vector database (embeddings for GraphRAG)
-- **Redis**: Cache and message queue
+- **Redis**: Optional cache for GraphRAG search results
 
 ### Observability
 
 - **OpenTelemetry Collector**: Telemetry ingestion and processing
 - **RBAC**: Kubernetes role-based access control
 - **Service Discovery**: Automatic Kubernetes cluster discovery
-- **Custom Resource Definitions**: CloudGraph CRDs
 
 ### Optional Components (can be enabled in values.yaml)
 
@@ -137,7 +136,7 @@ cloudgraphUI:
 
 # Example: Enable existing observability stack
 neo4j:
-  neo4jPassword: "your-secure-password"
+  password: "your-secure-password"
 ```
 
 Then use the CLI against your running API:

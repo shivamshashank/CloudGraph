@@ -5,12 +5,12 @@
 
 ## Success Criteria
 
-- [ ] Complete end-to-end GraphRAG + Multi-Agent pipeline
+- [x] Complete end-to-end GraphRAG + Multi-Agent pipeline
 - [x] Introduce **Graph Confidence Propagation (GCP)** (novel
     algorithm)
-- [ ] Introduce **Graph-Provenance Claim Scoring (GPCS)** (novel
+- [x] Introduce **Graph-Provenance Claim Scoring (GPCS)** (novel
     algorithm)
-- [ ] LLM Context Explorer UI comparing raw data for all 4 configs
+- [x] LLM Context Explorer UI comparing raw data for all 4 configs
 - [ ] 60--80 balanced incident dataset
 - [ ] Full ablation study
 - [ ] Human evaluation (3--5 evaluators)
@@ -55,45 +55,45 @@
 
 ### Claim Extraction
 
-- [ ] Extract atomic claims from RCA
-- [ ] Classify (Temporal / Causal / State / Relationship)
+- [x] Extract atomic claims from RCA
+- [x] Classify (Temporal / Causal / State / Relationship)
 
 ### Evidence Alignment
 
-- [ ] Semantic retrieval
-- [ ] Graph retrieval
-- [ ] Merge evidence
+- [x] Semantic retrieval
+- [x] Graph retrieval
+- [x] Merge evidence
 
 ### Trust Scoring
 
-- [ ] Semantic similarity
-- [ ] Graph proximity
-- [ ] Source reliability
-- [ ] Path-length penalty
+- [x] Semantic similarity
+- [x] Graph proximity
+- [x] Source reliability
+- [x] Path-length penalty
 
 ### Outputs
 
-- [ ] Unsupported Claim Rate
-- [ ] Claim confidence
-- [ ] Evidence path
-- [ ] UI highlighting
+- [x] Unsupported Claim Rate
+- [x] Claim confidence
+- [x] Evidence path
+- [x] UI highlighting
 
 ## Baselines
 
-- [ ] Keyword Search
-- [ ] Vector RAG
-- [ ] GraphRAG
-- [ ] GraphRAG + Agents
-- [ ] GraphRAG + Agents + GCP
-- [ ] GraphRAG + Agents + GCP + GPCS
+- [x] Keyword Search
+- [x] Vector RAG
+- [x] GraphRAG
+- [x] GraphRAG + Agents
+- [x] GraphRAG + Agents + GCP
+- [x] GraphRAG + Agents + GCP + GPCS
 
 ## LLM Context Explorer (NEW)
 
 ### Deliverables
 
-- [ ] Implement backend endpoint `/api/v1/investigations/context-comparison` returning raw payloads for all 4 parts
-- [ ] Create UI Context Explorer tab inside AI Diagnosis page
-- [ ] Add 4-way toggles in UI to display exact logs, metrics, and prompts sent under each configuration
+- [x] Implement backend endpoint `/api/v1/investigations/context-comparison` returning raw payloads for all 4 parts
+- [x] Create UI Context Explorer tab inside AI Diagnosis page
+- [x] Add 4-way toggles in UI to display exact logs, metrics, and prompts sent under each configuration
 
 ------------------------------------------------------------------------
 

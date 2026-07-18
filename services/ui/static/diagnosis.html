@@ -36,6 +36,9 @@
           <a href="evidence.html" class="nav-item">
             <span class="nav-icon">🧭</span> Evidence & Search
           </a>
+          <a href="benchmark.html" class="nav-item">
+            <span class="nav-icon">📊</span> Benchmark
+          </a>
           <a href="workbench.html" class="nav-item">
             <span class="nav-icon">📥</span> Incident Workbench
           </a>
@@ -82,45 +85,116 @@
 
       <!-- Main Dashboard View -->
       <main class="main-content">
-        <!-- Investigation Results -->
-        <div class="card diagnostic-card" style="height: 100%">
-          <div
-            class="card-header"
-            style="
-              display: flex;
-              justify-content: space-between;
-              align-items: center;
-            "
-          >
-            <div>
-              <h2>Investigation Engine Output</h2>
-              <span class="card-subtitle"
-                >AI root cause analysis and recommendations</span
-              >
-            </div>
-            <button
-              id="btn-analyze"
-              class="btn btn-secondary"
-              style="width: auto; padding: 8px 16px"
-            >
-              <span class="btn-icon">🧠</span> Run AI Diagnosis
-            </button>
-          </div>
-          <div class="diagnostic-note">
-            Current output is still driven by the existing rule-based
-            heuristics; the GraphRAG path is surfaced separately on the Evidence
-            page.
-          </div>
-          <div class="diagnostic-content" id="rca-output">
-            <div class="empty-state">
-              <span class="empty-icon">🛡️</span>
-              <p>
-                No investigations run yet. Trigger "Run AI Diagnosis" to begin
-                analyzing anomalies.
-              </p>
-            </div>
-          </div>
+        <div class="section-tabs">
+          <button class="tab-button tab-button-active" id="tab-investigation">
+            Investigation
+          </button>
+          <button class="tab-button" id="tab-context-explorer">
+            Context Explorer
+          </button>
         </div>
+
+        <section class="tab-panel" id="investigation-panel">
+          <div class="card diagnostic-card" style="height: 100%">
+            <div
+              class="card-header"
+              style="
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+              "
+            >
+              <div>
+                <h2>Investigation Engine Output</h2>
+                <span class="card-subtitle"
+                  >AI root cause analysis and recommendations</span
+                >
+              </div>
+              <button
+                id="btn-analyze"
+                class="btn btn-secondary"
+                style="width: auto; padding: 8px 16px"
+              >
+                <span class="btn-icon">🧠</span> Run AI Diagnosis
+              </button>
+            </div>
+            <div class="diagnostic-note">
+              Current output is still driven by the existing rule-based
+              heuristics; the GraphRAG path is surfaced separately on the
+              Evidence page.
+            </div>
+            <div class="diagnostic-content" id="rca-output">
+              <div class="empty-state">
+                <span class="empty-icon">🛡️</span>
+                <p>
+                  No investigations run yet. Trigger "Run AI Diagnosis" to begin
+                  analyzing anomalies.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="tab-panel hidden" id="context-explorer-panel">
+          <div class="card context-explorer-card" style="min-height: 520px">
+            <div class="card-header" style="align-items: flex-start; gap: 12px">
+              <div>
+                <h2>LLM Context Explorer</h2>
+                <span class="card-subtitle"
+                  >Compare retrieval contexts, raw logs, metrics, prompts, and
+                  evidence across configurations.</span
+                >
+              </div>
+            </div>
+            <div class="context-explorer-controls">
+              <input
+                id="context-query"
+                type="text"
+                placeholder="Enter a pod, service, or incident keyword"
+              />
+              <button
+                id="btn-context-compare"
+                class="btn btn-secondary"
+                style="width: auto; padding: 8px 16px"
+              >
+                Compare Context
+              </button>
+            </div>
+            <div class="context-explorer-note">
+              Use the Context Explorer to inspect the raw payload and retrieval
+              evidence that was provided to each configuration.
+            </div>
+            <div class="view-toggle-group" id="context-view-toggle">
+              <button
+                class="view-toggle-button view-toggle-active"
+                data-view="payload"
+              >
+                Payload
+              </button>
+              <button class="view-toggle-button" data-view="retrieval">
+                Retrieval
+              </button>
+              <button class="view-toggle-button" data-view="evidence">
+                Evidence
+              </button>
+              <button class="view-toggle-button" data-view="prompts">
+                Prompts
+              </button>
+            </div>
+            <div
+              id="context-comparison-output"
+              class="context-comparison-output"
+            >
+              <div class="empty-state">
+                <span class="empty-icon">🔍</span>
+                <p>
+                  Enter a query and click Compare Context to inspect logs,
+                  metrics, prompts, and retrieval evidence.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
       </main>
     </div>
     <script src="app.js"></script>

@@ -19,28 +19,24 @@ from app.adapters.graph_constructor import (
     run_entity_linking,
 )
 from app.adapters.k8s_discovery import discover_cluster_topology
-from app.adapters.loki import ingest_loki_log
-from app.adapters.prometheus import ingest_prometheus_metric
-from app.adapters.tempo import ingest_tempo_trace
-from app.adapters.webhooks import ingest_argocd_deployment, ingest_git_commit
 from app.database.neo4j_client import neo4j_client, NEO4J_CONNECTION_ERRORS
 from app.database.qdrant import qdrant_client
 from app.database.redis_client import redis_client
 from app.research.gcp import GraphConfidencePropagator
+from app.research.gpcs import GraphProvenanceClaimScorer
 from app.retrieval.graph_traversal import graph_traversal_retriever
 from app.retrieval.hybrid_ranker import hybrid_ranker
-from app.services.semantic_store import SemanticVectorStore
+from app.dependencies import semantic_store
+
 from app.schemas import (
-    MetricPayload,
-    LogPayload,
-    GitCommitPayload,
-    ArgoCDDeploymentPayload,
     PodStatusPayload,
     InvestigationTrigger,
     EvidenceTrigger,
     GraphRAGSearchPayload,
-    TracePayload,
 )
+from app.routers.telemetry import router as telemetry_router
+from app.routers.webhooks import router as webhooks_router
+from app.routers.benchmark import router as benchmark_router
 from app.helpers import (
     build_relevant_evidence,
     build_retrieval_context_for_investigation,
@@ -61,7 +57,6 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(title="CloudGraph Ingestion Engine", version="1.0.0", lifespan=lifespan)
-semantic_store = SemanticVectorStore()
 
 
 @app.exception_handler(Exception)
@@ -80,6 +75,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(telemetry_router)
+app.include_router(webhooks_router)
+app.include_router(benchmark_router)
 
 
 @app.get("/health")
@@ -109,177 +108,6 @@ def api_root():
         ),
         "status": "running",
     }
-
-
-@app.post("/api/v1/telemetry/metrics")
-def post_metric(payload: MetricPayload):
-    """Ingest a Prometheus metric signal and register in semantic vector index."""
-    try:
-        result = ingest_prometheus_metric(
-            payload.pod_id,
-            payload.pod_name,
-            payload.metric_name,
-            payload.value,
-            payload.timestamp,
-            payload.labels,
-        )
-        metric_id = result[0]["metric_id"] if result else "metric-fallback"
-        semantic_store.index_document(
-            metric_id,
-            (
-                f"metric summary pod {payload.pod_name} metric {payload.metric_name} "
-                f"value {payload.value} timestamp {payload.timestamp} "
-                f"labels {payload.labels}"
-            ),
-            {
-                "type": "metrics-summary",
-                "label": "Metric",
-                "name": payload.metric_name,
-                "pod_name": payload.pod_name,
-                "timestamp": payload.timestamp,
-            },
-        )
-        redis_client.clear_cache()
-        return {"status": "success", "metric_id": metric_id}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@app.post("/api/v1/telemetry/logs")
-def post_log(payload: LogPayload):
-    """Ingest a container log line and write into semantic search fallback."""
-    try:
-        result = ingest_loki_log(
-            payload.pod_id,
-            payload.pod_name,
-            payload.message,
-            payload.level,
-            payload.timestamp,
-            payload.container_name,
-        )
-        log_id = result[0]["log_id"] if result else "log-fallback"
-        semantic_store.index_document(
-            log_id,
-            payload.message,
-            {
-                "type": "log",
-                "label": "Log",
-                "name": payload.pod_name,
-                "pod_name": payload.pod_name,
-                "level": payload.level.upper(),
-                "container_name": payload.container_name,
-                "timestamp": payload.timestamp,
-            },
-        )
-        redis_client.clear_cache()
-        return {"status": "success", "log_id": log_id}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@app.post("/api/v1/telemetry/traces")
-def post_trace(payload: TracePayload):
-    """Ingest a Tempo trace span and index it in the semantic search vector store."""
-    try:
-        result = ingest_tempo_trace(
-            payload.pod_id,
-            payload.pod_name,
-            payload.span_id,
-            payload.trace_id,
-            payload.parent_span_id,
-            payload.service_name,
-            payload.duration,
-            payload.timestamp,
-            payload.status,
-        )
-        trace_id = result[0]["trace_id"] if result else "trace-fallback"
-        semantic_store.index_document(
-            trace_id,
-            (
-                f"Trace span {payload.span_id} from trace {payload.trace_id} "
-                f"service {payload.service_name} duration {payload.duration}ms "
-                f"status {payload.status}"
-            ),
-            {
-                "type": "trace",
-                "label": "Trace",
-                "name": payload.service_name,
-                "pod_name": payload.pod_name,
-                "timestamp": payload.timestamp,
-            },
-        )
-        redis_client.clear_cache()
-        return {"status": "success", "trace_id": trace_id}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@app.post("/api/v1/webhook/git")
-def post_git_webhook(payload: GitCommitPayload):
-    """Process git webhook payloads and register matching document entry."""
-    try:
-        result = ingest_git_commit(
-            payload.sha,
-            payload.author,
-            payload.message,
-            payload.timestamp,
-            payload.changed_files,
-        )
-        semantic_store.index_document(
-            payload.sha,
-            (
-                f"commit {payload.sha} by {payload.author}: {payload.message}; "
-                f"changed files {', '.join(payload.changed_files)}"
-            ),
-            {
-                "type": "commit",
-                "label": "Commit",
-                "name": payload.sha,
-                "author": payload.author,
-                "timestamp": payload.timestamp,
-            },
-        )
-        redis_client.clear_cache()
-        return {"status": "success", "sha": result[0]["sha"]}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@app.post("/api/v1/webhook/argocd")
-def post_argocd_webhook(payload: ArgoCDDeploymentPayload):
-    """Process ArgoCD synchronization webhook payload mappings."""
-    try:
-        result = ingest_argocd_deployment(
-            payload.app_name,
-            payload.namespace,
-            payload.status,
-            payload.revision,
-            payload.timestamp,
-        )
-        semantic_store.index_document(
-            f"deployment:{payload.app_name}:{payload.revision}",
-            (
-                f"deployment {payload.app_name} namespace {payload.namespace} "
-                f"status {payload.status} revision {payload.revision} "
-                f"timestamp {payload.timestamp}"
-            ),
-            {
-                "type": "deployment",
-                "label": "Deployment",
-                "name": payload.app_name,
-                "namespace": payload.namespace,
-                "status": payload.status,
-                "revision": payload.revision,
-                "timestamp": payload.timestamp,
-            },
-        )
-        redis_client.clear_cache()
-        return {
-            "status": "success",
-            "deployment": result[0]["deployment_name"] if result else None,
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.post("/api/v1/graph/link")
@@ -471,10 +299,18 @@ def _investigate_pod(
         )
 
     gcp_res = {"root_cause": 0.80, "recommendation": 0.75}
+    claim_scoring = {"unsupported_claim_rate": 0.0, "claim_count": 0, "claims": []}
     try:
         gcp_res = GraphConfidencePropagator().run_propagation(pod["name"])
     except Exception:  # pylint: disable=broad-exception-caught
         pass
+
+    try:
+        claim_scoring = GraphProvenanceClaimScorer().score_claims(
+            analysis, graphrag_search
+        )
+    except (ValueError, KeyError, TypeError, RuntimeError, HTTPException):
+        claim_scoring = {"unsupported_claim_rate": 0.0, "claim_count": 0, "claims": []}
 
     incident_id = str(uuid.uuid4())
     neo4j_client.execute_query(
@@ -545,6 +381,7 @@ def _investigate_pod(
         "evidence": analysis["evidence"],
         "relevant_evidence": evidence_context["evidence"],
         "retrieval_context": retrieval_context,
+        "claim_scoring": claim_scoring,
         "timestamp": int(time.time()),
         "root_cause_confidence": gcp_res["root_cause"],
         "recommendation_confidence": gcp_res["recommendation"],
@@ -611,6 +448,98 @@ def get_relevant_evidence(payload: EvidenceTrigger):
         return build_relevant_evidence(
             pod_name=payload.pod_name, namespace=payload.namespace
         )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@app.post("/api/v1/investigations/context-comparison")
+def context_comparison(payload: GraphRAGSearchPayload):
+    """Compare the raw context payload for multiple retrieval configurations."""
+    try:
+        query = payload.query.strip()
+        if not query:
+            raise HTTPException(status_code=400, detail="Query cannot be empty")
+
+        comparisons = []
+        for method in ["keyword", "vector", "hybrid"]:
+            search_payload = GraphRAGSearchPayload(
+                query=query,
+                namespace=payload.namespace,
+                depth=payload.depth,
+                method=method,
+            )
+            search_res = graphrag_search(search_payload, method=method)
+            comparisons.append(
+                {
+                    "config": method,
+                    "label": f"{method.title()} Retrieval",
+                    "detail": (
+                        "GraphRAG search payload showing raw retrieval and ranking "
+                        f"details for method '{method}'."
+                    ),
+                    "payload": {
+                        "query": search_res["query"],
+                        "method": search_res["method"],
+                        "retrieval": search_res["retrieval"],
+                        "results": search_res["results"],
+                    },
+                }
+            )
+
+        evidence_payload = build_relevant_evidence(
+            pod_name=query, namespace=payload.namespace
+        )
+        retrieval_context = build_retrieval_context_for_investigation(
+            pod_name=query,
+            search_func=graphrag_search,
+            namespace=payload.namespace,
+        )
+        analysis = build_investigation_analysis(query, "Unknown", [])
+        claim_scoring = GraphProvenanceClaimScorer().score_claims(
+            analysis, graphrag_search, query
+        )
+
+        comparisons.append(
+            {
+                "config": "agent-context",
+                "label": "Agent / GCP Context",
+                "detail": (
+                    "Fallback investigation context payload used by the agent "
+                    "orchestrator and confidence propagation pipeline."
+                ),
+                "payload": {
+                    "query": query,
+                    "search_payload": {
+                        "query": query,
+                        "namespace": payload.namespace,
+                        "depth": payload.depth,
+                        "method": "hybrid",
+                    },
+                    "prompts": {
+                        "raw_prompt": (
+                            f"Investigate the issue for '{query}' using the "
+                            "active graph context, recent logs, and metric summaries."
+                        ),
+                        "llm_provider": payload.method,
+                    },
+                    "evidence": evidence_payload,
+                    "retrieval_context": retrieval_context,
+                    "claim_scoring": claim_scoring,
+                },
+                "unsupported": claim_scoring["unsupported_claim_rate"] > 0.4,
+            }
+        )
+
+        return {
+            "status": "success",
+            "query": query,
+            "unsupported_claim_rate": claim_scoring["unsupported_claim_rate"],
+            "claim_count": claim_scoring["claim_count"],
+            "claims": claim_scoring["claims"],
+            "comparisons": comparisons,
+        }
+    except HTTPException as e:
+        raise e
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 

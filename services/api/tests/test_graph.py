@@ -169,6 +169,84 @@ def test_investigation_trigger_returns_structured_analysis(monkeypatch):
     assert body["results"][0]["evidence"]
 
 
+def test_context_comparison_endpoint_returns_multiple_payloads(monkeypatch):
+    """Verify context comparison endpoint returns raw configuration payloads."""
+
+    def _fake_execute_query(query, _params=None):
+        if "MATCH (n)" in query and "RETURN labels(n)" in query:
+            return [
+                {
+                    "labels": ["Pod"],
+                    "name": "checkout-pod",
+                    "status": "CrashLoopBackOff",
+                    "title": None,
+                    "id": "pod-1",
+                }
+            ]
+        if "OPTIONAL MATCH" in query or "MATCH (n)-[r]-(m)" in query:
+            return [
+                {
+                    "rel": "BELONGS_TO",
+                    "related_name": "checkout-service",
+                    "related_labels": ["Service"],
+                }
+            ]
+        return []
+
+    monkeypatch.setattr(neo4j_client, "execute_query", _fake_execute_query)
+
+    response = client.post(
+        "/api/v1/investigations/context-comparison",
+        json={"query": "checkout", "namespace": "cloudgraph-system"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "success"
+    assert body["query"] == "checkout"
+    assert body["comparisons"]
+    assert any(item["config"] == "keyword" for item in body["comparisons"])
+    assert any(item["config"] == "hybrid" for item in body["comparisons"])
+    assert any(item["config"] == "agent-context" for item in body["comparisons"])
+
+
+def test_benchmark_summary_endpoint_returns_benchmark_metadata():
+    """Verify benchmark summary endpoint returns dataset split and baselines."""
+    response = client.get("/api/v1/benchmark/summary")
+    assert response.status_code == 200
+
+    body = response.json()
+    assert body["status"] == "success"
+    assert body["dataset"] == "CloudGraph incident benchmark v1"
+    assert body["split"] == "70/30"
+    assert isinstance(body["notes"], list)
+    assert isinstance(body["baselines"], list)
+    assert len(body["baselines"]) >= 3
+    assert all("baseline" in item for item in body["baselines"])
+
+
+def test_benchmark_export_endpoint_supports_json_and_csv():
+    """Verify benchmark export returns valid JSON and CSV payloads."""
+    json_response = client.get("/api/v1/benchmark/export?format=json")
+    assert json_response.status_code == 200
+    assert json_response.headers["content-type"].startswith("application/json")
+    assert json_response.json()["status"] == "success"
+    assert json_response.json()["dataset"] == "CloudGraph incident benchmark v1"
+
+    csv_response = client.get("/api/v1/benchmark/export?format=csv")
+    assert csv_response.status_code == 200
+    assert csv_response.headers["content-type"].startswith("text/csv")
+    assert (
+        "attachment; filename=cloudgraph-benchmark-results.csv"
+        in csv_response.headers["content-disposition"]
+    )
+    csv_text = csv_response.text
+    assert csv_text.startswith(
+        "baseline,accuracy,precision,recall,f1,hallucination_rate,latency_ms"
+    )
+    assert "GraphRAG + Agents + GCP + GPCS" in csv_text
+
+
 def test_investigation_trigger_uses_retrieval_context_when_available(monkeypatch):
     """Verify that the trigger endpoint utilizes GraphRAG context when active."""
 
