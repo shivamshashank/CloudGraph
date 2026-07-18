@@ -37,7 +37,7 @@ class SentenceTransformerEmbedder:
             return self._model
         try:
             self._model = SentenceTransformer(self.model_name)
-            dimension = self._model.get_sentence_embedding_dimension()
+            dimension = self._model.get_embedding_dimension()
             if dimension:
                 self.dimension = int(dimension)
             return self._model

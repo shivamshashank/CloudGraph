@@ -496,7 +496,7 @@ def context_comparison(payload: GraphRAGSearchPayload):
         )
         analysis = build_investigation_analysis(query, "Unknown", [])
         claim_scoring = GraphProvenanceClaimScorer().score_claims(
-            analysis, graphrag_search, query
+            analysis, graphrag_search
         )
 
         comparisons.append(
