@@ -60,7 +60,7 @@ spec:
     helm:
       values: |
         neo4j:
-          password: "cloudgraph_dev_password"
+          password: ""
           edition: "community"
           acceptLicenseAgreement: "yes"
         volumes:

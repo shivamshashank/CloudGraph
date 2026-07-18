@@ -5,6 +5,8 @@
 global:
   namespace: cloudgraph-system
   imagePullPolicy: IfNotPresent
+  openaiApiKey: ""
+  llmModel: ""
 
 # CloudGraph API
 cloudgraphApi:
@@ -151,7 +153,7 @@ otelCollector:
 neo4j:
   enabled: true
   acceptLicenseAgreement: "yes"
-  neo4jPassword: "changeme"
+  neo4jPassword: ""
   neo4j:
     name: "cloudgraph-neo4j"
 

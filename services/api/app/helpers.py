@@ -19,9 +19,9 @@ def build_relevant_evidence(
     OPTIONAL MATCH (p)-[:GENERATES]->(l:Log)
     WHERE l.level IN ['ERROR', 'WARN', 'INFO']
     RETURN p.name as pod_name,
-           s.name as service_name,
-           d.name as deployment_name,
-           n.name as node_name,
+           s.name as service_name, s.confidence as service_conf,
+           d.name as deployment_name, d.confidence as deployment_conf,
+           n.name as node_name, n.confidence as node_conf,
            collect(DISTINCT l.message)[0..3] as log_messages
     LIMIT 1
     """
@@ -38,6 +38,7 @@ def build_relevant_evidence(
                     "The pod belongs to this service and is part of the "
                     "active dependency chain."
                 ),
+                "confidence": row.get("service_conf") or 0.80,
             }
         )
     if row.get("deployment_name"):
@@ -49,6 +50,7 @@ def build_relevant_evidence(
                     "The deployment owning this pod is part of the workload "
                     "history being analyzed."
                 ),
+                "confidence": row.get("deployment_conf") or 0.75,
             }
         )
     if row.get("node_name"):
@@ -60,6 +62,7 @@ def build_relevant_evidence(
                     "This pod is scheduled onto the node shown by the "
                     "current topology graph."
                 ),
+                "confidence": row.get("node_conf") or 0.60,
             }
         )
     if row.get("log_messages"):
@@ -72,6 +75,7 @@ def build_relevant_evidence(
                     "evidence for the diagnosis."
                 ),
                 "messages": row["log_messages"],
+                "confidence": 0.85,
             }
         )
 

@@ -22,19 +22,6 @@
           <h1>CloudGraph</h1>
         </div>
 
-        <div class="section-title">Operations</div>
-        <div class="control-group">
-          <button id="btn-discover" class="btn btn-primary">
-            <span class="btn-icon">🔍</span> Discover Cluster
-          </button>
-          <button id="btn-analyze" class="btn btn-secondary">
-            <span class="btn-icon">🧠</span> Run AI Diagnosis
-          </button>
-          <button id="btn-reset" class="btn btn-danger">
-            <span class="btn-icon">🗑️</span> Reset Topology
-          </button>
-        </div>
-
         <div class="section-title">Navigation</div>
         <div class="nav-menu">
           <a href="index.html" class="nav-item active">
@@ -51,6 +38,9 @@
           </a>
           <a href="workbench.html" class="nav-item">
             <span class="nav-icon">📥</span> Incident Workbench
+          </a>
+          <a href="settings.html" class="nav-item" id="nav-settings">
+            <span class="nav-icon">⚙️</span> LLM Settings
           </a>
         </div>
 
@@ -94,11 +84,36 @@
       <main class="main-content">
         <!-- Topology Visualizer -->
         <div class="card topology-card" style="height: 100%">
-          <div class="card-header">
-            <h2>Kubernetes Graph Topology Map</h2>
-            <span class="card-subtitle"
-              >Real-time dependency and relationship rendering</span
-            >
+          <div
+            class="card-header"
+            style="
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+            "
+          >
+            <div>
+              <h2>Kubernetes Graph Topology Map</h2>
+              <span class="card-subtitle"
+                >Real-time dependency and relationship rendering</span
+              >
+            </div>
+            <div class="card-actions" style="display: flex; gap: 8px">
+              <button
+                id="btn-discover"
+                class="btn btn-primary"
+                style="width: auto; padding: 8px 16px; font-size: 13px"
+              >
+                <span class="btn-icon">🔍</span> Discover Cluster
+              </button>
+              <button
+                id="btn-reset"
+                class="btn btn-danger"
+                style="width: auto; padding: 8px 16px; font-size: 13px"
+              >
+                <span class="btn-icon">🗑️</span> Reset Topology
+              </button>
+            </div>
           </div>
           <div class="canvas-container">
             <svg id="topology-svg" width="100%" height="100%">

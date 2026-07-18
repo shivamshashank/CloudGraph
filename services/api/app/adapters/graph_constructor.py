@@ -47,11 +47,14 @@ def run_entity_linking():
 def build_service_dependency_map():
     """
     Builds a lightweight service dependency map from the currently discovered
-    Kubernetes service and pod relationships.
+    Kubernetes service, pod, and trace span call relationships.
     """
     query = """
-    MATCH (s:Service)
-    RETURN count(s) as relationships_created
+    MATCH (s1:Service)<-[:BELONGS_TO]-(p1:Pod)-[:HAS_TRACE]->(t1:Trace)
+    MATCH (t2:Trace)<-[:HAS_TRACE]-(p2:Pod)-[:BELONGS_TO]->(s2:Service)
+    WHERE t2.parentSpanId = t1.spanId AND s1 <> s2
+    MERGE (s1)-[r:CALLS]->(s2)
+    RETURN count(r) as relationships_created
     """
     result = neo4j_client.execute_query(query)
     return result[0]["relationships_created"] if result else 0

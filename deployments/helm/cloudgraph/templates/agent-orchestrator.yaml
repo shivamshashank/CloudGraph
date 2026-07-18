@@ -63,6 +63,10 @@ spec:
               value: "8082"
             - name: INVESTIGATION_ENGINE_URL
               value: "http://cloudgraph-investigation-engine.{{ .Values.global.namespace }}.svc.cluster.local:8081"
+            - name: OPENAI_API_KEY
+              value: {{ .Values.global.openaiApiKey | quote }}
+            - name: LLM_MODEL
+              value: {{ .Values.global.llmModel | quote }}
           ports:
             - name: http
               containerPort: 8082

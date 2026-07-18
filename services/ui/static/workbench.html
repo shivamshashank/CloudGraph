@@ -290,24 +290,6 @@
           <h1>CloudGraph</h1>
         </div>
 
-        <div class="section-title">Operations</div>
-        <div class="control-group">
-          <button
-            id="btn-discover"
-            class="btn btn-primary"
-            onclick="triggerDiscover()"
-          >
-            <span class="btn-icon">🔍</span> Discover Cluster
-          </button>
-          <button
-            id="btn-analyze"
-            class="btn btn-secondary"
-            onclick="triggerAnalyze()"
-          >
-            <span class="btn-icon">🧠</span> Run AI Diagnosis
-          </button>
-        </div>
-
         <div class="section-title">Navigation</div>
         <div class="nav-menu">
           <a href="index.html" class="nav-item">
@@ -324,6 +306,9 @@
           </a>
           <a href="workbench.html" class="nav-item active">
             <span class="nav-icon">📥</span> Incident Workbench
+          </a>
+          <a href="settings.html" class="nav-item" id="nav-settings">
+            <span class="nav-icon">⚙️</span> LLM Settings
           </a>
         </div>
 
@@ -409,58 +394,6 @@
         if (analyzeBtn) analyzeBtn.click();
       }
 
-      // Default mock incidents for persistence initialization
-      const INITIAL_SEED_INCIDENTS = [
-        {
-          id: "incident-seed-1",
-          title: "Out Of Memory (OOM) error detected on checkout-pod",
-          severity: "CRITICAL",
-          status: "Active",
-          cause:
-            "The workload memory consumption spiked beyond container limits, triggering K8s kernel OOM-killer.",
-          remediation:
-            "Verify recent resource spec commits. Increase memory limits to 512Mi.",
-          timestamp: Date.now() - 3600000 * 2, // 2 hours ago
-          assigned: "SRE Team",
-          error_logs: [
-            "FATAL: OutOfMemoryError",
-            "Container terminated by OOM killer",
-          ],
-        },
-        {
-          id: "incident-seed-2",
-          title: "Database authentication failure on demo-payment-app",
-          severity: "CRITICAL",
-          status: "Active",
-          cause:
-            "Incorrect database login credentials secret observed in checkout trace logging.",
-          remediation:
-            "Re-run helm vault secrets synchronization. Check database access control lists.",
-          timestamp: Date.now() - 3600000 * 4, // 4 hours ago
-          assigned: "Security Specialist",
-          error_logs: [
-            "Access denied for user 'admin' (using password: YES)",
-            "Authentication failed: wrong-password",
-          ],
-        },
-        {
-          id: "incident-seed-3",
-          title: "High response timeout connection on frontend-pod",
-          severity: "HIGH",
-          status: "Acknowledged",
-          cause:
-            "TCP dial timeouts connecting to downstream checkout-service instances.",
-          remediation:
-            "Verify service topology routing. Inspect checkout pod restart trends.",
-          timestamp: Date.now() - 3600000 * 12, // 12 hours ago
-          assigned: "Operations Team",
-          error_logs: [
-            "Connection timeout after 5000ms",
-            "upstream server failed to reply",
-          ],
-        },
-      ];
-
       // Load Incidents and Comments from localStorage
       let incidents = [];
       let selectedIncidentId = null;
@@ -470,7 +403,7 @@
         if (saved) {
           incidents = JSON.parse(saved);
         } else {
-          incidents = INITIAL_SEED_INCIDENTS;
+          incidents = [];
           localStorage.setItem(
             "cloudgraph_incidents",
             JSON.stringify(incidents),

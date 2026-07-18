@@ -10,6 +10,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Trigger Investigation / Root Cause Analysis
   async function runInvestigation() {
+    const settings = JSON.parse(
+      localStorage.getItem("cloudgraph_llm_settings") || "{}",
+    );
+    if (!settings.api_key) {
+      if (typeof window.CloudGraph.showToast === "function") {
+        window.CloudGraph.showToast(
+          "Please add an AI API Key in LLM Settings before running AI Diagnosis.",
+          "error",
+        );
+      }
+      setTimeout(() => {
+        window.location.href = "settings.html";
+      }, 1500);
+      return;
+    }
+
     if (rcaOutput) {
       rcaOutput.innerHTML = `
                 <div class="empty-state">
@@ -23,7 +39,12 @@ document.addEventListener("DOMContentLoaded", () => {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ namespace: "cloudgraph-system" }),
+          body: JSON.stringify({
+            namespace: "cloudgraph-system",
+            llm_provider: settings.provider || null,
+            llm_api_key: settings.api_key || null,
+            llm_model: settings.model || null,
+          }),
         },
       );
       const data = await res.json();
@@ -93,22 +114,49 @@ document.addEventListener("DOMContentLoaded", () => {
       const evidenceItems =
         Array.isArray(res.relevant_evidence) && res.relevant_evidence.length > 0
           ? res.relevant_evidence
-              .map(
-                (item) => `
+              .map((item) => {
+                const confPercent = item.confidence
+                  ? ` (Confidence: ${Math.round(item.confidence * 100)}%)`
+                  : "";
+                return `
                     <div class="evidence-item">
-                        <div class="evidence-item-title">${item.label}</div>
+                        <div class="evidence-item-title">${item.label}${confPercent}</div>
                         <div class="evidence-item-detail">${item.detail}</div>
                         ${item.messages ? `<div class="evidence-item-messages">${item.messages.map((msg) => `<span class="evidence-msg">${msg}</span>`).join("")}</div>` : ""}
                     </div>
-                `,
-              )
+                `;
+              })
               .join("")
           : '<div class="evidence-item"><div class="evidence-item-title">No graph evidence returned yet</div><div class="evidence-item-detail">The current topology does not have additional evidence for this incident.</div></div>';
+
+      const rcConf = res.root_cause_confidence
+        ? Math.round(res.root_cause_confidence * 100)
+        : 80;
+      const recConf = res.recommendation_confidence
+        ? Math.round(res.recommendation_confidence * 100)
+        : 75;
 
       rcaHtml += `
                 <div class="rca-header">
                     <span class="rca-badge ${severityClass}">${res.severity}</span>
                     <h3 class="rca-title">${res.title}</h3>
+                </div>
+
+                <div class="rca-confidence-container">
+                    <div class="rca-confidence-badge">
+                        <span class="rca-conf-label">Root Cause Confidence:</span>
+                        <div class="rca-conf-bar-bg">
+                            <div class="rca-conf-bar-fill" style="width: ${rcConf}%; background: linear-gradient(90deg, #3b82f6, #60a5fa);"></div>
+                        </div>
+                        <span class="rca-conf-val">${rcConf}%</span>
+                    </div>
+                    <div class="rca-confidence-badge">
+                        <span class="rca-conf-label">Remediation Confidence:</span>
+                        <div class="rca-conf-bar-bg">
+                            <div class="rca-conf-bar-fill" style="width: ${recConf}%; background: linear-gradient(90deg, #10b981, #34d399);"></div>
+                        </div>
+                        <span class="rca-conf-val">${recConf}%</span>
+                    </div>
                 </div>
 
                 <div class="rca-block">
