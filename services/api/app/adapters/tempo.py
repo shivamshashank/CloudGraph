@@ -23,6 +23,8 @@ def ingest_tempo_trace(*args, **kwargs):
 
     query = """
     MERGE (p:Pod {id: $pod_id})
+    MERGE (s:Service {name: $service_name})
+    SET s.name = $service_name
     MERGE (t:Trace {id: $trace_id})
     SET t.spanId = $span_id,
         t.parentSpanId = $parent_span_id,
@@ -32,6 +34,23 @@ def ingest_tempo_trace(*args, **kwargs):
         t.status = $status,
         t.podName = $pod_name
     MERGE (p)-[:HAS_TRACE]->(t)
+    MERGE (p)-[:BELONGS_TO]->(s)
+
+    MERGE (ts:TraceSpan {id: $span_id})
+    SET ts.traceId = $trace_id,
+        ts.parentSpanId = $parent_span_id,
+        ts.serviceName = $service_name,
+        ts.durationMs = $duration,
+        ts.timestamp = $timestamp,
+        ts.status = $status,
+        ts.podName = $pod_name
+    MERGE (p)-[:HAS_SPAN]->(ts)
+
+    WITH ts
+    WHERE ts.parentSpanId IS NOT NULL AND ts.parentSpanId <> ""
+    MERGE (parent:TraceSpan {id: ts.parentSpanId})
+    MERGE (parent)-[:CALLS]->(ts)
+
     RETURN t.id as trace_id
     """
     params = {

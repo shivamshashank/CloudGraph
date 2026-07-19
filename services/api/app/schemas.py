@@ -1,5 +1,7 @@
 """Pydantic payload schemas used by the FastAPI route handlers."""
 
+# pylint: disable=too-few-public-methods
+
 from typing import Any, List
 from pydantic import BaseModel, Field, model_validator
 
@@ -219,3 +221,106 @@ class TracePayload(BaseModel):
             f"Trace {self.trace_id} Span {self.span_id}: "
             f"{self.service_name} ({self.duration}ms)"
         )
+
+
+class IncidentCreate(BaseModel):
+    """Payload model for manual incident creation."""
+
+    title: str
+    severity: str
+    status: str = "Active"
+    cause: str
+    remediation: str
+    assigned: str = "Unassigned"
+    error_logs: List[str] = []
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert payload model to dictionary representation."""
+        return self.model_dump()
+
+
+class IncidentUpdate(BaseModel):
+    """Payload model for updating existing incident attributes."""
+
+    status: str | None = None
+    assigned: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert payload model to dictionary representation."""
+        return self.model_dump()
+
+
+class CommentCreate(BaseModel):
+    """Payload model for incident comment creation."""
+
+    author: str
+    text: str
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert payload model to dictionary representation."""
+        return self.model_dump()
+
+
+class SettingsPayload(BaseModel):
+    """Payload model for system LLM configuration settings."""
+
+    provider: str
+    api_key: str
+    model: str
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert payload model to dictionary representation."""
+        return self.model_dump()
+
+
+class LogEntryPayload(BaseModel):
+    """Payload model for single live stream log entries."""
+
+    timestamp: str
+    source: str
+    level: str
+    message: str
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert payload model to dictionary representation."""
+        return self.model_dump()
+
+
+class SecurityEventPayload(BaseModel):
+    """Payload model for Falco runtime security events."""
+
+    event_id: str
+    pod_id: str
+    pod_name: str
+    rule: str
+    priority: str
+    output: str
+    timestamp: int
+    service_account: str = "default"
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert payload model to dictionary representation."""
+        return self.model_dump()
+
+    def get_summary(self) -> str:
+        """Generate human-readable summary of the security event."""
+        return f"[{self.priority}] {self.rule}: {self.output[:60]}"
+
+
+class ChaosExperimentPayload(BaseModel):
+    """Payload model for Litmus/ChaosMesh triggers."""
+
+    experiment_id: str
+    name: str
+    target_pod_name: str
+    action: str
+    status: str
+    timestamp: int
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert payload model to dictionary representation."""
+        return self.model_dump()
+
+    def get_summary(self) -> str:
+        """Generate human-readable summary of the chaos experiment."""
+        return f"Chaos {self.name} on {self.target_pod_name} - {self.status}"

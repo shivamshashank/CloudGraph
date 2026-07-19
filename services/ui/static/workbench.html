@@ -401,30 +401,22 @@
       let incidents = [];
       let selectedIncidentId = null;
 
-      function loadIncidents() {
-        const saved = localStorage.getItem("cloudgraph_incidents");
-        if (saved) {
-          incidents = JSON.parse(saved);
-        } else {
-          incidents = [];
-          localStorage.setItem(
-            "cloudgraph_incidents",
-            JSON.stringify(incidents),
+      async function loadIncidents() {
+        try {
+          const res = await fetch(
+            `${window.CloudGraph.API_BASE}/api/v1/incidents`,
           );
+          const data = await res.json();
+          if (data.status === "success") {
+            incidents = data.incidents;
+          } else {
+            incidents = [];
+          }
+        } catch (err) {
+          console.error("Failed to load incidents:", err);
+          incidents = [];
         }
-      }
-
-      function getIncidentComments(incidentId) {
-        return JSON.parse(
-          localStorage.getItem(`cloudgraph_comments_${incidentId}`) || "[]",
-        );
-      }
-
-      function saveIncidentComments(incidentId, comments) {
-        localStorage.setItem(
-          `cloudgraph_comments_${incidentId}`,
-          JSON.stringify(comments),
-        );
+        renderIncidentList();
       }
 
       function getStatusClass(status) {
@@ -512,7 +504,7 @@
       }
 
       // Render details pane for selected incident
-      function renderIncidentDetails() {
+      async function renderIncidentDetails() {
         const detailsArea = document.getElementById("details-content-area");
         const inc = incidents.find((i) => i.id === selectedIncidentId);
 
@@ -525,7 +517,19 @@
           return;
         }
 
-        const comments = getIncidentComments(inc.id);
+        let comments = [];
+        try {
+          const res = await fetch(
+            `${window.CloudGraph.API_BASE}/api/v1/incidents/${inc.id}/comments`,
+          );
+          const data = await res.json();
+          if (data.status === "success") {
+            comments = data.comments;
+          }
+        } catch (err) {
+          console.error("Failed to load comments:", err);
+        }
+
         const commentsListHtml = comments
           .map(
             (c) => `
@@ -619,45 +623,45 @@
       }
 
       // Triage Status Modifier
-      function updateIncidentStatus(id, newStatus) {
-        const inc = incidents.find((i) => i.id === id);
-        if (!inc) return;
-
-        const oldStatus = inc.status;
-        inc.status = newStatus;
-        localStorage.setItem("cloudgraph_incidents", JSON.stringify(incidents));
-
-        // Add auto log comment
-        const comments = getIncidentComments(id);
-        comments.push({
-          author: "System (Triage Engine)",
-          text: `Status updated from **${oldStatus}** to **${newStatus}**.`,
-          timestamp: Date.now(),
-        });
-        saveIncidentComments(id, comments);
-
-        selectIncident(id);
+      async function updateIncidentStatus(id, newStatus) {
+        try {
+          const res = await fetch(
+            `${window.CloudGraph.API_BASE}/api/v1/incidents/${id}`,
+            {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ status: newStatus }),
+            },
+          );
+          const data = await res.json();
+          if (data.status === "success") {
+            await loadIncidents();
+            selectIncident(id);
+          }
+        } catch (err) {
+          console.error("Failed to update status:", err);
+        }
       }
 
       // Triage Assignee Modifier
-      function updateIncidentAssignee(id, newAssignee) {
-        const inc = incidents.find((i) => i.id === id);
-        if (!inc) return;
-
-        const oldAssignee = inc.assigned;
-        inc.assigned = newAssignee;
-        localStorage.setItem("cloudgraph_incidents", JSON.stringify(incidents));
-
-        // Add auto log comment
-        const comments = getIncidentComments(id);
-        comments.push({
-          author: "System (Triage Engine)",
-          text: `Ownership assigned from **${oldAssignee}** to **${newAssignee}**.`,
-          timestamp: Date.now(),
-        });
-        saveIncidentComments(id, comments);
-
-        selectIncident(id);
+      async function updateIncidentAssignee(id, newAssignee) {
+        try {
+          const res = await fetch(
+            `${window.CloudGraph.API_BASE}/api/v1/incidents/${id}`,
+            {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ assigned: newAssignee }),
+            },
+          );
+          const data = await res.json();
+          if (data.status === "success") {
+            await loadIncidents();
+            selectIncident(id);
+          }
+        } catch (err) {
+          console.error("Failed to update assignee:", err);
+        }
       }
 
       // Resolve button trigger
@@ -666,27 +670,36 @@
       }
 
       // Add triage notes comment
-      function addTriageComment(event, id) {
+      async function addTriageComment(event, id) {
         event.preventDefault();
         const textInput = document.getElementById("comment-text-input");
         const commentText = textInput.value.trim();
         if (!commentText) return;
 
-        const comments = getIncidentComments(id);
-        comments.push({
-          author: "Lead Triage Analyst (Admin)",
-          text: commentText,
-          timestamp: Date.now(),
-        });
-        saveIncidentComments(id, comments);
-
-        textInput.value = "";
-        renderIncidentDetails();
+        try {
+          const res = await fetch(
+            `${window.CloudGraph.API_BASE}/api/v1/incidents/${id}/comments`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                author: "Lead Triage Analyst (Admin)",
+                text: commentText,
+              }),
+            },
+          );
+          const data = await res.json();
+          if (data.status === "success") {
+            textInput.value = "";
+            await renderIncidentDetails();
+          }
+        } catch (err) {
+          console.error("Failed to add comment:", err);
+        }
       }
 
       // Initialize page
       loadIncidents();
-      renderIncidentList();
     </script>
   </body>
 </html>

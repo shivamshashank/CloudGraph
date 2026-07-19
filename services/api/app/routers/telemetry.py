@@ -1,10 +1,19 @@
 """Telemetry API endpoints."""
 
 from fastapi import APIRouter, HTTPException
-from app.schemas import MetricPayload, LogPayload, TracePayload
+from app.schemas import (
+    MetricPayload,
+    LogPayload,
+    TracePayload,
+    SecurityEventPayload,
+    ChaosExperimentPayload,
+)
+from app.adapters.graph_constructor import build_service_dependency_map
 from app.adapters.prometheus import ingest_prometheus_metric
 from app.adapters.loki import ingest_loki_log
 from app.adapters.tempo import ingest_tempo_trace
+from app.adapters.security import ingest_security_event
+from app.adapters.chaos import ingest_chaos_experiment
 from app.database.redis_client import redis_client
 from app.dependencies import semantic_store
 
@@ -108,7 +117,93 @@ def post_trace(payload: TracePayload):
                 "timestamp": payload.timestamp,
             },
         )
+        relationships_created = 0
+        try:
+            relationships_created = build_service_dependency_map()
+        except (RuntimeError, ValueError, KeyError, TypeError, AttributeError):
+            relationships_created = 0
+
         redis_client.clear_cache()
-        return {"status": "success", "trace_id": trace_id}
+        return {
+            "status": "success",
+            "trace_id": trace_id,
+            "relationships_created": relationships_created,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/api/v1/telemetry/security")
+def post_security_event(payload: SecurityEventPayload):
+    """Ingest Falco security event, save to Neo4j and index in Qdrant."""
+    try:
+        result = ingest_security_event(
+            payload.event_id,
+            payload.pod_id,
+            payload.pod_name,
+            payload.rule,
+            payload.priority,
+            payload.output,
+            payload.timestamp,
+            payload.service_account,
+        )
+        event_id = result[0]["event_id"] if result else "security-event-fallback"
+        semantic_store.index_document(
+            event_id,
+            (
+                f"Security Event rule {payload.rule} "
+                f"priority {payload.priority} "
+                f"output {payload.output}"
+            ),
+            {
+                "type": "security-event",
+                "label": "SecurityEvent",
+                "name": payload.rule,
+                "pod_name": payload.pod_name,
+                "priority": payload.priority,
+                "timestamp": payload.timestamp,
+            },
+        )
+        redis_client.clear_cache()
+        return {"status": "success", "event_id": event_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/api/v1/telemetry/chaos")
+def post_chaos_experiment(payload: ChaosExperimentPayload):
+    """Ingest chaos experiment event, save to Neo4j and index in Qdrant."""
+    try:
+        result = ingest_chaos_experiment(
+            payload.experiment_id,
+            payload.name,
+            payload.target_pod_name,
+            payload.action,
+            payload.status,
+            payload.timestamp,
+        )
+        experiment_id = (
+            result[0]["experiment_id"] if result else "chaos-experiment-fallback"
+        )
+        semantic_store.index_document(
+            experiment_id,
+            (
+                f"Chaos Experiment {payload.name} "
+                f"action {payload.action} "
+                f"status {payload.status} "
+                f"target {payload.target_pod_name}"
+            ),
+            {
+                "type": "chaos-experiment",
+                "label": "ChaosExperiment",
+                "name": payload.name,
+                "pod_name": payload.target_pod_name,
+                "action": payload.action,
+                "status": payload.status,
+                "timestamp": payload.timestamp,
+            },
+        )
+        redis_client.clear_cache()
+        return {"status": "success", "experiment_id": experiment_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e

@@ -10,9 +10,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Trigger Investigation / Root Cause Analysis
   async function runInvestigation() {
-    const settings = JSON.parse(
-      localStorage.getItem("cloudgraph_llm_settings") || "{}",
-    );
+    let settings = {};
+    try {
+      const res = await fetch(`${window.CloudGraph.API_BASE}/api/v1/settings`);
+      const data = await res.json();
+      if (data.status === "success" && data.settings) {
+        settings = data.settings;
+      }
+    } catch (err) {
+      console.error("Failed to fetch settings:", err);
+    }
+
     if (!settings.api_key) {
       if (typeof window.CloudGraph.showToast === "function") {
         window.CloudGraph.showToast(
@@ -49,34 +57,6 @@ document.addEventListener("DOMContentLoaded", () => {
       );
       const data = await res.json();
       if (data.status === "success" && data.results.length > 0) {
-        // Save to localStorage incidents
-        const existingIncidents = JSON.parse(
-          localStorage.getItem("cloudgraph_incidents") || "[]",
-        );
-        data.results.forEach((res) => {
-          if (!existingIncidents.some((i) => i.title === res.title)) {
-            existingIncidents.unshift({
-              id:
-                "incident-" +
-                Date.now() +
-                "-" +
-                Math.random().toString(36).substr(2, 5),
-              title: res.title,
-              severity: res.severity || "HIGH",
-              status: "Active",
-              cause: res.cause || "Detected anomaly in logs/metrics.",
-              remediation: res.recommendation || "Check pod details.",
-              timestamp: Date.now(),
-              assigned: "Unassigned",
-              error_logs: res.evidence || [],
-            });
-          }
-        });
-        localStorage.setItem(
-          "cloudgraph_incidents",
-          JSON.stringify(existingIncidents),
-        );
-
         renderRCA(data.results);
         window.CloudGraph.fetchGraph();
       }
