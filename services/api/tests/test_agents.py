@@ -405,7 +405,7 @@ def test_consensus_engine_reasoning_and_fallback(monkeypatch):
         pod_status="CrashLoopBackOff",
         llm_config={
             "provider": "openai",
-            "token": "test-mock-token",  # gitleaks:allow
+            "api_key": "test-mock-token",  # gitleaks:allow
             "model": "gpt-4",
         },
     )
