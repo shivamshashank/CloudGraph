@@ -56,6 +56,7 @@ class QdrantClientWrapper:
                 port=self._url_params["port"],
                 api_key=self._url_params["api_key"],
                 timeout=self._url_params["timeout"],
+                check_compatibility=False,
             )
             client.get_collections()
             self.client = client

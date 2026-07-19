@@ -35,7 +35,7 @@ PYTHONPATH=services/api services/api/.venv/bin/pytest
 
 ### 2. Manual Schema Verification
 
-Connect to the Neo4j Browser UI at [http://localhost:7474](http://localhost:7474) (Username: `neo4j`, Password: `cloudgraph_dev_password`) and run:
+Connect to the Neo4j Browser UI at [http://localhost:7474](http://localhost:7474) (Username: `neo4j`, Password: retrieved from the generated `cloudgraph-neo4j-auth` secret) and run:
 
 ```cypher
 SHOW CONSTRAINTS;

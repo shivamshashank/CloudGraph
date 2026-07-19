@@ -24,11 +24,11 @@ cloudgraphApi:
 
   resources:
     limits:
-      cpu: 1000m
+      cpu: 500m
       memory: 1Gi
     requests:
-      cpu: 250m
-      memory: 512Mi
+      cpu: 10m
+      memory: 256Mi
 
   env:
     ENVIRONMENT: production
@@ -45,11 +45,11 @@ investigationEngine:
 
   resources:
     limits:
-      cpu: 2000m
-      memory: 2Gi
-    requests:
       cpu: 500m
-      memory: 1Gi
+      memory: 512Mi
+    requests:
+      cpu: 10m
+      memory: 128Mi
 
   env:
     LOG_LEVEL: info
@@ -65,11 +65,11 @@ agentOrchestrator:
 
   resources:
     limits:
-      cpu: 2000m
-      memory: 2Gi
-    requests:
       cpu: 500m
-      memory: 1Gi
+      memory: 512Mi
+    requests:
+      cpu: 10m
+      memory: 128Mi
 
 # CloudGraph UI
 cloudgraphUI:
@@ -111,11 +111,11 @@ otelCollector:
 
   resources:
     limits:
-      cpu: 1000m
-      memory: 1Gi
-    requests:
       cpu: 200m
-      memory: 400Mi
+      memory: 256Mi
+    requests:
+      cpu: 10m
+      memory: 64Mi
 
   config:
     receivers:
@@ -153,7 +153,7 @@ otelCollector:
 neo4j:
   enabled: true
   acceptLicenseAgreement: "yes"
-  neo4jPassword: ""
+  password: ""
   neo4j:
     name: "cloudgraph-neo4j"
 
@@ -163,10 +163,14 @@ neo4j:
       size: 10Gi
 
   resources:
-    cpu: "1000m"
-    memory: "2Gi"
+    limits:
+      cpu: "500m"
+      memory: "1Gi"
+    requests:
+      cpu: "10m"
+      memory: "512Mi"
 
-# Redis - Cache & Message Queue
+# Redis - Cache
 redis:
   enabled: true
 
@@ -186,11 +190,11 @@ redis:
 
   resources:
     limits:
-      cpu: 500m
-      memory: 512Mi
-    requests:
-      cpu: 100m
+      cpu: 200m
       memory: 256Mi
+    requests:
+      cpu: 10m
+      memory: 64Mi
 
 # Qdrant - Vector Database
 qdrant:
@@ -202,11 +206,11 @@ qdrant:
 
   resources:
     limits:
-      cpu: 1000m
-      memory: 1Gi
-    requests:
-      cpu: 250m
+      cpu: 500m
       memory: 512Mi
+    requests:
+      cpu: 10m
+      memory: 128Mi
 
 # RBAC Configuration
 rbac:
@@ -243,10 +247,6 @@ rbac:
           resources:
             - events
           verbs: ["get", "list", "watch"]
-
-# Custom Resource Definitions
-crds:
-  enabled: true
 
 # Observability Stack (optional - install if not already present)
 observabilityStack:

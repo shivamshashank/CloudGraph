@@ -10,25 +10,23 @@ checkbox unbacked by a file.
 
 **Current real state in one sentence:** Weeks 1–4 (infra, observability,
 knowledge graph, GraphRAG retrieval) are genuinely complete and demoable.
-Everything from "multi-agent LLM investigation" onward is a well-built
-rule-based stand-in, not what the docs describe it as, and Weeks 6–8 have not
-been started in any form.
+Many parts of the current multi-agent investigation path remain a rule-based
+stand-in rather than a fully realized LLM/GraphRAG RCA system, and Weeks 6–8
+have not been started in any form.
 
 ---
 
 ## 0. The single most important gap (fix this first)
 
-- [ ] **There is no LLM call anywhere in the codebase.**
-      `services/investigation-engine/main.py` and
-      `services/agent-orchestrator/main.py` contain zero calls to
-      OpenAI/Anthropic/any hosted or local LLM, and zero LangGraph/LangChain
-      imports despite `ROADMAP.md` Week 5 marking "LangGraph agent
-      orchestration" as `[x]`. The "agents" are keyword-matching Python
-      functions (`if "oom" in error_text`, `if avg_cpu > 80.0`) and the
-      "Consensus Engine" is a hardcoded weighted if/elif classifier.
-- [ ] Until this is fixed, every place in the repo that says "LLM," "agentic,"
-      "LangGraph," or "multi-agent reasoning" is inaccurate and should either be
-      built for real or re-labeled as "rule-based" until it is.
+- [ ] **LLM integration exists in the orchestrator and investigation engine, but it is conditional and partial.**
+      `services/investigation-engine/main.py` and `services/agent-orchestrator/main.py`
+      both include direct OpenAI/Gemini/Claude request code paths, but several
+      agent and consensus flows still fall back to rule-based logic when an
+      LLM provider/API key is missing or when an LLM response is invalid.
+- [ ] Until this path is hardened and the fallback logic is reduced, any claim
+      that the pipeline is fully LLM-backed or fully multi-agent should be
+      qualified as "LLM-capable with rule-based fallback" or relabeled
+      accordingly.
 
 ---
 
@@ -40,9 +38,9 @@ been started in any form.
       each agent should call an LLM with its slice of GraphRAG-retrieved
       evidence and produce a structured hypothesis + confidence + rationale, not
       a hardcoded string.
-- [ ] Actually integrate LangGraph (or an equivalent framework) for agent
-      orchestration, message passing, and shared state — currently the
-      "orchestrator" is a single HTTP POST to a Python `http.server` that
+- [ ] Actually integrate a real orchestration framework (or an equivalent
+      orchestration design) for agent message passing and shared state — currently
+      the "orchestrator" is a single HTTP POST to a Python `http.server` that
       forwards a JSON blob and gets a JSON blob back.
 - [ ] Rebuild the Consensus Engine (`agent-orchestrator/main.py`
       `ConsensusEngine.resolve_incident`) to compute confidence from actual
@@ -118,11 +116,8 @@ been started in any form.
       actual FastAPI route — the function exists and works, but nothing in
       `main.py` calls it. Also deploy Grafana Tempo itself; it's referenced in
       docs but never appears in `deployments/kubernetes/observability/`.
-- [ ] Wire Redis. It's declared in `Chart.yaml`, `values.yaml`, and every
-      service's env vars (`REDIS_HOST`) but no service imports a Redis client
-      anywhere. Minimum viable use: cache repeated GraphRAG queries.
-- [ ] Add the CRD manifests that `values.yaml` promises (`crds.enabled: true`)
-      but that don't exist anywhere in `deployments/helm/cloudgraph/templates/`.
+- [x] Wire Redis. It's declared in `Chart.yaml`, `values.yaml`, and service env vars (`REDIS_HOST`) and now backs GraphRAG search caching using `redis_client.py`.
+- [x] Remove the stale Helm CRD configuration. `crds.enabled` has been removed from `deployments/helm/cloudgraph/values.yaml` because no CRD templates existed in the chart.
 - [ ] Remove hardcoded credentials: `cloudgraph_dev_password` / `changeme`
       appear in `docker-compose.yml`, `argocd-applications.yaml`, and
       `values.yaml`. Move to Kubernetes Secrets generated at install time or an

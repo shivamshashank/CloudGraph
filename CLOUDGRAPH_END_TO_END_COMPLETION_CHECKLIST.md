@@ -1,6 +1,10 @@
 # CloudGraph End-to-End Completion Checklist
 
 > Status assumption: this checklist describes the final completed state after the full `CloudGraph_3_Week_97-99_Checklist.md` roadmap has been implemented, evaluated, documented, and verified.
+>
+> Note: This document is a target-state template, not a verified current-status audit. Do not treat checked boxes here as evidence of the current implementation without code verification.
+>
+> Note: This document is a target-state template, not a verified current status. It should not be treated as evidence of current implementation without code validation.
 
 ## 1. Project Summary
 

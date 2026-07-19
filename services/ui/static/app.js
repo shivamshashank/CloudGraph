@@ -60,10 +60,20 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   if (btnAnalyze) {
-    btnAnalyze.addEventListener("click", () => {
-      const settings = JSON.parse(
-        localStorage.getItem("cloudgraph_llm_settings") || "{}",
-      );
+    btnAnalyze.addEventListener("click", async () => {
+      let settings = {};
+      try {
+        const res = await fetch(
+          `${window.CloudGraph.API_BASE}/api/v1/settings`,
+        );
+        const data = await res.json();
+        if (data.status === "success" && data.settings) {
+          settings = data.settings;
+        }
+      } catch (err) {
+        console.error("Failed to fetch settings:", err);
+      }
+
       if (!settings.api_key) {
         showToast(
           "Please add an AI API Key in LLM Settings before running AI Diagnosis.",

@@ -31,6 +31,11 @@ data:
       loki:
         endpoint: http://loki.observability.svc.cluster.local:3100/loki/api/v1/push
 
+      otlp/tempo:
+        endpoint: tempo.observability.svc.cluster.local:4317
+        tls:
+          insecure: true
+
     service:
       pipelines:
         metrics:
@@ -41,6 +46,10 @@ data:
           receivers: [otlp]
           processors: [memory_limiter, batch]
           exporters: [loki]
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters: [otlp/tempo]
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -71,6 +80,13 @@ spec:
               name: otlp-http
             - containerPort: 8889
               name: metrics
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 256Mi
           volumeMounts:
             - name: config
               mountPath: /etc/otel-collector

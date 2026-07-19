@@ -23,7 +23,7 @@
 | 5  | `feature/graph-ingestion-pipeline`      | Week 3         | Writing ingestion controllers to parse Kubernetes events, logs, metrics, and git commits directly into the graph.                          |
 | 6  | `feature/qdrant-embedding-pipeline`     | Week 4         | Spinning up the Qdrant vector database, writing text chunking/embedding scripts, and configuring hybrid vector-keyword retrieval.                  |
 | 7  | `feature/graphrag-traversal-api`        | Week 4         | Coding multi-hop graph traversal algorithms, local context expansion, ranking, and setting up the search/query FastAPI endpoints.                  |
-| 8  | `feature/multi-agent-langgraph`         | Week 5         | Building monitoring, log, deployment, and security agents as LangGraph nodes, along with their workflow message orchestration.              |
+| 8  | `feature/multi-agent-orchestration`     | Week 5         | Building monitoring, log, deployment, and security agents as LLM-capable orchestrated components, with custom message orchestration.           |
 | 9  | `feature/agent-consensus-engine`        | Week 5         | Developing the evidence fusion layer, including confidence scoring, weighted voting, and cross-agent correlation mechanisms.                       |
 | 10 | `feature/rca-recommendation-engine`     | Week 6         | Implementing the Root Cause Agent to rank hypotheses, generate explainable graph reasoning paths, and propose remediation tasks.                   |
 | 11 | `evaluation/incident-benchmark-dataset` | Week 7         | Automating the generation of 100+ failure scenarios (CrashLoopBackOff, networking, security) and evaluating performance (precision, recall, MTTR). |
@@ -213,11 +213,11 @@ Develop investigation agents.
 - [x] Deployment Agent
 - [x] Security Agent
 
-### LangGraph
+### Orchestration
 
-- [x] Agent orchestration
-- [x] Agent communication
-- [x] Workflow design
+- [~] Agent orchestration — custom HTTP-based orchestrator exists, but LangGraph is not implemented.
+- [~] Agent communication — JSON request/response between services works, but there is no LangGraph state graph.
+- [~] Workflow design — the high-level interaction pattern exists, but it is not yet a fully hardened multi-agent orchestration framework.
 
 ### Consensus Engine
 

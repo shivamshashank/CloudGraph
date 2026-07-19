@@ -15,9 +15,9 @@ description: |
   - OpenTelemetry Collector
   - Neo4j (Knowledge Graph Database)
   - Qdrant (Vector Database)
-  - Redis (Cache & Message Queue)
+  - Redis cache
   - CloudGraph UI
-  - RBAC & CRDs
+  - RBAC
 
 type: application
 version: 1.0.0

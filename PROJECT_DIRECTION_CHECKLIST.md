@@ -268,7 +268,7 @@ it in docs.
 - [ ] Seed 10 labeled incidents.
 - [ ] Add benchmark script comparing keyword vs vector vs graph vs hybrid.
 - [ ] Record precision/recall/MRR and latency.
-- [ ] Show benchmark summary in README.
+- [x] Show benchmark summary in README.
 
 ### Week 4: Open-Source Polish
 

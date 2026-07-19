@@ -276,6 +276,18 @@ def _simulate_pod_metrics(pod, status):
         logger.debug("Could not simulate metrics for pod %s: %s", pod_name, metric_ex)
 
 
+def _get_pod_env_vars(pod) -> list:
+    """Helper to extract environment variables from pod containers spec."""
+    env_vars = []
+    if pod.spec and pod.spec.containers:
+        for container in pod.spec.containers:
+            if container.env:
+                for env in container.env:
+                    if env.name and env.value:
+                        env_vars.append(f"{env.name}={env.value}")
+    return env_vars
+
+
 def _discover_pods(v1, namespace) -> list:
     pods_discovered = []
     try:
@@ -292,13 +304,16 @@ def _discover_pods(v1, namespace) -> list:
             status = pod.status.phase if pod.status else "Unknown"
             pod_ip = pod.status.pod_ip if pod.status else "unknown"
 
+            env_vars = _get_pod_env_vars(pod)
+
             query = """
             MERGE (p:Pod {id: $pod_uid})
             SET p.name = $name,
                 p.namespace = $namespace,
                 p.nodeName = $node_name,
                 p.status = $status,
-                p.ip = $ip
+                p.ip = $ip,
+                p.env = $env
             RETURN p.name as name
             """
             neo4j_client.execute_query(
@@ -310,6 +325,7 @@ def _discover_pods(v1, namespace) -> list:
                     "node_name": node_name,
                     "status": status,
                     "ip": pod_ip or "unknown",
+                    "env": env_vars,
                 },
             )
             pods_discovered.append(pod_name)

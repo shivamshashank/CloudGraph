@@ -32,9 +32,15 @@ document.addEventListener("DOMContentLoaded", () => {
       clearBtn.style.color = "#94a3b8";
       clearBtn.style.borderColor = "#334155";
     });
-    clearBtn.addEventListener("click", () => {
+    clearBtn.addEventListener("click", async () => {
       if (confirm("Clear all saved log history?")) {
-        localStorage.removeItem(LOG_STORAGE_KEY);
+        try {
+          await fetch(`${window.CloudGraph.API_BASE}/api/v1/logs`, {
+            method: "DELETE",
+          });
+        } catch (err) {
+          console.error("Failed to clear logs on database:", err);
+        }
         logsFeed.innerHTML = `
           <div class="empty-state">
             <span class="empty-icon">📺</span>
@@ -46,40 +52,32 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ── Load and replay persisted log history ─────────────────────────────────
-  function loadPersistedLogs() {
-    const saved = localStorage.getItem(LOG_STORAGE_KEY);
-    if (!saved) return;
+  async function loadPersistedLogs() {
     try {
-      const entries = JSON.parse(saved);
-      if (entries.length === 0) return;
-      logsFeed.innerHTML = ""; // clear empty-state placeholder
-      entries.forEach((e) => renderLogEntry(e, false)); // false = don't re-save
-      logsFeed.scrollTop = logsFeed.scrollHeight;
-    } catch (_) {
-      localStorage.removeItem(LOG_STORAGE_KEY);
+      const res = await fetch(`${window.CloudGraph.API_BASE}/api/v1/logs`);
+      const data = await res.json();
+      if (data.status === "success" && data.logs) {
+        const entries = data.logs;
+        if (entries.length === 0) return;
+        logsFeed.innerHTML = ""; // clear empty-state placeholder
+        entries.forEach((e) => renderLogEntry(e, false)); // false = don't re-save
+        logsFeed.scrollTop = logsFeed.scrollHeight;
+      }
+    } catch (err) {
+      console.error("Failed to load logs from database:", err);
     }
   }
 
-  // ── Persist a single log entry to localStorage ────────────────────────────
-  function persistLogEntry(entry) {
-    let entries = [];
+  // ── Persist a single log entry to database ────────────────────────────────
+  async function persistLogEntry(entry) {
     try {
-      const saved = localStorage.getItem(LOG_STORAGE_KEY);
-      entries = saved ? JSON.parse(saved) : [];
-    } catch (_) {
-      entries = [];
-    }
-    entries.push(entry);
-    // Keep only the most recent MAX_STORED_LOGS entries
-    if (entries.length > MAX_STORED_LOGS) {
-      entries = entries.slice(entries.length - MAX_STORED_LOGS);
-    }
-    try {
-      localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(entries));
-    } catch (_) {
-      // Storage quota exceeded — prune oldest half and retry
-      entries = entries.slice(Math.floor(entries.length / 2));
-      localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(entries));
+      await fetch(`${window.CloudGraph.API_BASE}/api/v1/logs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(entry),
+      });
+    } catch (err) {
+      console.error("Failed to persist log entry:", err);
     }
   }
 

@@ -16,15 +16,24 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Load existing settings
-  const settings = JSON.parse(
-    localStorage.getItem("cloudgraph_llm_settings") || "{}",
-  );
-  if (settings.provider) providerSelect.value = settings.provider;
-  if (settings.api_key) apiKeyInput.value = settings.api_key;
-  if (settings.model) modelInput.value = settings.model;
+  async function loadSettings() {
+    try {
+      const res = await fetch(`${window.CloudGraph.API_BASE}/api/v1/settings`);
+      const data = await res.json();
+      if (data.status === "success" && data.settings) {
+        const settings = data.settings;
+        if (settings.provider) providerSelect.value = settings.provider;
+        if (settings.api_key) apiKeyInput.value = settings.api_key;
+        if (settings.model) modelInput.value = settings.model;
+      }
+    } catch (err) {
+      console.error("Failed to load settings from database:", err);
+    }
+  }
+  loadSettings();
 
   // Handle Save
-  form.addEventListener("submit", (e) => {
+  form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const newSettings = {
       provider: providerSelect.value,
@@ -37,19 +46,42 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    localStorage.setItem(
-      "cloudgraph_llm_settings",
-      JSON.stringify(newSettings),
-    );
-    showAlert("LLM settings saved successfully!");
+    try {
+      const res = await fetch(`${window.CloudGraph.API_BASE}/api/v1/settings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newSettings),
+      });
+      const data = await res.json();
+      if (data.status === "success") {
+        showAlert("LLM settings saved successfully!");
+      } else {
+        showAlert("Failed to save LLM settings.", true);
+      }
+    } catch (err) {
+      console.error("Failed to save settings:", err);
+      showAlert("Failed to save LLM settings.", true);
+    }
   });
 
   // Handle Reset / Clear
-  resetButton.addEventListener("click", () => {
-    localStorage.removeItem("cloudgraph_llm_settings");
-    providerSelect.value = "openai";
-    apiKeyInput.value = "";
-    modelInput.value = "";
-    showAlert("LLM credentials cleared successfully!");
+  resetButton.addEventListener("click", async () => {
+    try {
+      const res = await fetch(`${window.CloudGraph.API_BASE}/api/v1/settings`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (data.status === "success") {
+        providerSelect.value = "openai";
+        apiKeyInput.value = "";
+        modelInput.value = "";
+        showAlert("LLM credentials cleared successfully!");
+      } else {
+        showAlert("Failed to clear LLM settings.", true);
+      }
+    } catch (err) {
+      console.error("Failed to clear settings:", err);
+      showAlert("Failed to clear LLM settings.", true);
+    }
   });
 });

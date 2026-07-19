@@ -1,0 +1,11 @@
+# .gitleaksignore
+# Suppresses gitleaks false-positive fingerprints for known test fixtures.
+# These are test-only placeholder tokens, NOT real credentials.
+# See: https://github.com/gitleaks/gitleaks#gitleaksignore
+
+# Inline # gitleaks:allow annotations handle working-tree scans.
+# These fingerprints suppress findings from committed-history scans
+# where line numbers are fixed at the time of the commit.
+
+services/api/tests/test_agents.py:generic-api-key:113
+services/api/tests/test_agents.py:generic-api-key:408
