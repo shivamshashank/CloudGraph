@@ -10,7 +10,7 @@ This chart deploys the complete CloudGraph stack:
 - **Investigation Engine**: GraphRAG-powered investigation logic
 - **Agent Orchestrator**: Multi-agent system orchestration
 - **UI**: Web-based user interface
-- **Data Services**: Neo4j, Qdrant, Redis
+- **Data Services**: Neo4j, Qdrant, Redis cache
 - **Telemetry**: OpenTelemetry Collector
 - **RBAC**: Kubernetes access control
 
@@ -161,6 +161,12 @@ helm install cloudgraph cloudgraph/cloudgraph \
   --set neo4j.enabled=true \
   --set redis.enabled=true \
   --set qdrant.enabled=true
+```
+
+When installing Neo4j, the Helm dependency generates the `cloudgraph-neo4j-auth` secret automatically if no password is provided. Retrieve the generated password with:
+
+```bash
+kubectl get secret -n cloudgraph-system cloudgraph-neo4j-auth -o jsonpath='{.data.NEO4J_AUTH}' | base64 -d
 ```
 
 ## Verification

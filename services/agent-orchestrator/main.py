@@ -356,6 +356,8 @@ class OrchestratorHandler(http.server.BaseHTTPRequestHandler):
                     "pod_name": pod_name,
                     "pod_status": pod_status,
                     "error_logs": error_logs,
+                    "evidence_context": payload.get("evidence_context", []),
+                    "retrieval_context": payload.get("retrieval_context", {}),
                     "llm_provider": llm_provider,
                     "llm_api_key": llm_api_key,
                     "llm_model": llm_model,

@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CloudGraph - Benchmark Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="app-container">
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="logo-icon">⚡</span>
+          <h1>CloudGraph</h1>
+        </div>
+
+        <div class="section-title">Navigation</div>
+        <div class="nav-menu">
+          <a href="index.html" class="nav-item">
+            <span class="nav-icon">🗺️</span> Topology Map
+          </a>
+          <a href="diagnosis.html" class="nav-item">
+            <span class="nav-icon">🧠</span> AI Diagnosis
+          </a>
+          <a href="logs.html" class="nav-item">
+            <span class="nav-icon">📺</span> Log Stream
+          </a>
+          <a href="evidence.html" class="nav-item">
+            <span class="nav-icon">🧭</span> Evidence & Search
+          </a>
+          <a href="benchmark.html" class="nav-item active">
+            <span class="nav-icon">📊</span> Benchmark
+          </a>
+          <a href="workbench.html" class="nav-item">
+            <span class="nav-icon">📥</span> Incident Workbench
+          </a>
+          <a href="settings.html" class="nav-item" id="nav-settings">
+            <span class="nav-icon">⚙️</span> LLM Settings
+          </a>
+        </div>
+
+        <div class="section-title">Cluster Metrics</div>
+        <div class="stats-panel">
+          <div class="stat-card">
+            <span class="stat-num" id="stat-nodes">0</span>
+            <span class="stat-label">Nodes</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-num" id="stat-pods">0</span>
+            <span class="stat-label">Pods</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-num" id="stat-deployments">0</span>
+            <span class="stat-label">Deployments</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-num" id="stat-services">0</span>
+            <span class="stat-label">Services</span>
+          </div>
+        </div>
+
+        <div class="connection-status">
+          <div class="status-indicator">
+            <span class="indicator-dot online" id="api-dot"></span>
+            <span class="indicator-text">
+              API: <strong id="api-status">Connecting...</strong>
+            </span>
+          </div>
+          <div class="status-indicator">
+            <span class="indicator-dot online" id="db-dot"></span>
+            <span class="indicator-text">
+              Neo4j: <strong id="db-status">Connecting...</strong>
+            </span>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <div class="card benchmark-card">
+          <div class="card-header">
+            <div>
+              <h2>Benchmark Dashboard</h2>
+              <span class="card-subtitle"
+                >Baseline comparison, dataset split, and experiment notes.</span
+              >
+            </div>
+          </div>
+
+          <div class="benchmark-controls">
+            <div class="benchmark-filter-group">
+              <label class="benchmark-filter-label" for="metric-select"
+                >Metric</label
+              >
+              <select id="metric-select" class="benchmark-filter-select">
+                <option value="accuracy">Accuracy</option>
+                <option value="precision">Precision</option>
+                <option value="recall">Recall</option>
+                <option value="f1">F1 Score</option>
+                <option value="hallucination_rate">Hallucination Rate</option>
+                <option value="latency">Latency (ms)</option>
+              </select>
+            </div>
+            <div class="benchmark-actions">
+              <button id="btn-export-json" class="btn btn-secondary">
+                Export JSON
+              </button>
+              <button id="btn-export-csv" class="btn btn-secondary">
+                Export CSV
+              </button>
+            </div>
+          </div>
+
+          <div class="benchmark-summary" id="benchmark-summary">
+            <div class="benchmark-summary-item">
+              <span class="benchmark-summary-label">Dataset</span>
+              <span class="benchmark-summary-value" id="dataset-name"
+                >Loading...</span
+              >
+            </div>
+            <div class="benchmark-summary-item">
+              <span class="benchmark-summary-label">Split</span>
+              <span class="benchmark-summary-value" id="dataset-split"
+                >Loading...</span
+              >
+            </div>
+            <div class="benchmark-summary-item">
+              <span class="benchmark-summary-label">Notes</span>
+              <span class="benchmark-summary-value" id="benchmark-notes"
+                >Loading benchmark notes...</span
+              >
+            </div>
+          </div>
+
+          <div class="benchmark-chart-card">
+            <div class="benchmark-chart-header">
+              <h3>Baseline Comparison</h3>
+            </div>
+            <div id="benchmark-chart" class="benchmark-chart"></div>
+          </div>
+
+          <div class="benchmark-table-card">
+            <div class="benchmark-table-header">
+              <h3>Baseline Metrics Table</h3>
+            </div>
+            <div class="benchmark-table-container">
+              <table class="benchmark-table" id="benchmark-table">
+                <thead>
+                  <tr>
+                    <th>Baseline</th>
+                    <th>Accuracy</th>
+                    <th>Precision</th>
+                    <th>Recall</th>
+                    <th>F1</th>
+                    <th>Hallucination</th>
+                    <th>Latency (ms)</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="benchmark-notes-card">
+            <div class="benchmark-notes-header">
+              <h3>Research Experiment Notes</h3>
+            </div>
+            <div id="benchmark-notes-list" class="benchmark-notes-list"></div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script src="app.js"></script>
+    <script src="benchmark.js"></script>
+  </body>
+</html>

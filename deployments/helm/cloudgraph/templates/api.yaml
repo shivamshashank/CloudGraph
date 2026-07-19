@@ -63,8 +63,10 @@ spec:
                 secretKeyRef:
                   name: cloudgraph-neo4j-auth
                   key: NEO4J_AUTH
+{{- if .Values.redis.enabled }}
             - name: REDIS_HOST
               value: "cloudgraph-redis-master.{{ .Values.global.namespace }}.svc.cluster.local"
+{{- end }}
             - name: QDRANT_HOST
               value: "cloudgraph-qdrant.{{ .Values.global.namespace }}.svc.cluster.local"
             - name: AGENT_ORCHESTRATOR_URL

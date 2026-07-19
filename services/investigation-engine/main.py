@@ -331,9 +331,9 @@ def _analyze_security_rules(metadata: dict, threat_detected: bool) -> tuple[str,
 
 def run_monitoring_agent(
     pod_name: str,
-    llm_provider: str | None = None,
-    llm_api_key: str | None = None,
-    llm_model: str | None = None,
+    llm_config: dict[str, Any] | None = None,
+    evidence_context: list[dict[str, Any]] | None = None,
+    retrieval_context: dict[str, Any] | None = None,
 ) -> Dict[str, Any]:
     """Monitoring Agent: Inspects metric trends and utilization anomalies."""
     finding = "Pod resource utilization metrics are within normal operational limits."
@@ -374,12 +374,26 @@ def run_monitoring_agent(
             f"Analyze metrics for Pod '{pod_name}' to check "
             f"for anomalies.\n\n"
             f"Metrics:\n{json.dumps(metrics_log, indent=2)}\n\n"
-            "Output JSON with: 'finding', 'confidence', 'anomalies'."
         )
+        if retrieval_context and retrieval_context.get("status") == "success":
+            prompt += (
+                "Retrieved graph evidence summary:\n"
+                f"{json.dumps(retrieval_context, indent=2)}\n\n"
+            )
+        elif evidence_context:
+            prompt += (
+                f"Related evidence items:\n{json.dumps(evidence_context, indent=2)}\n\n"
+            )
+        prompt += "Output JSON with: 'finding', 'confidence', 'anomalies'."
         system_prompt = "You are a monitoring specialist AI. You output strictly JSON."
 
+        config = llm_config or {}
         llm_res = _call_llm_agent(
-            prompt, system_prompt, llm_provider, llm_api_key, llm_model
+            prompt,
+            system_prompt,
+            config.get("provider"),
+            config.get("api_key"),
+            config.get("model"),
         )
 
         if llm_res and "finding" in llm_res and "confidence" in llm_res:
@@ -407,9 +421,9 @@ def run_monitoring_agent(
 def run_log_agent(
     pod_name: str,
     error_logs: List[str],
-    llm_provider: str | None = None,
-    llm_api_key: str | None = None,
-    llm_model: str | None = None,
+    llm_config: dict[str, Any] | None = None,
+    evidence_context: list[dict[str, Any]] | None = None,
+    retrieval_context: dict[str, Any] | None = None,
 ) -> Dict[str, Any]:
     """Log Agent: Performs classification and error pattern recognition."""
     finding = "No critical error signatures detected in application logs."
@@ -430,7 +444,7 @@ def run_log_agent(
                 {"pod_name": pod_name},
             )
             logs_to_scan = [r["msg"] for r in records]
-        except Exception:
+        except (RuntimeError, ValueError, KeyError, TypeError, AttributeError):
             pass
 
     if logs_to_scan:
@@ -439,14 +453,28 @@ def run_log_agent(
             f"Analyze logs for Pod '{pod_name}' to check "
             f"for failure patterns.\n\n"
             f"Logs:\n{chr(10).join(logs_to_scan)}\n\n"
-            "Output JSON with: 'finding', 'confidence', 'category'."
         )
+        if retrieval_context and retrieval_context.get("status") == "success":
+            prompt += (
+                "Retrieved graph evidence summary:\n"
+                f"{json.dumps(retrieval_context, indent=2)}\n\n"
+            )
+        elif evidence_context:
+            prompt += (
+                f"Related evidence items:\n{json.dumps(evidence_context, indent=2)}\n\n"
+            )
+        prompt += "Output JSON with: 'finding', 'confidence', 'category'."
         system_prompt = (
             "You are a log analysis specialist AI. You output strictly JSON."
         )
 
+        config = llm_config or {}
         llm_res = _call_llm_agent(
-            prompt, system_prompt, llm_provider, llm_api_key, llm_model
+            prompt,
+            system_prompt,
+            config.get("provider"),
+            config.get("api_key"),
+            config.get("model"),
         )
 
         if llm_res and "finding" in llm_res and "confidence" in llm_res:
@@ -475,9 +503,9 @@ def run_log_agent(
 
 def run_deployment_agent(
     pod_name: str,
-    llm_provider: str | None = None,
-    llm_api_key: str | None = None,
-    llm_model: str | None = None,
+    llm_config: dict[str, Any] | None = None,
+    evidence_context: list[dict[str, Any]] | None = None,
+    retrieval_context: dict[str, Any] | None = None,
 ) -> Dict[str, Any]:
     """Deployment Agent: Correlates rollout states, replicasets, and git commits."""
     finding = "No recent rollout changes or code deployment regressions registered."
@@ -505,7 +533,7 @@ def run_deployment_agent(
                     "commit_sha": deployment_info.get("sha"),
                     "recent_change": True,
                 }
-    except Exception:
+    except (RuntimeError, ValueError, KeyError, TypeError, AttributeError):
         pass
 
     if deployment_info:
@@ -514,15 +542,29 @@ def run_deployment_agent(
             f"Analyze deployment and Git status for Pod '{pod_name}' "
             f"to check for regressions.\n\n"
             f"Deployment info:\n{json.dumps(deployment_info, indent=2)}\n\n"
-            "Output JSON with: 'finding', 'confidence'."
         )
+        if retrieval_context and retrieval_context.get("status") == "success":
+            prompt += (
+                "Retrieved graph evidence summary:\n"
+                f"{json.dumps(retrieval_context, indent=2)}\n\n"
+            )
+        elif evidence_context:
+            prompt += (
+                f"Related evidence items:\n{json.dumps(evidence_context, indent=2)}\n\n"
+            )
+        prompt += "Output JSON with: 'finding', 'confidence'."
         system_prompt = (
             "You are a deployment rollout analysis specialist AI. "
             "You output strictly JSON."
         )
 
+        config = llm_config or {}
         llm_res = _call_llm_agent(
-            prompt, system_prompt, llm_provider, llm_api_key, llm_model
+            prompt,
+            system_prompt,
+            config.get("provider"),
+            config.get("api_key"),
+            config.get("model"),
         )
 
         if llm_res and "finding" in llm_res and "confidence" in llm_res:
@@ -545,9 +587,9 @@ def run_deployment_agent(
 
 def run_topology_agent(
     pod_name: str,
-    llm_provider: str | None = None,
-    llm_api_key: str | None = None,
-    llm_model: str | None = None,
+    llm_config: dict[str, Any] | None = None,
+    evidence_context: list[dict[str, Any]] | None = None,
+    retrieval_context: dict[str, Any] | None = None,
 ) -> Dict[str, Any]:
     """Topology Agent: Analyzes cascade paths and scheduled host neighbors."""
     finding = "Pod dependency tree and networking paths are fully operational."
@@ -586,7 +628,7 @@ def run_topology_agent(
                 "dependencies": topology_info["dependencies"],
                 "noisy_neighbors": topology_info["noisy_neighbors"],
             }
-    except Exception:
+    except (RuntimeError, ValueError, KeyError, TypeError, AttributeError):
         pass
 
     if topology_info:
@@ -595,12 +637,26 @@ def run_topology_agent(
             f"Analyze topology for Pod '{pod_name}' to check "
             f"for noisy neighbors.\n\n"
             f"Topology:\n{json.dumps(topology_info, indent=2)}\n\n"
-            "Output JSON with: 'finding', 'confidence'."
         )
+        if retrieval_context and retrieval_context.get("status") == "success":
+            prompt += (
+                "Retrieved graph evidence summary:\n"
+                f"{json.dumps(retrieval_context, indent=2)}\n\n"
+            )
+        elif evidence_context:
+            prompt += (
+                f"Related evidence items:\n{json.dumps(evidence_context, indent=2)}\n\n"
+            )
+        prompt += "Output JSON with: 'finding', 'confidence'."
         system_prompt = "You are a topology specialist AI. You output strictly JSON."
 
+        config = llm_config or {}
         llm_res = _call_llm_agent(
-            prompt, system_prompt, llm_provider, llm_api_key, llm_model
+            prompt,
+            system_prompt,
+            config.get("provider"),
+            config.get("api_key"),
+            config.get("model"),
         )
 
         if llm_res and "finding" in llm_res and "confidence" in llm_res:
@@ -624,9 +680,9 @@ def run_topology_agent(
 def run_security_agent(
     pod_name: str,
     error_logs: List[str],
-    llm_provider: str | None = None,
-    llm_api_key: str | None = None,
-    llm_model: str | None = None,
+    llm_config: dict[str, Any] | None = None,
+    evidence_context: list[dict[str, Any]] | None = None,
+    retrieval_context: dict[str, Any] | None = None,
 ) -> Dict[str, Any]:
     """Security Agent: Reviews IAM access privileges and credentials."""
     finding = "No security breaches, secret reference warnings, or RBAC alerts."
@@ -671,7 +727,7 @@ def run_security_agent(
                         "category": "credentials",
                         "log_sample": records[0]["msg"],
                     }
-        except Exception:
+        except (RuntimeError, ValueError, KeyError, TypeError, AttributeError):
             pass
 
     if threat_detected:
@@ -680,14 +736,25 @@ def run_security_agent(
             f"Analyze logs for Pod '{pod_name}' to check "
             f"for credential leaks.\n\n"
             f"Logs:\n{chr(10).join(security_logs)}\n\n"
-            "Output JSON with: 'finding', 'confidence', 'threat_detected'."
         )
-        system_prompt = (
-            "You are a security analysis specialist AI. You output strictly JSON."
-        )
+        if retrieval_context and retrieval_context.get("status") == "success":
+            prompt += (
+                "Retrieved graph evidence summary:\n"
+                f"{json.dumps(retrieval_context, indent=2)}\n\n"
+            )
+        elif evidence_context:
+            prompt += (
+                f"Related evidence items:\n{json.dumps(evidence_context, indent=2)}\n\n"
+            )
+        prompt += "Output JSON with: 'finding', 'confidence', 'threat_detected'."
 
+        config = llm_config or {}
         llm_res = _call_llm_agent(
-            prompt, system_prompt, llm_provider, llm_api_key, llm_model
+            prompt,
+            "You are a security analysis specialist AI. You output strictly JSON.",
+            config.get("provider"),
+            config.get("api_key"),
+            config.get("model"),
         )
 
         if llm_res and "finding" in llm_res and "confidence" in llm_res:
@@ -763,25 +830,46 @@ class InvestigationHandler(http.server.BaseHTTPRequestHandler):
         pod_name = payload.get("pod_name", "unknown")
         pod_status = payload.get("pod_status", "Unknown")
         error_logs = payload.get("error_logs", [])
-        llm_provider = payload.get("llm_provider")
-        llm_api_key = payload.get("llm_api_key")
-        llm_model = payload.get("llm_model")
+        evidence_context = payload.get("evidence_context", [])
+        retrieval_context = payload.get("retrieval_context", {})
+        llm_config = {
+            "provider": payload.get("llm_provider"),
+            "api_key": payload.get("llm_api_key"),
+            "model": payload.get("llm_model"),
+        }
 
         # Execute all 5 specialized agents
         monitoring_res = run_monitoring_agent(
-            pod_name, llm_provider, llm_api_key, llm_model
+            pod_name,
+            llm_config=llm_config,
+            evidence_context=evidence_context,
+            retrieval_context=retrieval_context,
         )
         logs_res = run_log_agent(
-            pod_name, error_logs, llm_provider, llm_api_key, llm_model
+            pod_name,
+            error_logs,
+            llm_config=llm_config,
+            evidence_context=evidence_context,
+            retrieval_context=retrieval_context,
         )
         deployments_res = run_deployment_agent(
-            pod_name, llm_provider, llm_api_key, llm_model
+            pod_name,
+            llm_config=llm_config,
+            evidence_context=evidence_context,
+            retrieval_context=retrieval_context,
         )
         topology_res = run_topology_agent(
-            pod_name, llm_provider, llm_api_key, llm_model
+            pod_name,
+            llm_config=llm_config,
+            evidence_context=evidence_context,
+            retrieval_context=retrieval_context,
         )
         security_res = run_security_agent(
-            pod_name, error_logs, llm_provider, llm_api_key, llm_model
+            pod_name,
+            error_logs,
+            llm_config=llm_config,
+            evidence_context=evidence_context,
+            retrieval_context=retrieval_context,
         )
 
         # Build response
