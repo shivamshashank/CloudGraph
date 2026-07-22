@@ -4,17 +4,35 @@ from app.database.neo4j_client import neo4j_client
 
 
 def ingest_git_commit(
-    sha: str, author: str, message: str, timestamp: int, changed_files: list
+    sha: str,
+    author: str,
+    message: str,
+    timestamp: int,
+    details: dict | None = None,
 ):
     """
-    Ingests Git commits, mapping changed files to index downstream configurations.
+    Ingests Git commits, mapping changed files and correlating with deployments.
     """
+    details = details or {}
+    changed_files = details.get("changed_files", [])
+    repo_name = details.get("repo_name", "")
+
     query = """
     MERGE (c:Commit {sha: $sha})
     SET c.author = $author,
         c.message = $message,
         c.timestamp = $timestamp,
-        c.changedFiles = $changed_files
+        c.changedFiles = $changed_files,
+        c.repoName = $repo_name
+    WITH c
+    OPTIONAL MATCH (d:Deployment)
+    WHERE $repo_name <> "" AND (
+        toLower(d.name) CONTAINS toLower($repo_name)
+        OR toLower($repo_name) CONTAINS toLower(d.name)
+    )
+    FOREACH (_ IN CASE WHEN d IS NOT NULL THEN [1] ELSE [] END |
+        MERGE (c)-[:TRIGGERED_BY]->(d)
+    )
     RETURN c.sha as sha
     """
     params = {
@@ -23,6 +41,7 @@ def ingest_git_commit(
         "message": message,
         "timestamp": int(timestamp),
         "changed_files": changed_files,
+        "repo_name": repo_name,
     }
     return neo4j_client.execute_query(query, params)
 

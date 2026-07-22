@@ -242,7 +242,7 @@ body {
   position: relative;
   padding: 24px;
   height: 100vh;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 /* Premium Card Components (Glassmorphism) */
@@ -754,6 +754,11 @@ body {
   display: flex;
   flex-direction: column;
   gap: 18px;
+  padding: 20px;
+}
+
+.benchmark-card .card-header {
+  margin: -20px -20px 0 -20px;
 }
 
 .benchmark-controls {
@@ -1368,6 +1373,18 @@ body {
     rgba(168, 85, 247, 0.2)
   );
   border-color: rgba(99, 102, 241, 0.4);
+}
+
+.context-explorer-card {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+}
+
+.context-explorer-card .card-header {
+  margin: -20px -20px 0 -20px;
 }
 
 .context-explorer-controls {

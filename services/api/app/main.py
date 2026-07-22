@@ -23,7 +23,6 @@ from app.adapters.graph_constructor import (
 from app.adapters.k8s_discovery import discover_cluster_topology
 from app.database.neo4j_client import neo4j_client, NEO4J_CONNECTION_ERRORS
 from app.database.qdrant import qdrant_client
-from app.database.redis_client import redis_client
 from app.research.gcp import GraphConfidencePropagator
 from app.research.gpcs import GraphProvenanceClaimScorer
 from app.retrieval.graph_traversal import graph_traversal_retriever
@@ -57,7 +56,6 @@ async def lifespan(_app: FastAPI):
     """FastAPI application lifespan context manager for startup and shutdown."""
     neo4j_client.connect()
     qdrant_client.ensure_collections()
-    redis_client.connect()
     yield
     qdrant_client.close()
     neo4j_client.close()
@@ -123,7 +121,6 @@ def post_graph_link():
     try:
         linking_results = run_entity_linking()
         dependencies_created = build_service_dependency_map()
-        redis_client.clear_cache()
         return {
             "status": "success",
             "linking": linking_results,
@@ -140,7 +137,6 @@ def post_pod_status(payload: PodStatusPayload):
         history_id = record_state_history(
             payload.pod_id, payload.status, payload.timestamp
         )
-        redis_client.clear_cache()
         return {"status": "success", "history_id": history_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -162,7 +158,6 @@ def trigger_k8s_discovery(namespace: str = "cloudgraph-system"):
                 ),
                 {"label": "Cluster", "name": namespace, "status": "Discovered"},
             )
-        redis_client.clear_cache()
         return result
     except Exception as e:
         traceback.print_exc()
@@ -762,16 +757,6 @@ def graphrag_search(payload: GraphRAGSearchPayload, method: str | None = None):
                 detail="method must be one of: keyword, vector, hybrid",
             )
 
-        # Check cache
-        cache_key = (
-            f"graphrag:search:{query}:{search_method}:{payload.depth}:"
-            f"{payload.start_time}:{payload.end_time}"
-        )
-        if redis_client.enabled:
-            cached_res = redis_client.get(cache_key)
-            if cached_res:
-                return cached_res
-
         raw_results = neo4j_client.execute_query(
             """
             MATCH (n)
@@ -841,7 +826,7 @@ def graphrag_search(payload: GraphRAGSearchPayload, method: str | None = None):
             for hit in semantic_hits
         ]
 
-        res_payload = _build_search_payload(
+        return _build_search_payload(
             query,
             search_method,
             payload,
@@ -852,10 +837,6 @@ def graphrag_search(payload: GraphRAGSearchPayload, method: str | None = None):
                 "graph_hits": graph_hits,
             },
         )
-
-        if redis_client.enabled:
-            redis_client.set(cache_key, res_payload, ex=300)
-        return res_payload
     except HTTPException as e:
         raise e
     except Exception as e:
@@ -899,7 +880,6 @@ def reset_demo():
     """Clear all nodes and relationships in the Neo4j database graph."""
     try:
         neo4j_client.execute_query("MATCH (n) DETACH DELETE n")
-        redis_client.clear_cache()
         return {"status": "success", "message": "Graph cleared"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e

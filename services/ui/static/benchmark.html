@@ -81,7 +81,7 @@
         </div>
       </aside>
 
-      <main class="main-content">
+      <main class="main-content" style="overflow-y: auto">
         <div class="card benchmark-card">
           <div class="card-header">
             <div>
@@ -107,6 +107,9 @@
               </select>
             </div>
             <div class="benchmark-actions">
+              <button id="btn-run-benchmark" class="btn btn-primary">
+                <span class="btn-icon">⚡</span> Run Benchmark Test
+              </button>
               <button id="btn-export-json" class="btn btn-secondary">
                 Export JSON
               </button>
@@ -116,61 +119,98 @@
             </div>
           </div>
 
-          <div class="benchmark-summary" id="benchmark-summary">
-            <div class="benchmark-summary-item">
-              <span class="benchmark-summary-label">Dataset</span>
-              <span class="benchmark-summary-value" id="dataset-name"
-                >Loading...</span
-              >
-            </div>
-            <div class="benchmark-summary-item">
-              <span class="benchmark-summary-label">Split</span>
-              <span class="benchmark-summary-value" id="dataset-split"
-                >Loading...</span
-              >
-            </div>
-            <div class="benchmark-summary-item">
-              <span class="benchmark-summary-label">Notes</span>
-              <span class="benchmark-summary-value" id="benchmark-notes"
-                >Loading benchmark notes...</span
-              >
-            </div>
+          <!-- Empty State Container -->
+          <div
+            id="benchmark-empty-state"
+            class="empty-state"
+            style="padding: 60px 20px"
+          >
+            <div class="empty-icon">📊</div>
+            <h3>No Benchmark Test Run Yet</h3>
+            <p>
+              Click "Run Benchmark Test" above to execute the evaluation suite
+              and compute baseline metrics.
+            </p>
           </div>
 
-          <div class="benchmark-chart-card">
-            <div class="benchmark-chart-header">
-              <h3>Baseline Comparison</h3>
+          <!-- Results Container (Hidden until benchmark test is executed) -->
+          <div
+            id="benchmark-results-container"
+            class="hidden"
+            style="display: flex; flex-direction: column; gap: 18px"
+          >
+            <div class="benchmark-summary" id="benchmark-summary">
+              <div class="benchmark-summary-item">
+                <span class="benchmark-summary-label">Dataset</span>
+                <span class="benchmark-summary-value" id="dataset-name"
+                  >Loading...</span
+                >
+              </div>
+              <div class="benchmark-summary-item">
+                <span class="benchmark-summary-label">Split / Last Run</span>
+                <span class="benchmark-summary-value" id="dataset-split"
+                  >Loading...</span
+                >
+              </div>
+              <div class="benchmark-summary-item">
+                <span class="benchmark-summary-label">Notes</span>
+                <span class="benchmark-summary-value" id="benchmark-notes"
+                  >Loading benchmark notes...</span
+                >
+              </div>
             </div>
-            <div id="benchmark-chart" class="benchmark-chart"></div>
-          </div>
 
-          <div class="benchmark-table-card">
-            <div class="benchmark-table-header">
-              <h3>Baseline Metrics Table</h3>
+            <div class="benchmark-chart-card">
+              <div class="benchmark-chart-header">
+                <h3>Baseline Comparison</h3>
+              </div>
+              <div id="benchmark-chart" class="benchmark-chart"></div>
             </div>
-            <div class="benchmark-table-container">
-              <table class="benchmark-table" id="benchmark-table">
-                <thead>
-                  <tr>
-                    <th>Baseline</th>
-                    <th>Accuracy</th>
-                    <th>Precision</th>
-                    <th>Recall</th>
-                    <th>F1</th>
-                    <th>Hallucination</th>
-                    <th>Latency (ms)</th>
-                  </tr>
-                </thead>
-                <tbody></tbody>
-              </table>
-            </div>
-          </div>
 
-          <div class="benchmark-notes-card">
-            <div class="benchmark-notes-header">
-              <h3>Research Experiment Notes</h3>
+            <div class="benchmark-table-card">
+              <div class="benchmark-table-header">
+                <h3>Baseline Metrics Table</h3>
+              </div>
+              <div class="benchmark-table-container">
+                <table class="benchmark-table" id="benchmark-table">
+                  <thead>
+                    <tr>
+                      <th>Baseline</th>
+                      <th>Accuracy</th>
+                      <th>Precision</th>
+                      <th>Recall</th>
+                      <th>F1</th>
+                      <th>Hallucination</th>
+                      <th>Latency (ms)</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
             </div>
-            <div id="benchmark-notes-list" class="benchmark-notes-list"></div>
+
+            <div class="benchmark-notes-card">
+              <div class="benchmark-notes-header">
+                <h3>Research Experiment Notes</h3>
+              </div>
+              <div id="benchmark-notes-list" class="benchmark-notes-list"></div>
+            </div>
+
+            <div class="benchmark-notes-card">
+              <div class="benchmark-notes-header">
+                <h3>Calculation Steps & Execution Logs</h3>
+              </div>
+              <div
+                id="benchmark-calculation-logs"
+                class="logs-console"
+                style="
+                  max-height: 220px;
+                  border-radius: 8px;
+                  font-family: var(--font-mono);
+                  font-size: 11px;
+                "
+              ></div>
+            </div>
           </div>
         </div>
       </main>

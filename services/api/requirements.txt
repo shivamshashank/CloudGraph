@@ -50,7 +50,6 @@ python-dateutil==2.9.0.post0
 pytz==2026.2
 PyYAML==6.0.3
 qdrant-client==1.18.0
-redis==8.0.1
 regex==2026.6.28
 requests==2.34.2
 requests-oauthlib==2.0.0

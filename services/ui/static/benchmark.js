@@ -8,20 +8,56 @@ document.addEventListener("DOMContentLoaded", () => {
   const benchmarkNotesList = document.getElementById("benchmark-notes-list");
   const exportJsonButton = document.getElementById("btn-export-json");
   const exportCsvButton = document.getElementById("btn-export-csv");
+  const runBenchmarkButton = document.getElementById("btn-run-benchmark");
+  const emptyStateContainer = document.getElementById("benchmark-empty-state");
+  const resultsContainer = document.getElementById(
+    "benchmark-results-container",
+  );
 
   let benchmarkPayload = null;
+
+  function showEmptyState() {
+    if (emptyStateContainer) emptyStateContainer.classList.remove("hidden");
+    if (resultsContainer) resultsContainer.classList.add("hidden");
+  }
+
+  function showResultsContainer() {
+    if (emptyStateContainer) emptyStateContainer.classList.add("hidden");
+    if (resultsContainer) resultsContainer.classList.remove("hidden");
+  }
+
+  function renderLogs(logs) {
+    const logsContainer = document.getElementById("benchmark-calculation-logs");
+    if (!logsContainer) return;
+    if (!logs || !logs.length) {
+      logsContainer.innerHTML =
+        '<div class="log-entry"><span class="log-msg">No calculation logs available for this run.</span></div>';
+      return;
+    }
+    logsContainer.innerHTML = logs
+      .map(
+        (log) =>
+          `<div class="log-entry"><span class="log-msg">${escapeHtml(log)}</span></div>`,
+      )
+      .join("");
+  }
 
   function renderSummary(data) {
     if (!datasetName || !datasetSplit || !benchmarkNotes || !benchmarkNotesList)
       return;
     datasetName.textContent = data.dataset || "Benchmark dataset";
-    datasetSplit.textContent = data.split || "N/A";
+    const splitText = data.split || "70/30";
+    const timeText = data.last_run_timestamp
+      ? ` • ${data.last_run_timestamp}`
+      : "";
+    datasetSplit.textContent = `${splitText}${timeText}`;
     benchmarkNotes.textContent = "Experiment notes and dataset split summary.";
     benchmarkNotesList.innerHTML = (data.notes || [])
       .map(
         (note) => `<div class="benchmark-note-item">${escapeHtml(note)}</div>`,
       )
       .join("");
+    renderLogs(data.logs || []);
   }
 
   function renderTable(data) {
@@ -87,7 +123,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function downloadJSON() {
-    if (!benchmarkPayload) return;
+    if (!benchmarkPayload || !benchmarkPayload.baselines?.length) return;
     const blob = new Blob([JSON.stringify(benchmarkPayload, null, 2)], {
       type: "application/json",
     });
@@ -96,7 +132,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function downloadCSV() {
-    if (!benchmarkPayload) return;
+    if (!benchmarkPayload || !benchmarkPayload.baselines?.length) return;
     const rows = [
       [
         "baseline",
@@ -142,34 +178,78 @@ document.addEventListener("DOMContentLoaded", () => {
       .replace(/'/g, "&#39;");
   }
 
+  async function runBenchmarkTest() {
+    if (!runBenchmarkButton) return;
+    const originalText = runBenchmarkButton.innerHTML;
+    runBenchmarkButton.disabled = true;
+    runBenchmarkButton.innerHTML = `<span class="btn-icon">⚡</span> Running Test...`;
+
+    try {
+      const res = await fetch(
+        `${window.CloudGraph.API_BASE}/api/v1/benchmark/run`,
+        { method: "POST" },
+      );
+      const data = await res.json();
+      if (data.status === "success" && data.baselines?.length) {
+        benchmarkPayload = data;
+        renderSummary(data);
+        renderTable(data.baselines);
+        renderChart(data.baselines, getCurrentMetric());
+        showResultsContainer();
+        runBenchmarkButton.innerHTML = `<span class="btn-icon">⚡</span> Re-run Benchmark Test`;
+        if (window.CloudGraph?.showToast) {
+          window.CloudGraph.showToast(
+            "Benchmark evaluation test completed successfully!",
+            "success",
+          );
+        }
+      } else {
+        throw new Error(data.detail || "Failed to execute benchmark test.");
+      }
+    } catch (err) {
+      if (window.CloudGraph?.showToast) {
+        window.CloudGraph.showToast(`Benchmark error: ${err.message}`, "error");
+      }
+      runBenchmarkButton.innerHTML = originalText;
+    } finally {
+      runBenchmarkButton.disabled = false;
+    }
+  }
+
   async function loadBenchmarkSummary() {
     try {
       const res = await fetch(
         `${window.CloudGraph.API_BASE}/api/v1/benchmark/summary`,
       );
       const data = await res.json();
-      if (data.status === "success") {
+      if (data.status === "success" && data.has_run && data.baselines?.length) {
         benchmarkPayload = data;
         renderSummary(data);
-        renderTable(data.baselines || []);
-        renderChart(data.baselines || [], getCurrentMetric());
+        renderTable(data.baselines);
+        renderChart(data.baselines, getCurrentMetric());
+        showResultsContainer();
+        if (runBenchmarkButton) {
+          runBenchmarkButton.innerHTML = `<span class="btn-icon">⚡</span> Re-run Benchmark Test`;
+        }
       } else {
-        throw new Error(data.detail || "Failed to load benchmark summary.");
+        showEmptyState();
+        if (runBenchmarkButton) {
+          runBenchmarkButton.innerHTML = `<span class="btn-icon">⚡</span> Run Benchmark Test`;
+        }
       }
     } catch (err) {
-      benchmarkNotes.textContent = `Benchmark load error: ${escapeHtml(err.message)}`;
-      benchmarkTable.querySelector("tbody").innerHTML = "";
-      benchmarkChart.innerHTML = "";
+      showEmptyState();
     }
   }
 
   function initialize() {
     metricSelect?.addEventListener("change", () => {
-      if (benchmarkPayload) {
-        renderChart(benchmarkPayload.baselines || [], getCurrentMetric());
+      if (benchmarkPayload && benchmarkPayload.baselines?.length) {
+        renderChart(benchmarkPayload.baselines, getCurrentMetric());
       }
     });
 
+    runBenchmarkButton?.addEventListener("click", runBenchmarkTest);
     exportJsonButton?.addEventListener("click", downloadJSON);
     exportCsvButton?.addEventListener("click", downloadCSV);
 

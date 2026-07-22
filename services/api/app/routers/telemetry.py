@@ -14,7 +14,6 @@ from app.adapters.loki import ingest_loki_log
 from app.adapters.tempo import ingest_tempo_trace
 from app.adapters.security import ingest_security_event
 from app.adapters.chaos import ingest_chaos_experiment
-from app.database.redis_client import redis_client
 from app.dependencies import semantic_store
 
 router = APIRouter()
@@ -48,7 +47,6 @@ def post_metric(payload: MetricPayload):
                 "timestamp": payload.timestamp,
             },
         )
-        redis_client.clear_cache()
         return {"status": "success", "metric_id": metric_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -80,7 +78,6 @@ def post_log(payload: LogPayload):
                 "timestamp": payload.timestamp,
             },
         )
-        redis_client.clear_cache()
         return {"status": "success", "log_id": log_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -123,7 +120,6 @@ def post_trace(payload: TracePayload):
         except (RuntimeError, ValueError, KeyError, TypeError, AttributeError):
             relationships_created = 0
 
-        redis_client.clear_cache()
         return {
             "status": "success",
             "trace_id": trace_id,
@@ -164,7 +160,6 @@ def post_security_event(payload: SecurityEventPayload):
                 "timestamp": payload.timestamp,
             },
         )
-        redis_client.clear_cache()
         return {"status": "success", "event_id": event_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -203,7 +198,6 @@ def post_chaos_experiment(payload: ChaosExperimentPayload):
                 "timestamp": payload.timestamp,
             },
         )
-        redis_client.clear_cache()
         return {"status": "success", "experiment_id": experiment_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e

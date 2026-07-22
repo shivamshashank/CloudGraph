@@ -143,12 +143,26 @@ otelCollector:
         endpoint: 0.0.0.0:8889
       logging:
         loglevel: debug
+      otlphttp/cloudgraph-traces:
+        endpoint: http://cloudgraph-api:8080/api/v1/telemetry/traces
+      otlphttp/cloudgraph-metrics:
+        endpoint: http://cloudgraph-api:8080/api/v1/telemetry/metrics
+      otlphttp/cloudgraph-logs:
+        endpoint: http://cloudgraph-api:8080/api/v1/telemetry/logs
     service:
       pipelines:
         metrics:
           receivers: [otlp, prometheus]
           processors: [memory_limiter, batch]
-          exporters: [prometheus, logging]
+          exporters: [prometheus, logging, otlphttp/cloudgraph-metrics]
+        logs:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters: [logging, otlphttp/cloudgraph-logs]
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters: [logging, otlphttp/cloudgraph-traces]
 
 neo4j:
   enabled: true
@@ -169,32 +183,6 @@ neo4j:
     requests:
       cpu: "10m"
       memory: "512Mi"
-
-# Redis - Cache
-redis:
-  enabled: true
-
-  auth:
-    enabled: false
-
-  master:
-    persistence:
-      enabled: true
-      size: 5Gi
-
-  replica:
-    replicaCount: 1
-    persistence:
-      enabled: true
-      size: 5Gi
-
-  resources:
-    limits:
-      cpu: 200m
-      memory: 256Mi
-    requests:
-      cpu: 10m
-      memory: 64Mi
 
 # Qdrant - Vector Database
 qdrant:

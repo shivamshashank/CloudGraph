@@ -225,12 +225,17 @@ def test_context_comparison_endpoint_returns_multiple_payloads(monkeypatch):
 
 
 def test_benchmark_summary_endpoint_returns_benchmark_metadata():
-    """Verify benchmark summary endpoint returns dataset split and baselines."""
+    """Verify benchmark summary returns dataset split and baselines after run."""
+    run_res = client.post("/api/v1/benchmark/run")
+    assert run_res.status_code == 200
+    assert run_res.json()["status"] == "success"
+
     response = client.get("/api/v1/benchmark/summary")
     assert response.status_code == 200
 
     body = response.json()
     assert body["status"] == "success"
+    assert body["has_run"] is True
     assert body["dataset"] == "CloudGraph incident benchmark v1"
     assert body["split"] == "70/30"
     assert isinstance(body["notes"], list)
@@ -241,6 +246,7 @@ def test_benchmark_summary_endpoint_returns_benchmark_metadata():
 
 def test_benchmark_export_endpoint_supports_json_and_csv():
     """Verify benchmark export returns valid JSON and CSV payloads."""
+    client.post("/api/v1/benchmark/run")
     json_response = client.get("/api/v1/benchmark/export?format=json")
     assert json_response.status_code == 200
     assert json_response.headers["content-type"].startswith("application/json")

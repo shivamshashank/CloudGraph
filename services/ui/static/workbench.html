@@ -315,6 +315,26 @@
           </a>
         </div>
 
+        <div class="section-title">Cluster Metrics</div>
+        <div class="stats-panel">
+          <div class="stat-card">
+            <span class="stat-num" id="stat-nodes">0</span>
+            <span class="stat-label">Nodes</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-num" id="stat-pods">0</span>
+            <span class="stat-label">Pods</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-num" id="stat-deployments">0</span>
+            <span class="stat-label">Deployments</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-num" id="stat-services">0</span>
+            <span class="stat-label">Services</span>
+          </div>
+        </div>
+
         <div class="connection-status">
           <div class="status-indicator">
             <span class="indicator-dot online" id="api-dot"></span>
@@ -332,7 +352,7 @@
       </aside>
 
       <!-- Main Dashboard View -->
-      <main class="main-content">
+      <main class="main-content" style="overflow-y: auto">
         <div class="workbench-grid">
           <!-- Left: Incident List -->
           <div class="card list-pane">
