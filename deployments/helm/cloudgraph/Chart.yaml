@@ -15,7 +15,6 @@ description: |
   - OpenTelemetry Collector
   - Neo4j (Knowledge Graph Database)
   - Qdrant (Vector Database)
-  - Redis cache
   - CloudGraph UI
   - RBAC
 
@@ -45,10 +44,6 @@ dependencies:
     version: ">=5.0.0"
     repository: https://helm.neo4j.com/neo4j
     condition: neo4j.enabled
-  - name: redis
-    version: ">=17.0.0"
-    repository: https://charts.bitnami.com/bitnami
-    condition: redis.enabled
   - name: qdrant
     version: ">=0.1.0"
     repository: https://qdrant.github.io/qdrant-helm

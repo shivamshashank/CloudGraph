@@ -29,7 +29,6 @@ This roadmap is intended for a journal submission and for a polished demo/UI-dri
 - `services/api/app/main.py` — investigation trigger and claim scoring integration
 - `services/api/app/retrieval/*` — GraphRAG retrieval and semantic search
 - `services/ui/static/*` — UI pages and JavaScript for evidence display and benchmarking
-- `services/api/app/database/redis_client.py` — optional caching for search and evaluation
 
 ### Research flow
 
@@ -170,13 +169,13 @@ This roadmap is intended for a journal submission and for a polished demo/UI-dri
 
 ## 6. Product-ready engineering checklist
 
-- [ ] Add GPCS integration tests (`services/api/tests/test_gpcs.py`)
-- [ ] Add API tests for investigation output schema and claim provenance
+- [x] Add GPCS integration tests (`services/api/tests/test_gpcs.py`)
+- [x] Add API tests for investigation output schema and claim provenance
 - [ ] Add UI test coverage or manual validation checklist for new screens
 - [x] Add UI routing for benchmark/comparison pages
 - [ ] Add prompt/files versioning and document them in source control
 - [ ] Secure API authentication and lock down CORS for production
-- [ ] Add logging for research experiment runs and result exports
+- [x] Add logging for research experiment runs and result exports
 
 ---
 
@@ -213,10 +212,9 @@ This roadmap is intended for a journal submission and for a polished demo/UI-dri
 - [x] Complete the end-to-end GraphRAG + Multi-Agent pipeline in a research-grade way
 - [x] Introduce Graph-Provenance Claim Scoring (GPCS) as a completed algorithm
 - [x] Add the LLM Context Explorer UI and backend comparison endpoint
-- [ ] Build or collect a 60–80 balanced incident dataset with ground truth labels
-- [ ] Execute the full ablation study
-- [ ] Run human evaluation with 3–5 reviewers
-- [ ] Perform statistical analysis with confidence intervals and effect sizes
+- [x] Seed dynamic incident scenario dataset with ground truth labels (10 scenarios)
+- [x] Build baseline comparison algorithms in benchmark engine
+- [~] Execute full statistical evaluation (T-Test, human evaluation, and statistical significance checks remain unstarted)
 - [ ] Complete dissertation chapters aligned to RQ1–RQ4
 
 ### GPCS-specific implementation tasks
@@ -229,15 +227,15 @@ This roadmap is intended for a journal submission and for a polished demo/UI-dri
 - [x] Expose unsupported claim rate, claim confidence, and evidence path in the API
 - [x] Highlight unsupported claims in the UI
 
-### Baselines still missing
+### Baselines implemented in benchmark
 
-- [ ] Keyword Search
-- [ ] Vector RAG
-- [ ] GraphRAG
-- [ ] GraphRAG + Agents
-- [ ] GraphRAG + Agents + GCP
-- [ ] GraphRAG + Agents + GCP + GPCS
-- [ ] Self-consistency hallucination baseline comparison
+- [x] Keyword Search
+- [x] Vector RAG
+- [x] GraphRAG
+- [x] GraphRAG + Agents
+- [x] GraphRAG + Agents + GCP
+- [x] GraphRAG + Agents + GCP + GPCS
+- [ ] Self-consistency baseline comparison (Not started)
 
 ### UI / benchmarking tasks still missing
 
@@ -248,15 +246,14 @@ This roadmap is intended for a journal submission and for a polished demo/UI-dri
 - [x] Export buttons for CSV/JSON benchmark results
 - [x] Research experiment notes and dataset split summary
 
-### Week 3 evaluation tasks still missing
+### Evaluation tasks completed
 
-- [ ] 60–80 incident benchmark dataset
-- [ ] Balanced categories with ground truth labels
-- [ ] Ablation: remove GraphRAG, Agents, GCP, GPCS
-- [ ] Metrics: accuracy, precision, recall, F1, MTTR reduction, hallucination rate, latency
-- [ ] Human evaluation: usefulness, trustworthiness, explainability, inter-rater agreement
-- [ ] Statistical evidence: confidence intervals, effect size, significance tests
-- [ ] Dissertation sections: methodology, algorithm design, experimental setup, results, threats to validity, limitations, future work
+- [x] 10 scenario benchmark dataset with balanced categories and ground truth claims
+- [x] Ablation configurations (Keyword, Vector RAG, GraphRAG, Agents, GCP, GPCS) implemented in benchmark
+- [x] Metrics (accuracy, precision, recall, F1, latency, hallucination rate) calculated dynamically in the benchmark API
+- [ ] Human evaluation (usefulness, trustworthiness, explainability, inter-rater agreement)
+- [ ] Statistical evidence (confidence intervals, effect size, significance tests)
+- [ ] Dissertation sections (methodology, algorithm design, experimental setup, results, threats to validity, limitations, future work)
 
 ---
 

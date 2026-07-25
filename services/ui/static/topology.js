@@ -102,7 +102,14 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
 
-    const width = svg.clientWidth || 800;
+    const containerWidth = svg.parentElement
+      ? svg.parentElement.clientWidth
+      : 800;
+    const maxLayerCount = Math.max(
+      ...Object.values(layers).map((l) => l.length),
+    );
+    const width = Math.max(containerWidth, maxLayerCount * 80 + 100);
+    svg.setAttribute("viewBox", `0 0 ${width} 520`);
     const positions = {};
 
     // Helper to space nodes horizontally

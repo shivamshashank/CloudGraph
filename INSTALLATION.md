@@ -99,7 +99,6 @@ The installation deploys the complete CloudGraph stack:
 
 - **Neo4j**: Knowledge graph database (stores infrastructure relationships)
 - **Qdrant**: Vector database (embeddings for GraphRAG)
-- **Redis**: Optional cache for GraphRAG search results
 
 ### Observability
 
@@ -211,16 +210,6 @@ kubectl port-forward -n cloudgraph-system svc/neo4j 7474:7474 7687:7687
 kubectl get secret -n cloudgraph-system cloudgraph-neo4j-auth -o jsonpath='{.data.NEO4J_AUTH}' | base64 -d
 
 # Access Neo4j Browser at http://localhost:7474
-```
-
-### Access Redis
-
-```bash
-# Port-forward Redis
-kubectl port-forward -n cloudgraph-system svc/redis-master 6379:6379
-
-# Connect with redis-cli
-redis-cli -h localhost -p 6379
 ```
 
 ## Troubleshooting

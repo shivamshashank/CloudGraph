@@ -50,11 +50,10 @@ The CloudGraph Helm chart deploys:
 - Web UI (`cloudgraph-ui`)
 - OpenTelemetry Collector (`otel-collector`)
 
-### Databases & Cache
+### Databases
 
 - Neo4j - Knowledge graph database
 - Qdrant - Vector database
-- Redis - Cache and message queue
 
 ### Kubernetes Integration
 
@@ -97,7 +96,6 @@ kubectl get pods -n cloudgraph-system
 # cloudgraph-ui-xxxxx                 1/1     Running
 # otel-collector-xxxxx                1/1     Running
 # neo4j-xxxxx                         1/1     Running
-# redis-master-xxxxx                  1/1     Running
 # qdrant-xxxxx                        1/1     Running
 ```
 

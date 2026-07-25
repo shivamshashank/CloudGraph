@@ -30,7 +30,7 @@ generate remediation recommendations across cloud-native environments.
 ![Prometheus](https://img.shields.io/badge/Prometheus-E6522C?style=for-the-badge&logo=prometheus&logoColor=white)
 ![Grafana](https://img.shields.io/badge/Grafana-F46800?style=for-the-badge&logo=grafana&logoColor=white)
 ![OpenTelemetry](https://img.shields.io/badge/OpenTelemetry-000000?style=for-the-badge&logo=opentelemetry&logoColor=white)
-![LangGraph](https://img.shields.io/badge/LangGraph-Agentic_AI-1C3C3C?style=for-the-badge)
+![Orchestrator](https://img.shields.io/badge/Orchestrator-Custom_HTTP-blue?style=for-the-badge)
 ![Qdrant](https://img.shields.io/badge/Qdrant-DC244C?style=for-the-badge)
 
 </div>
@@ -311,11 +311,8 @@ Vector Database:
 
 ## AI Layer
 
-- GPT-5
-- Claude
-- Llama 3
-- LangGraph
-- LangChain
+- GPT-4 / Gemini / Claude
+- Custom HTTP Orchestration Layer
 
 ## Frontend Layer
 

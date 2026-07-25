@@ -10,7 +10,7 @@ This chart deploys the complete CloudGraph stack:
 - **Investigation Engine**: GraphRAG-powered investigation logic
 - **Agent Orchestrator**: Multi-agent system orchestration
 - **UI**: Web-based user interface
-- **Data Services**: Neo4j, Qdrant, Redis cache
+- **Data Services**: Neo4j, Qdrant
 - **Telemetry**: OpenTelemetry Collector
 - **RBAC**: Kubernetes access control
 
@@ -81,10 +81,6 @@ investigationEngine:
 
 agentOrchestrator:
   replicaCount: 2
-
-redis:
-  replica:
-    replicaCount: 2
 ```
 
 Install with HA configuration:
@@ -159,7 +155,6 @@ To install with bundled dependencies:
 ```bash
 helm install cloudgraph cloudgraph/cloudgraph \
   --set neo4j.enabled=true \
-  --set redis.enabled=true \
   --set qdrant.enabled=true
 ```
 
@@ -197,7 +192,6 @@ agent-orchestrator-xxxxx            1/1     Running   0          2m
 cloudgraph-ui-xxxxx                 1/1     Running   0          2m
 otel-collector-xxxxx                1/1     Running   0          2m
 neo4j-xxxxx                         1/1     Running   0          2m
-redis-master-xxxxx                  1/1     Running   0          2m
 qdrant-xxxxx                        1/1     Running   0          2m
 ```
 
@@ -337,7 +331,6 @@ global:
 ### Data Services
 
 - `neo4j`: Neo4j knowledge graph database
-- `redis`: Redis cache and message queue
 - `qdrant`: Qdrant vector database
 
 ### Observability

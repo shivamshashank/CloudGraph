@@ -1,12 +1,9 @@
 dependencies:
 - name: neo4j
   repository: https://helm.neo4j.com/neo4j
-  version: 2026.5.0
-- name: redis
-  repository: https://charts.bitnami.com/bitnami
-  version: 27.0.14
+  version: 2026.6.0
 - name: qdrant
   repository: https://qdrant.github.io/qdrant-helm
   version: 1.18.2
-digest: sha256:246e8496e054586ca7184a575af21f787de34fc5ba9e91a55254684a3e490fa9
-generated: "2026-07-09T23:50:14.533613+01:00"
+digest: sha256:d11d7033608f1434e3e6b9681304587f5beafdc162c14411a78d1a5b3db7e0da
+generated: "2026-07-25T14:17:00.55034+01:00"

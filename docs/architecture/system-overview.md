@@ -63,7 +63,6 @@ CloudGraph installs:
 - OpenTelemetry Collector
 - Neo4j
 - Qdrant
-- Redis
 - UI
 - RBAC
 - CRDs
