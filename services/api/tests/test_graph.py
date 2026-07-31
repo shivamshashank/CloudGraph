@@ -1,6 +1,7 @@
 """Integration and unit tests for graph indexing services."""
 
 import time
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
@@ -345,33 +346,28 @@ def test_investigation_trigger_with_multi_agent_consensus(monkeypatch):
             return [{"id": "incident-1"}]
         return []
 
-    class MockResponse:  # pylint: disable=too-few-public-methods
-        """Mock HTTP response."""
+    mock_res = SimpleNamespace(
+        json=lambda: {
+            "status": "success",
+            "service": "agent-orchestrator",
+            "consensus": {
+                "title": "Database authentication failure on demo-payment-app",
+                "summary": "Invalid database credentials detected",
+                "cause": "Incorrect login password error observed.",
+                "recommendation": "Check secret configuration credentials.",
+                "severity": "CRITICAL",
+                "confidence": 0.94,
+                "evidence": [
+                    "Consensus Engine confidence: 94%",
+                    "Agent 'logs' signal: auth failure",
+                ],
+            },
+        },
+        status_code=200,
+    )
 
-        @staticmethod
-        def json():
-            """Return JSON data."""
-            return {
-                "status": "success",
-                "service": "agent-orchestrator",
-                "consensus": {
-                    "title": "Database authentication failure on demo-payment-app",
-                    "summary": "Invalid database credentials detected",
-                    "cause": "Incorrect login password error observed.",
-                    "recommendation": "Check secret configuration credentials.",
-                    "severity": "CRITICAL",
-                    "confidence": 0.94,
-                    "evidence": [
-                        "Consensus Engine confidence: 94%",
-                        "Agent 'logs' signal: auth failure",
-                    ],
-                },
-            }
-
-        status_code = 200
-
-    def _fake_post(*args, **kwargs):  # pylint: disable=unused-argument
-        return MockResponse()
+    def _fake_post(*_args, **_kwargs):
+        return mock_res
 
     monkeypatch.setattr(neo4j_client, "execute_query", _fake_execute_query)
     monkeypatch.setattr(

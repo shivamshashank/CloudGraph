@@ -1,7 +1,5 @@
 """Unit tests for the Graph-Provenance Claim Scoring module."""
 
-# pylint: disable=duplicate-code
-
 from unittest.mock import MagicMock
 
 from app.research.gpcs import GraphProvenanceClaimScorer
@@ -82,11 +80,8 @@ def test_score_claims_returns_expected_structure(monkeypatch):
         ]
     }
 
-    # pylint: disable=unused-argument
-    def fake_search(payload: GraphRAGSearchPayload, method: str | None = None):
+    def fake_search(_payload: GraphRAGSearchPayload, _method: str | None = None):
         return fake_search_results
-
-    # pylint: enable=unused-argument
 
     monkeypatch.setattr(
         "app.research.gpcs.graph_traversal_retriever",

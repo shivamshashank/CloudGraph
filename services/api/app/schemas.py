@@ -1,7 +1,5 @@
 """Pydantic payload schemas used by the FastAPI route handlers."""
 
-# pylint: disable=too-few-public-methods
-
 from typing import Any, List
 from pydantic import BaseModel, Field, model_validator
 

@@ -10,7 +10,7 @@ As described in the README, CloudGraph’s goal is to “transform cloud observa
 
  *Figure: High-level architecture of CloudGraph (from README)*. At a high level, CloudGraph ingests telemetry from **observability and cloud sources** into a processing pipeline that builds a unified *knowledge graph* (e.g. in Neo4j). This pipeline performs data collection, parsing/normalization, correlation and enrichment. The knowledge graph captures entities and relationships (deployments, metrics, logs, events).
 
-A **GraphRAG retrieval** layer combines structural graph traversals with semantic vector search. Graph queries on the knowledge graph (Neo4j) identify related context, while an embeddings index in Qdrant enables similarity search on textual data. The retrieved context chunks (evidence chains) are passed to LLMs (e.g. GPT-5, Claude) via LangChain for reasoning.
+A **GraphRAG retrieval** layer combines structural graph traversals with semantic vector search. Graph queries on the knowledge graph (Neo4j) identify related context, while an embeddings index in Qdrant enables similarity search on textual data. The retrieved context chunks (evidence chains) are passed to LLMs (e.g. GPT-4o-mini, Claude, Gemini) via custom HTTP API wrappers for reasoning.
 
 A **Multi-Agent system** then orchestrates specialized agents (Monitoring, Log, Trace, Deployment, Security, RCA, Recommendation agents) that collaboratively analyze the assembled context and generate a comprehensive RCA report. The final results (root cause, confidence scores, impacted services, remediation steps) are exposed via a web UI and API.
 
@@ -76,7 +76,7 @@ Each Python service likely has its own dependencies (not explicitly listed in a 
 | **Kubernetes (generic)** | Any K8s cluster (Rancher/kubeadm compatible). Supports container orchestrators (ArgoCD for deployments, Helm) and common K8s tools (NGINX ingress). Kubernetes events and state are ingested (kube-state-metrics, etc.). |
 | **Observability/Monitoring** | Prometheus (metrics), Grafana (dashboards), Loki (logs), OpenTelemetry collectors (logs/traces), Alertmanager (alerts), kube-state-metrics/node-exporter (cluster metrics), Falco (security events). These open-source tools are all supported data sources for CloudGraph. |
 | **CI/CD & GitOps**   | Argo CD notifications; GitHub/GitLab webhooks for deployment history, commits and PRs. For example, container image tags and Git events are ingested. |
-| **Graph & Vector DB** | Neo4j (knowledge graph DB for structural context); Qdrant (vector DB for embedding-based retrieval). LangGraph (for embedding generation) and LLM backends (GPT-5, Claude) are integrated in the inference layer. |
+| **Graph & Vector DB** | Neo4j (knowledge graph DB for structural context); Qdrant (vector DB for embedding-based retrieval). Sentence-transformers (for embedding generation) and LLM backends (GPT-4o-mini, Claude, Gemini) are integrated in the multi-agent consensus inference layer. |
 | **Other Clouds**     | *Not explicitly integrated.* Azure/GCP are not mentioned. In principle, any Kubernetes (AKS, GKE) could host CloudGraph, but no Azure/GCP-specific services are configured by default. (Multi-cloud readiness is claimed, but actual integrations beyond AWS are unspecified.) |
 
 ## Installation, Setup, and Usage
@@ -120,9 +120,9 @@ See the **INSTALLATION.md** and **QUICKSTART.md** in the repo for detailed setup
 
 ## Dependencies & Compatibility
 
-- **Languages/Frameworks**: CloudGraph is implemented in **Python** (backend, agents) and **Go** (CLI). The UI uses **JavaScript/HTML** (likely React/D3 for the workbench).
+- **Languages/Frameworks**: CloudGraph is implemented in **Python** (backend, agents) and **Go** (CLI). The UI uses static **JavaScript/HTML** for the workbench.
 - **Go**: The CLI uses Go 1.23 (as per `go.mod`).
-- **Python**: Requires a modern Python 3 environment (the specific version is unspecified, but a recent 3.x is implied). It likely depends on FastAPI (uvicorn), LangChain, Neo4j and Qdrant Python clients, and LLM libraries (OpenAI or similar).
+- **Python**: Requires a modern Python 3 environment (the specific version is unspecified, but a recent 3.x is implied). It depends on FastAPI (uvicorn), Neo4j and Qdrant Python clients, and HTTP request libraries (for OpenAI, Claude, and Gemini API calls).
 - **Operating System**: The CLI installer only supports Linux (amd64/arm64). The system as a whole can run on any OS hosting Docker or a K8s cluster; the code has been tested primarily on Linux-based clusters.
 - **Containers & Orchestration**: Docker (for local mode), Kubernetes (tested on AWS EKS). Helm is used for packaging.
 - **Databases**: Neo4j (graph DB) and Qdrant (vector DB) must be running (the provided Docker Compose starts these). Neo4j is v4.x or v5.x (installed via Docker image), and Qdrant 1.x (specified in `docker-compose.yml`).
@@ -205,10 +205,10 @@ No single OSS project currently matches CloudGraph’s GraphRAG+multi-agent desi
 | **Data Sources**             | Metrics (Prometheus), Logs (Loki), Traces (OpenTelemetry), K8s events, alerts, security (Falco), Git (webhooks). | Standard open-source (Prom/Grafana, etc.) | Most AIOps/RCA tools ingest similar data. |
 | **Knowledge Graph**          | Yes (Neo4j for entity graph). | No (ELK/Prom use indices, not graphs). | Unique in open-source RCA context. |
 | **Vector DB (Semantic Search)** | Yes (Qdrant). | Rare in RCA tools; typically newer AI-centric frameworks. | Similar to RAG pipelines. |
-| **LLM Integration**          | Yes (GPT-5, Claude via LangChain). | Not built-in (most RCA are rule or ML-based). | Requires careful API key management. |
+| **LLM Integration**          | Yes (OpenAI, Claude, Gemini via custom API wrappers). | Not built-in (most RCA are rule or ML-based). | Requires careful API key management. |
 | **Multi-Agent Reasoning**    | Yes (specialized agents collaborate). | No. | Innovative architecture – no direct counterpart. |
 | **Deployment**               | Helm/K8s, Docker Compose for local. CLI provided (Linux-only). | Standard (K8s, Docker); CLI is bespoke. | Competitors often SaaS or enterprise setups. |
-| **UI Workbench**             | In development (React/D3 for visual RCA workflow). | Common (Grafana, Kibana). | Pending maturity. |
+| **UI Workbench**             | Yes (Static vanilla HTML/CSS/JS dashboard). | Common (Grafana, Kibana). | Pending maturity. |
 | **Licensing**                | MIT (permissive). | Varies (Grafana/GPL, etc.). | MIT allows commercial use. |
 | **Extensibility**            | Modular (graph + RAG + agents). | Extensible (e.g. Elasticsearch plugins). | Hybrid of methods is novel. |
 
@@ -224,13 +224,11 @@ No single OSS project currently matches CloudGraph’s GraphRAG+multi-agent desi
 - [ ] **Observability Stack**: Deploy or connect Prometheus, Grafana Loki, OpenTelemetry collector, Falco, etc., as data sources (CloudGraph expects these endpoints to be available).
 - [ ] **Database Setup**: Have Neo4j (for the knowledge graph) and Qdrant (for vector store) available. The Quickstart uses Docker images, or you can deploy these in-cluster.
 - [ ] **Networking**: The services assume internal DNS names (`*.svc.cluster.local`). Configure network policies to allow service-to-service communication.
-- [ ] **LLM Credentials**: Obtain API keys for LLMs (OpenAI, Anthropic, etc.) and configure them for the agents. (The code uses LangChain; check docs for environment variables.)
+- [ ] **LLM Credentials**: Obtain API keys for LLMs (OpenAI, Anthropic, etc.) and configure them for the agents. (Check code settings or environment variables.)
 - [ ] **Cloud Credentials**: For AWS integration, configure IAM roles or AWS keys if collecting CloudWatch/S3 data. (Currently optional.)
 - [ ] **CLI Install (optional)**: Run the install script to get `cloudgraph` CLI on Linux. Use `cloudgraph deploy` to install via Helm.
 - [ ] **Run Tests**: Execute `go test ./tests/observability` to verify data endpoints (prometheus, loki) are reachable.
 - [ ] **Development Tools**: To contribute or customize, install Go (v1.23) and Python 3.x. Linters (ruff, mypy) and Node.js (for UI) may also be needed.
-- [ ] **Review Documentation**: Read the in-repo docs (`docs/`, README) for detailed configuration options (e.g. customizing graph schema, agent behavior).
-
 Each checklist item corresponds to components or steps documented in the repository (e.g. cloud services from the README, CLI requirements). Where details are not specified (e.g. Windows support is explicitly unsupported), note as limitations.
 
 **Sources:** All information is drawn from the CloudGraph repository files and docs: README and architecture descriptions; project structure and deployment instructions; code samples and scripts (install.sh, tests); and metadata (license, project stats). Unspecified details (e.g. Python version) are noted as such. Visuals (architecture diagram, timeline) are either taken from the repo or generated to summarize the activity.

@@ -1,8 +1,7 @@
-# pylint: skip-file
 """Integration tests for the CloudGraph Go CLI."""
 
-import subprocess
 import shutil
+import subprocess
 from pathlib import Path
 import pytest
 

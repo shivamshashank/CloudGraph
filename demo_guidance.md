@@ -34,7 +34,7 @@ CloudGraph has completed **Weeks 1–4** of the dissertation roadmap. The infras
 ### ⚠️ What is Left (Roadmap Weeks 5–8)
 
 1. **Multi-Agent Orchestrator (Week 5)**
-   - Developing specialized agent nodes (Monitoring Agent, Log Agent, Deployment Agent, Security Agent) using a LangGraph framework.
+   - Developing specialized agent nodes (Monitoring Agent, Log Agent, Deployment Agent, Security Agent) using a custom Python HTTP orchestrator.
    - Creating the **Consensus Engine** (evidence aggregation, confidence voting, and cross-agent correlation).
 2. **RCA Reasoning & Recommendations (Week 6)**
    - Generating explainable graph reasoning paths.
@@ -126,7 +126,7 @@ This script is structured to show the transition from "raw data" to "intelligenc
 - **Action:** Click on the "Run AI Diagnosis" button. Explain that it is rule-based now, pointing to the Multi-Agent framework next.
 - **What to speak:**
   > "Right now, triggering a diagnosis runs our initial rule-based analyzer, which highlights the failing image tag.
-  > However, this brings us to our next milestones. Now that the core GraphRAG retrieval engine is complete, Week 5 and 6 will replace this baseline logic with a **Multi-Agent Orchestrator** using LangGraph. Log, Metric, and Deployment agents will collaboratively review this ranked evidence to form a consensus on the root cause and propose risk-assessed remediations.
+  > However, this brings us to our next milestones. Now that the core GraphRAG retrieval engine is complete, Week 5 and 6 will replace this baseline logic with a **Multi-Agent Orchestrator** using a custom HTTP consensus engine. Log, Metric, and Deployment agents will collaboratively review this ranked evidence to form a consensus on the root cause and propose risk-assessed remediations.
   > Thank you, and I'd be happy to take any questions."
 
 ---

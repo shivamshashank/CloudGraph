@@ -1,9 +1,9 @@
 """Tests for advanced Kubernetes graph nodes ingestion endpoints."""
 
-# pylint: disable=duplicate-code
-
 from unittest.mock import MagicMock
 from fastapi.testclient import TestClient
+from neo4j.exceptions import Neo4jError, ServiceUnavailable
+
 from app.main import app
 from app.database.neo4j_client import neo4j_client
 from app.dependencies import semantic_store
@@ -16,7 +16,7 @@ def is_db_reachable():
     try:
         neo4j_client.execute_query("RETURN 1")
         return True
-    except Exception:  # pylint: disable=broad-exception-caught
+    except (RuntimeError, Neo4jError, ServiceUnavailable):
         return False
 
 

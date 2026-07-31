@@ -3,8 +3,7 @@
 import logging
 import os
 import uuid
-from collections.abc import Sequence
-from typing import Any
+from typing import Any, Sequence
 
 import httpx
 from qdrant_client import QdrantClient

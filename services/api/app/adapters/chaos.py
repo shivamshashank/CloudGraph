@@ -3,15 +3,7 @@
 from app.database.neo4j_client import neo4j_client
 
 
-# pylint: disable=too-many-arguments
-def ingest_chaos_experiment(
-    experiment_id: str,
-    name: str,
-    target_pod_name: str,
-    action: str,
-    status: str,
-    timestamp: int,
-) -> list:
+def ingest_chaos_experiment(payload: dict) -> list:
     """Persist chaos experiment events and link them to target Pods."""
     query = """
     MERGE (ce:ChaosExperiment {id: $experiment_id})
@@ -29,12 +21,12 @@ def ingest_chaos_experiment(
     RETURN ce.id as experiment_id
     """
     params = {
-        "experiment_id": experiment_id,
-        "name": name,
-        "target_pod_name": target_pod_name,
-        "action": action,
-        "status": status,
-        "timestamp": int(timestamp),
+        "experiment_id": payload["experiment_id"],
+        "name": payload["name"],
+        "target_pod_name": payload["target_pod_name"],
+        "action": payload["action"],
+        "status": payload["status"],
+        "timestamp": int(payload["timestamp"]),
     }
     try:
         return neo4j_client.execute_query(query, params)

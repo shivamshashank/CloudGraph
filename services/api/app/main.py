@@ -1,7 +1,5 @@
 """Main FastAPI application entry point, containing HTTP routes and lifespans."""
 
-# pylint: disable=too-many-lines
-
 from contextlib import asynccontextmanager
 import os
 import time
@@ -34,15 +32,13 @@ from app.schemas import (
     InvestigationTrigger,
     EvidenceTrigger,
     GraphRAGSearchPayload,
-    IncidentCreate,
-    IncidentUpdate,
-    CommentCreate,
-    SettingsPayload,
-    LogEntryPayload,
 )
 from app.routers.telemetry import router as telemetry_router
 from app.routers.webhooks import router as webhooks_router
 from app.routers.benchmark import router as benchmark_router
+from app.routers.incidents import router as incidents_router
+from app.routers.settings import router as settings_router
+from app.routers.logs import router as logs_router
 from app.helpers import (
     build_relevant_evidence,
     build_retrieval_context_for_investigation,
@@ -84,6 +80,9 @@ app.add_middleware(
 app.include_router(telemetry_router)
 app.include_router(webhooks_router)
 app.include_router(benchmark_router)
+app.include_router(incidents_router)
+app.include_router(settings_router)
+app.include_router(logs_router)
 
 
 @app.get("/health")
@@ -288,7 +287,7 @@ def _investigate_pod(
                     "severity": rdata["consensus"]["severity"],
                     "evidence": rdata["consensus"]["evidence"],
                 }
-    except Exception:  # pylint: disable=broad-exception-caught
+    except (requests.RequestException, ValueError, KeyError):
         pass
 
     if not analysis:
@@ -314,7 +313,7 @@ def _investigate_pod(
     claim_scoring = {"unsupported_claim_rate": 0.0, "claim_count": 0, "claims": []}
     try:
         gcp_res = GraphConfidencePropagator().run_propagation(pod["name"])
-    except Exception:  # pylint: disable=broad-exception-caught
+    except RuntimeError:
         pass
 
     try:
@@ -882,358 +881,4 @@ def reset_demo():
         neo4j_client.execute_query("MATCH (n) DETACH DELETE n")
         return {"status": "success", "message": "Graph cleared"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@app.get("/api/v1/incidents")
-def get_incidents():
-    """Retrieve all incident records from Neo4j, sorted by timestamp descending."""
-    try:
-        query = """
-        MATCH (i:Incident)
-        OPTIONAL MATCH (p:Pod)-[:AFFECTED_BY]->(i)
-        RETURN i.id as id,
-               i.title as title,
-               i.severity as severity,
-               i.status as status,
-               i.description as cause,
-               i.recommendation as remediation,
-               i.timestamp as timestamp,
-               i.assigned as assigned,
-               i.error_logs as error_logs,
-               p.name as pod_name
-        ORDER BY i.timestamp DESC
-        """
-        records = neo4j_client.execute_query(query)
-        incidents = []
-        for r in records:
-            incidents.append(
-                {
-                    "id": r["id"],
-                    "title": r["title"],
-                    "severity": r["severity"],
-                    "status": r["status"] or "Active",
-                    "cause": r["cause"] or "",
-                    "remediation": r["remediation"] or "",
-                    "timestamp": (
-                        int(r["timestamp"]) if r["timestamp"] else int(time.time())
-                    ),
-                    "assigned": r["assigned"] or "Unassigned",
-                    "error_logs": r["error_logs"] or [],
-                    "pod_name": r["pod_name"] or "",
-                }
-            )
-        return {"status": "success", "incidents": incidents}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@app.post("/api/v1/incidents")
-def create_incident(payload: IncidentCreate):
-    """Create a new manual incident record in Neo4j."""
-    try:
-        incident_id = f"incident-{int(time.time() * 1000)}-{uuid.uuid4().hex[:5]}"
-        query = """
-        CREATE (i:Incident {
-            id: $id,
-            title: $title,
-            severity: $severity,
-            status: $status,
-            description: $cause,
-            recommendation: $remediation,
-            timestamp: $timestamp,
-            assigned: $assigned,
-            error_logs: $error_logs
-        })
-        RETURN i.id as id
-        """
-        neo4j_client.execute_query(
-            query,
-            {
-                "id": incident_id,
-                "title": payload.title,
-                "severity": payload.severity,
-                "status": payload.status,
-                "cause": payload.cause,
-                "remediation": payload.remediation,
-                "timestamp": int(time.time()),
-                "assigned": payload.assigned,
-                "error_logs": payload.error_logs,
-            },
-        )
-        return {"status": "success", "id": incident_id}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@app.patch("/api/v1/incidents/{incident_id}")
-def update_incident(incident_id: str, payload: IncidentUpdate):
-    """Update status and/or assignee of an incident, adding an audit comment."""
-    try:
-        check_query = """
-        MATCH (i:Incident {id: $id})
-        RETURN i.status as status, i.assigned as assigned
-        """
-        records = neo4j_client.execute_query(check_query, {"id": incident_id})
-        if not records:
-            raise HTTPException(status_code=404, detail="Incident not found")
-
-        current = records[0]
-        old_status = current.get("status") or "Active"
-        old_assigned = current.get("assigned") or "Unassigned"
-
-        updates = []
-        params = {"id": incident_id}
-        if payload.status is not None:
-            updates.append("i.status = $status")
-            params["status"] = payload.status
-        if payload.assigned is not None:
-            updates.append("i.assigned = $assigned")
-            params["assigned"] = payload.assigned
-
-        if updates:
-            update_query = f"""
-            MATCH (i:Incident {{id: $id}})
-            SET {", ".join(updates)}
-            RETURN i.id as id
-            """
-            neo4j_client.execute_query(update_query, params)
-
-        if payload.status is not None and payload.status != old_status:
-            comment_text = (
-                f"Status updated from **{old_status}** to **{payload.status}**."
-            )
-            _add_system_comment(incident_id, comment_text)
-
-        if payload.assigned is not None and payload.assigned != old_assigned:
-            comment_text = (
-                f"Ownership assigned from **{old_assigned}** to "
-                f"**{payload.assigned}**."
-            )
-            _add_system_comment(incident_id, comment_text)
-
-        return {"status": "success", "id": incident_id}
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@app.get("/api/v1/incidents/{incident_id}/comments")
-def get_incident_comments(incident_id: str):
-    """Retrieve comments for a specific incident, ordered by timestamp ascending."""
-    try:
-        query = """
-        MATCH (i:Incident {id: $id})
-        OPTIONAL MATCH (i)-[:HAS_COMMENT]->(c:Comment)
-        RETURN c.author as author, c.text as text, c.timestamp as timestamp
-        ORDER BY c.timestamp ASC
-        """
-        records = neo4j_client.execute_query(query, {"id": incident_id})
-        comments = []
-        for r in records:
-            if r.get("text"):
-                comments.append(
-                    {
-                        "author": r["author"] or "Unknown",
-                        "text": r["text"],
-                        "timestamp": (
-                            int(r["timestamp"])
-                            if r["timestamp"]
-                            else int(time.time() * 1000)
-                        ),
-                    }
-                )
-        return {"status": "success", "comments": comments}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@app.post("/api/v1/incidents/{incident_id}/comments")
-def add_incident_comment(incident_id: str, payload: CommentCreate):
-    """Add a new comment or triage note to an incident."""
-    try:
-        check_query = "MATCH (i:Incident {id: $id}) RETURN i.id as id"
-        if not neo4j_client.execute_query(check_query, {"id": incident_id}):
-            raise HTTPException(status_code=404, detail="Incident not found")
-
-        comment_query = """
-        MATCH (i:Incident {id: $id})
-        CREATE (i)-[:HAS_COMMENT]->(c:Comment {
-            author: $author,
-            text: $text,
-            timestamp: $timestamp
-        })
-        RETURN c.timestamp as timestamp
-        """
-        neo4j_client.execute_query(
-            comment_query,
-            {
-                "id": incident_id,
-                "author": payload.author,
-                "text": payload.text,
-                "timestamp": int(time.time() * 1000),
-            },
-        )
-        return {"status": "success"}
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-def _add_system_comment(incident_id: str, text: str):
-    """Helper to insert a system-generated audit log comment."""
-    comment_query = """
-    MATCH (i:Incident {id: $id})
-    CREATE (i)-[:HAS_COMMENT]->(c:Comment {
-        author: "System (Triage Engine)",
-        text: $text,
-        timestamp: $timestamp
-    })
-    """
-    neo4j_client.execute_query(
-        comment_query,
-        {
-            "id": incident_id,
-            "text": text,
-            "timestamp": int(time.time() * 1000),
-        },
-    )
-
-
-@app.get("/api/v1/settings")
-def get_settings():
-    """Retrieve LLM settings from Neo4j."""
-    try:
-        query = """
-        MATCH (s:Settings {id: "llm_settings"})
-        RETURN s.provider as provider, s.api_key as api_key, s.model as model
-        LIMIT 1
-        """
-        records = neo4j_client.execute_query(query)
-        if records:
-            return {
-                "status": "success",
-                "settings": {
-                    "provider": records[0]["provider"] or "",
-                    "api_key": records[0]["api_key"] or "",
-                    "model": records[0]["model"] or "",
-                },
-            }
-        return {"status": "success", "settings": {}}
-    except (RuntimeError, ValueError, KeyError, TypeError, AttributeError) as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@app.post("/api/v1/settings")
-def save_settings(payload: SettingsPayload):
-    """Save LLM settings to Neo4j."""
-    try:
-        query = """
-        MERGE (s:Settings {id: "llm_settings"})
-        SET s.provider = $provider,
-            s.api_key = $api_key,
-            s.model = $model
-        RETURN s.id as id
-        """
-        neo4j_client.execute_query(
-            query,
-            {
-                "provider": payload.provider,
-                "api_key": payload.api_key,
-                "model": payload.model,
-            },
-        )
-        return {"status": "success"}
-    except (RuntimeError, ValueError, KeyError, TypeError, AttributeError) as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@app.delete("/api/v1/settings")
-def clear_settings():
-    """Clear LLM settings from Neo4j."""
-    try:
-        query = """
-        MATCH (s:Settings {id: "llm_settings"})
-        DETACH DELETE s
-        """
-        neo4j_client.execute_query(query)
-        return {"status": "success"}
-    except (RuntimeError, ValueError, KeyError, TypeError, AttributeError) as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@app.get("/api/v1/logs")
-def get_log_history():
-    """Retrieve all stored live logs from Neo4j."""
-    try:
-        query = """
-        MATCH (l:LiveLog)
-        RETURN l.timestamp as timestamp,
-               l.source as source,
-               l.level as level,
-               l.message as message,
-               l.created_at as created_at
-        ORDER BY l.created_at ASC
-        """
-        records = neo4j_client.execute_query(query)
-        logs = [
-            {
-                "timestamp": r["timestamp"] or "",
-                "source": r["source"] or "",
-                "level": r["level"] or "",
-                "message": r["message"] or "",
-            }
-            for r in records
-        ]
-        return {"status": "success", "logs": logs}
-    except (RuntimeError, ValueError, KeyError, TypeError, AttributeError) as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@app.post("/api/v1/logs")
-def add_log_entry(payload: LogEntryPayload):
-    """Save a live log entry to Neo4j."""
-    try:
-        query = """
-        CREATE (l:LiveLog {
-            timestamp: $timestamp,
-            source: $source,
-            level: $level,
-            message: $message,
-            created_at: timestamp()
-        })
-        WITH l
-        MATCH (old:LiveLog)
-        WITH count(old) as cnt, old
-        ORDER BY old.created_at ASC
-        LIMIT CASE WHEN cnt > 5000 THEN cnt - 5000 ELSE 0 END
-        DETACH DELETE old
-        """
-        neo4j_client.execute_query(
-            query,
-            {
-                "timestamp": payload.timestamp,
-                "source": payload.source,
-                "level": payload.level,
-                "message": payload.message,
-            },
-        )
-        return {"status": "success"}
-    except (RuntimeError, ValueError, KeyError, TypeError, AttributeError) as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@app.delete("/api/v1/logs")
-def clear_log_history():
-    """Clear all live logs from Neo4j."""
-    try:
-        query = """
-        MATCH (l:LiveLog)
-        DETACH DELETE l
-        """
-        neo4j_client.execute_query(query)
-        return {"status": "success"}
-    except (RuntimeError, ValueError, KeyError, TypeError, AttributeError) as e:
         raise HTTPException(status_code=500, detail=str(e)) from e

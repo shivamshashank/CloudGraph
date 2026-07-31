@@ -3,17 +3,7 @@
 from app.database.neo4j_client import neo4j_client
 
 
-# pylint: disable=too-many-arguments
-def ingest_security_event(
-    event_id: str,
-    pod_id: str,
-    pod_name: str,
-    rule: str,
-    priority: str,
-    output: str,
-    timestamp: int,
-    service_account: str = "default",
-) -> list:
+def ingest_security_event(payload: dict) -> list:
     """Persist Falco security events and link them to Pod, Node, and SA."""
     query = """
     MERGE (p:Pod {id: $pod_id})
@@ -40,14 +30,14 @@ def ingest_security_event(
     RETURN se.id as event_id
     """
     params = {
-        "event_id": event_id,
-        "pod_id": pod_id,
-        "pod_name": pod_name,
-        "rule": rule,
-        "priority": priority,
-        "output": output,
-        "timestamp": int(timestamp),
-        "service_account": service_account,
+        "event_id": payload["event_id"],
+        "pod_id": payload["pod_id"],
+        "pod_name": payload["pod_name"],
+        "rule": payload["rule"],
+        "priority": payload["priority"],
+        "output": payload["output"],
+        "timestamp": int(payload["timestamp"]),
+        "service_account": payload.get("service_account", "default"),
     }
     try:
         return neo4j_client.execute_query(query, params)

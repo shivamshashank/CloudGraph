@@ -62,6 +62,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: cloudgraph-neo4j-auth
+                  key: NEO4J_AUTH
             - name: QDRANT_HOST
               value: "cloudgraph-qdrant.{{ .Values.global.namespace }}.svc.cluster.local"
             - name: AGENT_ORCHESTRATOR_URL

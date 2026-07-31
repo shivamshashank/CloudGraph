@@ -83,7 +83,7 @@ def test_offline_qdrant_returns_empty_results_without_raising():
     client = QdrantClientWrapper(client_factory=unavailable)
 
     assert client.ensure_collections() is False
-    assert client.search([0.0] * client.vector_size) == []
+    assert not client.search([0.0] * client.vector_size)
 
 
 def test_search_returns_qdrant_points_and_close_resets_client():

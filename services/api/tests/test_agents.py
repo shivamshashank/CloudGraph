@@ -1,7 +1,5 @@
 """Tests for LLM agent reasoning, providers, and rule-based fallbacks."""
 
-# pylint: disable=duplicate-code
-
 import importlib.util
 import os
 import sys
@@ -56,15 +54,13 @@ def test_call_llm_providers(monkeypatch):
     """Test call_llm support for OpenAI, Gemini, and Claude."""
 
     # 1. Test OpenAI
-    # pylint: disable=unused-argument
     def mock_post_openai(url, headers, json, timeout=20):
         assert "api.openai.com" in url
         assert headers["Authorization"] == "Bearer sk-test-openai"
         assert json["model"] == "gpt-4o-mini"
+        assert timeout == 20
         res_content = '{"finding": "OpenAI Success", "confidence": 0.9}'
         return MockResponse({"choices": [{"message": {"content": res_content}}]})
-
-    # pylint: enable=unused-argument
 
     monkeypatch.setattr(requests, "post", mock_post_openai)
     res = investigation_main.call_llm(
@@ -77,15 +73,13 @@ def test_call_llm_providers(monkeypatch):
     assert res["confidence"] == 0.9
 
     # 2. Test Gemini
-    # pylint: disable=unused-argument
     def mock_post_gemini(url, headers, json, timeout=20):
         assert "generativelanguage.googleapis.com" in url
         assert headers["Authorization"] == "Bearer gemini-test-token"
         assert json["model"] == "gemini-1.5-flash"
+        assert timeout == 20
         res_content = '{"finding": "Gemini Success", "confidence": 0.8}'
         return MockResponse({"choices": [{"message": {"content": res_content}}]})
-
-    # pylint: enable=unused-argument
 
     monkeypatch.setattr(requests, "post", mock_post_gemini)
     res = investigation_main.call_llm(
@@ -98,15 +92,13 @@ def test_call_llm_providers(monkeypatch):
     assert res["confidence"] == 0.8
 
     # 3. Test Claude
-    # pylint: disable=unused-argument
     def mock_post_claude(url, headers, json, timeout=20):
         assert "api.anthropic.com" in url
         assert headers["x-api-key"] == "claude-test-token"
         assert json["model"] == "claude-3-5-sonnet-latest"
+        assert timeout == 20
         res_content = '{"finding": "Claude Success", "confidence": 0.7}'
         return MockResponse({"content": [{"text": res_content}]})
-
-    # pylint: enable=unused-argument
 
     monkeypatch.setattr(requests, "post", mock_post_claude)
     res = investigation_main.call_llm(
@@ -272,26 +264,24 @@ def test_topology_agent_reasoning_and_fallback(monkeypatch):
         "finding": "AI topology cascading failure",
         "confidence": 0.91,
     }
+
     monkeypatch.setattr(
         investigation_main,
         "_call_llm_agent",
         lambda *args, **kwargs: mock_top_res,
     )
-    # Mock Neo4j returning noisy neighbor info
 
-    # pylint: disable=unused-argument
-    def fake_neo4j_topology(query, params=None):
+    def fake_neo4j_topology(query, _params=None):
         if "noisy_neighbors" in query or "bad_pods" in query:
             return [{"node": "node-1", "bad_pods": ["bad-pod-a", "bad-pod-b"]}]
         return [{"service": "auth-service"}]
-
-    # pylint: enable=unused-argument
 
     monkeypatch.setattr(
         investigation_main.neo4j_client,
         "execute_query",
         fake_neo4j_topology,
     )
+
     top_ai = run_topology_agent("test-pod", llm_config=llm_config)
     assert top_ai["finding"] == "AI topology cascading failure"
     assert top_ai["confidence"] == 0.91

@@ -46,6 +46,10 @@ class SemanticVectorStore:
             logger.warning("Could not load semantic fallback store: %s", exc)
             self.documents = []
 
+    def persist(self) -> None:
+        """Persist the in-memory document store to disk (public API)."""
+        self._save()
+
     def _save(self) -> None:
         os.makedirs(os.path.dirname(self.storage_path) or ".", exist_ok=True)
         with open(self.storage_path, "w", encoding="utf-8") as handle:
