@@ -4,9 +4,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.database.neo4j_client import neo4j_client
 from app.demo.benchmark_dataset import BENCHMARK_GROUND_TRUTH_SCENARIOS
 from app.research.evaluation import evaluate_scenario
-from app.database.neo4j_client import neo4j_client
 
 client = TestClient(app)
 

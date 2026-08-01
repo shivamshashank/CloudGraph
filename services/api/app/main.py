@@ -37,6 +37,7 @@ from app.schemas import (
 from app.routers.telemetry import router as telemetry_router
 from app.routers.webhooks import router as webhooks_router
 from app.routers.benchmark import router as benchmark_router
+from app.routers.incidents import router as incidents_router
 from app.routers.settings import router as settings_router
 from app.routers.logs import router as logs_router
 from app.helpers import (
@@ -82,6 +83,7 @@ app.add_middleware(
 app.include_router(telemetry_router)
 app.include_router(webhooks_router)
 app.include_router(benchmark_router)
+app.include_router(incidents_router)
 app.include_router(settings_router)
 app.include_router(logs_router)
 
