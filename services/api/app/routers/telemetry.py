@@ -133,16 +133,7 @@ def post_trace(payload: TracePayload):
 def post_security_event(payload: SecurityEventPayload):
     """Ingest Falco security event, save to Neo4j and index in Qdrant."""
     try:
-        result = ingest_security_event(
-            payload.event_id,
-            payload.pod_id,
-            payload.pod_name,
-            payload.rule,
-            payload.priority,
-            payload.output,
-            payload.timestamp,
-            payload.service_account,
-        )
+        result = ingest_security_event(payload.model_dump())
         event_id = result[0]["event_id"] if result else "security-event-fallback"
         semantic_store.index_document(
             event_id,
@@ -169,14 +160,7 @@ def post_security_event(payload: SecurityEventPayload):
 def post_chaos_experiment(payload: ChaosExperimentPayload):
     """Ingest chaos experiment event, save to Neo4j and index in Qdrant."""
     try:
-        result = ingest_chaos_experiment(
-            payload.experiment_id,
-            payload.name,
-            payload.target_pod_name,
-            payload.action,
-            payload.status,
-            payload.timestamp,
-        )
+        result = ingest_chaos_experiment(payload.model_dump())
         experiment_id = (
             result[0]["experiment_id"] if result else "chaos-experiment-fallback"
         )

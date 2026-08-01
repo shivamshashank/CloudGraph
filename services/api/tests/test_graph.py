@@ -1,6 +1,7 @@
 """Integration and unit tests for graph indexing services."""
 
 import time
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
@@ -224,8 +225,9 @@ def test_context_comparison_endpoint_returns_multiple_payloads(monkeypatch):
     assert any(item["config"] == "agent-context" for item in body["comparisons"])
 
 
-def test_benchmark_summary_endpoint_returns_benchmark_metadata():
+def test_benchmark_summary_endpoint_returns_benchmark_metadata(monkeypatch):
     """Verify benchmark summary returns dataset split and baselines after run."""
+    monkeypatch.setattr(neo4j_client, "execute_query", lambda *args, **kwargs: [])
     run_res = client.post("/api/v1/benchmark/run")
     assert run_res.status_code == 200
     assert run_res.json()["status"] == "success"
@@ -244,8 +246,9 @@ def test_benchmark_summary_endpoint_returns_benchmark_metadata():
     assert all("baseline" in item for item in body["baselines"])
 
 
-def test_benchmark_export_endpoint_supports_json_and_csv():
+def test_benchmark_export_endpoint_supports_json_and_csv(monkeypatch):
     """Verify benchmark export returns valid JSON and CSV payloads."""
+    monkeypatch.setattr(neo4j_client, "execute_query", lambda *args, **kwargs: [])
     client.post("/api/v1/benchmark/run")
     json_response = client.get("/api/v1/benchmark/export?format=json")
     assert json_response.status_code == 200
@@ -345,33 +348,28 @@ def test_investigation_trigger_with_multi_agent_consensus(monkeypatch):
             return [{"id": "incident-1"}]
         return []
 
-    class MockResponse:  # pylint: disable=too-few-public-methods
-        """Mock HTTP response."""
+    mock_res = SimpleNamespace(
+        json=lambda: {
+            "status": "success",
+            "service": "agent-orchestrator",
+            "consensus": {
+                "title": "Database authentication failure on demo-payment-app",
+                "summary": "Invalid database credentials detected",
+                "cause": "Incorrect login password error observed.",
+                "recommendation": "Check secret configuration credentials.",
+                "severity": "CRITICAL",
+                "confidence": 0.94,
+                "evidence": [
+                    "Consensus Engine confidence: 94%",
+                    "Agent 'logs' signal: auth failure",
+                ],
+            },
+        },
+        status_code=200,
+    )
 
-        @staticmethod
-        def json():
-            """Return JSON data."""
-            return {
-                "status": "success",
-                "service": "agent-orchestrator",
-                "consensus": {
-                    "title": "Database authentication failure on demo-payment-app",
-                    "summary": "Invalid database credentials detected",
-                    "cause": "Incorrect login password error observed.",
-                    "recommendation": "Check secret configuration credentials.",
-                    "severity": "CRITICAL",
-                    "confidence": 0.94,
-                    "evidence": [
-                        "Consensus Engine confidence: 94%",
-                        "Agent 'logs' signal: auth failure",
-                    ],
-                },
-            }
-
-        status_code = 200
-
-    def _fake_post(*args, **kwargs):  # pylint: disable=unused-argument
-        return MockResponse()
+    def _fake_post(*_args, **_kwargs):
+        return mock_res
 
     monkeypatch.setattr(neo4j_client, "execute_query", _fake_execute_query)
     monkeypatch.setattr(

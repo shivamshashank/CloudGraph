@@ -67,14 +67,39 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Render RCA report cards
+  // Render RCA report cards in a two-pane layout with list and toggleable details
   function renderRCA(results) {
     if (!rcaOutput) return;
     if (results.length === 0) return;
 
-    let rcaHtml = '<div class="rca-report">';
+    // Build the grid wrapper
+    rcaOutput.innerHTML = `
+      <div class="diagnostic-container">
+        <div class="diagnostic-sidebar">
+          <div class="diagnostic-sidebar-title">Discovered Issues (${results.length})</div>
+          <div class="incident-list" id="incident-list-container" style="display: flex; flex-direction: column; gap: 8px;">
+            <!-- Rendered list items -->
+          </div>
+        </div>
+        <div class="diagnostic-detail-pane" id="incident-detail-container">
+          <!-- Rendered active incident details -->
+        </div>
+      </div>
+    `;
 
-    results.forEach((res) => {
+    const listContainer = document.getElementById("incident-list-container");
+    const detailContainer = document.getElementById(
+      "incident-detail-container",
+    );
+
+    function selectIncident(index) {
+      // Highlight active sidebar item
+      const items = listContainer.querySelectorAll(".incident-list-item");
+      items.forEach((item, i) => {
+        item.classList.toggle("active", i === index);
+      });
+
+      const res = results[index];
       const severityClass =
         res.severity === "CRITICAL"
           ? "rca-badge-critical"
@@ -153,63 +178,85 @@ document.addEventListener("DOMContentLoaded", () => {
       const recConf = res.recommendation_confidence
         ? Math.round(res.recommendation_confidence * 100)
         : 75;
-      const unsupportedRate = res.claim_scoring
-        ? Math.round((res.claim_scoring.unsupported_claim_rate || 0) * 100)
-        : 0;
 
-      rcaHtml += `
-                <div class="rca-header">
-                    <span class="rca-badge ${severityClass}">${res.severity}</span>
-                    <h3 class="rca-title">${res.title}</h3>
+      detailContainer.innerHTML = `
+        <div class="rca-header">
+            <span class="rca-badge ${severityClass}">${res.severity}</span>
+            <h3 class="rca-title">${res.title}</h3>
+        </div>
+
+        <div class="rca-confidence-container">
+            <div class="rca-confidence-badge">
+                <span class="rca-conf-label">Root Cause Confidence:</span>
+                <div class="rca-conf-bar-bg">
+                    <div class="rca-conf-bar-fill" style="width: ${rcConf}%; background: linear-gradient(90deg, #3b82f6, #60a5fa);"></div>
                 </div>
-
-                <div class="rca-confidence-container">
-                    <div class="rca-confidence-badge">
-                        <span class="rca-conf-label">Root Cause Confidence:</span>
-                        <div class="rca-conf-bar-bg">
-                            <div class="rca-conf-bar-fill" style="width: ${rcConf}%; background: linear-gradient(90deg, #3b82f6, #60a5fa);"></div>
-                        </div>
-                        <span class="rca-conf-val">${rcConf}%</span>
-                    </div>
-                    <div class="rca-confidence-badge">
-                        <span class="rca-conf-label">Remediation Confidence:</span>
-                        <div class="rca-conf-bar-bg">
-                            <div class="rca-conf-bar-fill" style="width: ${recConf}%; background: linear-gradient(90deg, #10b981, #34d399);"></div>
-                        </div>
-                        <span class="rca-conf-val">${recConf}%</span>
-                    </div>
+                <span class="rca-conf-val">${rcConf}%</span>
+            </div>
+            <div class="rca-confidence-badge">
+                <span class="rca-conf-label">Remediation Confidence:</span>
+                <div class="rca-conf-bar-bg">
+                    <div class="rca-conf-bar-fill" style="width: ${recConf}%; background: linear-gradient(90deg, #10b981, #34d399);"></div>
                 </div>
+                <span class="rca-conf-val">${recConf}%</span>
+            </div>
+        </div>
 
-                <div class="rca-block">
-                    <div class="rca-block-title">Identified Root Cause</div>
-                    <div class="rca-block-body">${res.cause}</div>
-                </div>
+        <div class="rca-block">
+            <div class="rca-block-title">Identified Root Cause</div>
+            <div class="rca-block-body">${res.cause}</div>
+        </div>
 
-                ${logsHtml}
+        ${logsHtml}
 
-                <div class="rca-block">
-                    <div class="rca-block-title" style="color: #a5b4fc;">Relevant Evidence</div>
-                    <div class="evidence-list">
-                        ${evidenceItems}
-                    </div>
-                </div>
+        <div class="rca-block">
+            <div class="rca-block-title" style="color: #a5b4fc;">Relevant Evidence</div>
+            <div class="evidence-list">
+                ${evidenceItems}
+            </div>
+        </div>
 
-                <div class="rca-block">
-                    <div class="rca-block-title" style="color: #a5b4fc;">Claim Provenance</div>
-                    <div class="claim-list">
-                        ${claimsHtml}
-                    </div>
-                </div>
+        <div class="rca-block">
+            <div class="rca-block-title" style="color: #a5b4fc;">Claim Provenance</div>
+            <div class="claim-list">
+                ${claimsHtml}
+            </div>
+        </div>
 
-                <div class="rca-block rca-remediation">
-                    <div class="rca-block-title" style="color: #a5b4fc;">Remediation Recommendation</div>
-                    <div class="rca-block-body">${res.remediation}</div>
-                </div>
-            `;
+        <div class="rca-block rca-remediation" style="margin-top: 12px;">
+            <div class="rca-block-title" style="color: #a5b4fc;">Remediation Recommendation</div>
+            <div class="rca-block-body">${res.remediation}</div>
+        </div>
+      `;
+    }
+
+    // Render list items on the sidebar
+    results.forEach((res, index) => {
+      const severityClass =
+        res.severity === "CRITICAL"
+          ? "rca-badge-critical"
+          : res.severity === "HIGH"
+            ? "rca-badge-high"
+            : "rca-badge-healthy";
+
+      const podName = res.id || res.title.split(" ").pop() || "Service";
+
+      const item = document.createElement("div");
+      item.className = "incident-list-item";
+      item.innerHTML = `
+        <div class="incident-item-header">
+          <span class="incident-item-name">${podName}</span>
+          <span class="rca-badge ${severityClass}" style="font-size: 8px; padding: 2px 4px;">${res.severity}</span>
+        </div>
+        <div class="incident-item-title">${res.title}</div>
+      `;
+
+      item.addEventListener("click", () => selectIncident(index));
+      listContainer.appendChild(item);
     });
 
-    rcaHtml += "</div>";
-    rcaOutput.innerHTML = rcaHtml;
+    // Select the first incident by default
+    selectIncident(0);
   }
 
   // Register investigation capability globally

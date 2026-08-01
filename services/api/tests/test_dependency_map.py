@@ -23,8 +23,7 @@ def test_dependency_map_traces_success(monkeypatch):
     """Test dependency builder when traces are present in database."""
     # Mock execute_query to return relationships on first (trace) query
 
-    # pylint: disable=unused-argument
-    def mock_query(query, params=None):
+    def mock_query(query, _params=None):
         if "t2.parentSpanId = t1.spanId" in query:
             return [{"relationships_created": 5}]
         return [{"relationships_created": 0}]
@@ -39,8 +38,7 @@ def test_dependency_map_env_variables_fallback(monkeypatch):
     """Test dependency builder falling back to environment variable match."""
     # Mock execute_query to return 0 on trace query, but 3 on env query
 
-    # pylint: disable=unused-argument
-    def mock_query(query, params=None):
+    def mock_query(query, _params=None):
         if "t2.parentSpanId = t1.spanId" in query:
             return [{"relationships_created": 0}]
         if "p1.env IS NOT NULL" in query:
@@ -57,8 +55,7 @@ def test_dependency_map_conventions_fallback(monkeypatch):
     """Test dependency builder falling back to service name conventions."""
     # Mock execute_query to return 0 on traces/env query, but 2 on convention query
 
-    # pylint: disable=unused-argument
-    def mock_query(query, params=None):
+    def mock_query(query, _params=None):
         if "t2.parentSpanId = t1.spanId" in query:
             return [{"relationships_created": 0}]
         if "p1.env IS NOT NULL" in query:

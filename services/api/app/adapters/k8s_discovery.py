@@ -288,6 +288,24 @@ def _get_pod_env_vars(pod) -> list:
     return env_vars
 
 
+def _resolve_pod_status(pod) -> str:
+    """Resolve true pod status including container-level failures."""
+    status = pod.status.phase if pod.status else "Unknown"
+    if not pod.status:
+        return status
+    all_statuses = (pod.status.container_statuses or []) + (
+        pod.status.init_container_statuses or []
+    )
+    for cs in all_statuses:
+        if not cs.state:
+            continue
+        if cs.state.waiting:
+            return cs.state.waiting.reason or "Waiting"
+        if cs.state.terminated:
+            return cs.state.terminated.reason or "Terminated"
+    return status
+
+
 def _discover_pods(v1, namespace) -> list:
     pods_discovered = []
     try:
@@ -301,7 +319,7 @@ def _discover_pods(v1, namespace) -> list:
             pod_uid = pod.metadata.uid
             ns = pod.metadata.namespace
             node_name = pod.spec.node_name if pod.spec else "unknown"
-            status = pod.status.phase if pod.status else "Unknown"
+            status = _resolve_pod_status(pod)
             pod_ip = pod.status.pod_ip if pod.status else "unknown"
 
             env_vars = _get_pod_env_vars(pod)

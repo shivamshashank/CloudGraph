@@ -212,7 +212,7 @@ This roadmap is intended for a journal submission and for a polished demo/UI-dri
 - [x] Complete the end-to-end GraphRAG + Multi-Agent pipeline in a research-grade way
 - [x] Introduce Graph-Provenance Claim Scoring (GPCS) as a completed algorithm
 - [x] Add the LLM Context Explorer UI and backend comparison endpoint
-- [x] Seed dynamic incident scenario dataset with ground truth labels (10 scenarios)
+- [x] Seed dynamic incident scenario dataset with ground truth labels (25 scenarios)
 - [x] Build baseline comparison algorithms in benchmark engine
 - [~] Execute full statistical evaluation (T-Test, human evaluation, and statistical significance checks remain unstarted)
 - [ ] Complete dissertation chapters aligned to RQ1–RQ4
@@ -248,7 +248,7 @@ This roadmap is intended for a journal submission and for a polished demo/UI-dri
 
 ### Evaluation tasks completed
 
-- [x] 10 scenario benchmark dataset with balanced categories and ground truth claims
+- [x] 25 scenario benchmark dataset with balanced categories and ground truth claims
 - [x] Ablation configurations (Keyword, Vector RAG, GraphRAG, Agents, GCP, GPCS) implemented in benchmark
 - [x] Metrics (accuracy, precision, recall, F1, latency, hallucination rate) calculated dynamically in the benchmark API
 - [ ] Human evaluation (usefulness, trustworthiness, explainability, inter-rater agreement)

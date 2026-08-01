@@ -1,9 +1,9 @@
 {
-  "python.defaultInterpreterPath": "${workspaceFolder}/backend/.venv/bin/python",
-  "python.interpreterPath": "${workspaceFolder}/backend/.venv/bin/python",
+  "python.defaultInterpreterPath": "${workspaceFolder}/services/api/.venv/bin/python",
+  "python.interpreterPath": "${workspaceFolder}/services/api/.venv/bin/python",
   "python.analysis.extraPaths": [
-    "${workspaceFolder}/backend",
-    "${workspaceFolder}/backend/tests"
+    "${workspaceFolder}/services/api",
+    "${workspaceFolder}/services/api/tests"
   ],
   "yaml.schemas": {
     "kubernetes": [

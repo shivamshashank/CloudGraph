@@ -1,8 +1,5 @@
 """Investigation Engine Service with AIOps agents analyzing cluster telemetry."""
 
-# pylint: disable=missing-function-docstring,broad-exception-caught
-# pylint: disable=duplicate-code
-
 import json
 import os
 import http.server
@@ -12,10 +9,17 @@ import requests
 
 try:
     from neo4j import GraphDatabase
+    from neo4j.exceptions import Neo4jError, ServiceUnavailable
 
     NEO4J_AVAILABLE = True
 except ImportError:
     NEO4J_AVAILABLE = False
+
+    class Neo4jError(Exception):
+        """Stub for neo4j.exceptions.Neo4jError when driver is unavailable."""
+
+    class ServiceUnavailable(Exception):
+        """Stub for neo4j.exceptions.ServiceUnavailable when driver is unavailable."""
 
 
 def call_llm(
@@ -128,6 +132,7 @@ class Neo4jClient:
         self.driver = None
 
     def connect(self):
+        """Establish connection to Neo4j database."""
         if not NEO4J_AVAILABLE:
             raise RuntimeError("neo4j driver not installed")
         if not self.driver:
@@ -137,6 +142,7 @@ class Neo4jClient:
         return self.driver
 
     def close(self):
+        """Close the Neo4j database connection driver."""
         if self.driver:
             self.driver.close()
             self.driver = None
@@ -144,6 +150,7 @@ class Neo4jClient:
     def execute_query(
         self, query: str, parameters: dict = None
     ) -> List[Dict[str, Any]]:
+        """Execute a Cypher query on the Neo4j database."""
         self.connect()
         with self.driver.session() as session:
             result = session.run(query, parameters or {})
@@ -181,7 +188,12 @@ def _call_llm_agent(
                 api_key=api_key,
                 model=llm_model,
             )
-    except Exception as exc:
+    except (
+        ValueError,
+        KeyError,
+        requests.RequestException,
+        json.JSONDecodeError,
+    ) as exc:
         print(f"LLM Agent call failed: {str(exc)}")
     return None
 
@@ -363,7 +375,7 @@ def run_monitoring_agent(
                         if "memory" in r["name"].lower() or "mem" in r["name"].lower()
                     ],
                 }
-    except Exception as exc:
+    except (RuntimeError, Neo4jError, ServiceUnavailable) as exc:
         finding = f"Monitoring metrics unreachable (offline fallback): {str(exc)}"
         confidence = 0.5
 
@@ -798,7 +810,7 @@ class InvestigationHandler(http.server.BaseHTTPRequestHandler):
                 try:
                     neo4j_client.connect()
                     neo4j_status = "connected"
-                except Exception:
+                except (RuntimeError, Neo4jError, ServiceUnavailable):
                     neo4j_status = "offline"
             self._send_json(
                 200,
@@ -897,6 +909,7 @@ InvestigationHandler.do_POST = InvestigationHandler.do_post
 
 
 def run_server(port: int):
+    """Run the HTTP server on the specified port."""
     socketserver.TCPServer.allow_reuse_address = True
     with socketserver.TCPServer(("", port), InvestigationHandler) as httpd:
         print(f"Serving real investigation engine on port {port}")

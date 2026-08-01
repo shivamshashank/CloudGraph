@@ -33,7 +33,7 @@ This document is the single source of truth for the current implementation statu
   - Exposes context comparison route (`POST /api/v1/investigations/context-comparison`) to compare keyword, vector, hybrid, and agent context modes.
   - Automated tests in [test_graphrag_validation.py](file:///Users/shivam_shashank/CloudGraph/services/api/tests/test_graphrag_validation.py) assert ranking metrics and search latency constraints (<100ms).
 - **Telemetry & OpenTelemetry Ingestion Pipeline**:
-  - Active ingestion endpoints (`/api/v1/telemetry/traces`, `/metrics`, `/logs`, `/security`, `/chaos`) are implemented in [telemetry.py](file:///Users/shivam_shashank/CloudGraph/services/api/app/routers/telemetry.py).
+  - Active ingestion endpoints (`/api/v1/telemetry/traces`, `/api/v1/telemetry/metrics`, `/api/v1/telemetry/logs`, `/api/v1/telemetry/security`, `/api/v1/telemetry/chaos`) are implemented in [telemetry.py](file:///Users/shivam_shashank/CloudGraph/services/api/app/routers/telemetry.py).
   - OpenTelemetry Collector configuration is defined in the Helm values and K8s manifests, using `otlphttp` exporters to stream data to the API.
   - Parent-child span mapping is implemented in [graph_constructor.py](file:///Users/shivam_shashank/CloudGraph/services/api/app/adapters/graph_constructor.py) to build service dependency maps.
 - **Go CLI Deployment Engine (`cmd/cloudgraph`)**:
@@ -68,7 +68,7 @@ This document is the single source of truth for the current implementation statu
 - **Multi-Cluster & Native Cloud Provider Discovery**:
   - Cluster topology discovery in [k8s_discovery.py](file:///Users/shivam_shashank/CloudGraph/services/api/app/adapters/k8s_discovery.py) is limited to local cluster queries via kubeconfig. SDK integrations for native cloud provider APIs (AWS EKS, GCP GKE, Azure AKS) and multi-cluster federation are absent.
 - **True End-to-End Evaluation & Ablation Studies**:
-  - The benchmark endpoint in [routers/benchmark.py](file:///Users/shivam_shashank/CloudGraph/services/api/app/routers/benchmark.py) exposes a dataset of 10 scenarios but relies on heuristic calculators (`_calc_kw`, `_calc_vector`, etc.) that return simulated metric offsets. It does not invoke true LLM prompts or run the actual retrieval pipelines across the dataset.
+  - The benchmark endpoint in [routers/benchmark.py](file:///Users/shivam_shashank/CloudGraph/services/api/app/routers/benchmark.py) exposes a dataset of 25 scenarios but relies on heuristic calculators (`_calc_kw`, `_calc_vector`, etc.) that return simulated metric offsets. It does not invoke true LLM prompts or run the actual retrieval pipelines across the dataset.
   - Formal human evaluation scoring, Cohen's Kappa agreements, and statistical significance checks (T-Test, Wilcoxon Test) are not implemented in code.
 - **Dissertation Chapter Writing**:
   - The repository contains only the structural outline file [dissertation-evidence.md](file:///Users/shivam_shashank/CloudGraph/docs/week-1/dissertation-evidence.md). The actual draft text files for the chapters are missing/blank.
@@ -77,6 +77,6 @@ This document is the single source of truth for the current implementation statu
 
 ## 📝 Notes & Consistency Discrepancies
 
-1. **LangGraph vs. Custom HTTP**: The documentation and roadmap refer to the multi-agent pipeline being built on LangGraph. In the code, there are no LangGraph or LangChain imports; the orchestrator is a custom Python HTTP server forwarding JSON payloads.
+1. **Custom HTTP Agent Orchestrator**: The multi-agent pipeline is orchestrated via a custom Python HTTP server and consensus engine. Fictional references to LangGraph in roadmaps and guides have been updated to align with this custom HTTP design.
 2. **Redis Cache**: Redis caching has been completely removed from the chart dependencies, configurations, and documentation to keep the stack lean.
 3. **Security Caution**: The LLM settings panel (`/api/v1/settings`) does not implement API authentication or authorization. LLM API keys (OpenAI, Gemini, Claude) are sent from browser settings to the unauthenticated backend, posing credential exposure risks.

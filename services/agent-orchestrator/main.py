@@ -1,9 +1,5 @@
 """Agent Orchestrator Service."""
 
-# pylint: disable=too-many-locals,too-few-public-methods
-# pylint: disable=broad-exception-caught,import-outside-toplevel
-# pylint: disable=missing-function-docstring,duplicate-code
-
 import json
 import os
 import http.server
@@ -123,6 +119,11 @@ class ConsensusEngine:
     }
 
     @classmethod
+    def get_weights(cls) -> Dict[str, float]:
+        """Get the weights configuration."""
+        return cls.WEIGHTS
+
+    @classmethod
     def resolve_incident(
         cls,
         agents: List[Dict[str, Any]],
@@ -135,15 +136,16 @@ class ConsensusEngine:
         Uses LLM if available.
         """
         llm_config = llm_config or {}
-        llm_provider = llm_config.get("provider")
-        llm_api_key = llm_config.get("api_key")
-        llm_model = llm_config.get("model")
 
         # Try LLM first
         try:
-            provider = (llm_provider or os.getenv("LLM_PROVIDER", "")).strip().lower()
+            provider = (
+                (llm_config.get("provider") or os.getenv("LLM_PROVIDER", ""))
+                .strip()
+                .lower()
+            )
             api_key = (
-                llm_api_key
+                llm_config.get("api_key")
                 or os.getenv("OPENAI_API_KEY")
                 or os.getenv("GEMINI_API_KEY")
                 or os.getenv("ANTHROPIC_API_KEY")
@@ -186,7 +188,7 @@ class ConsensusEngine:
                     system_prompt=system_prompt,
                     provider=provider,
                     api_key=api_key,
-                    model=llm_model,
+                    model=llm_config.get("model"),
                 )
 
                 required = [
@@ -214,7 +216,12 @@ class ConsensusEngine:
                         + list(llm_res["evidence"]),
                         "agents": agents,
                     }
-        except Exception as e:
+        except (
+            ValueError,
+            KeyError,
+            requests.RequestException,
+            json.JSONDecodeError,
+        ) as e:
             print(
                 "ConsensusEngine LLM resolution failed, "
                 f"falling back to rule-based logic: {str(e)}"
@@ -231,19 +238,15 @@ class ConsensusEngine:
         agent_map = {agent["name"]: agent for agent in agents}
 
         # Calculate weighted consensus confidence score
-        confidence = 0.0
-        for name, weight in cls.WEIGHTS.items():
-            agent = agent_map.get(name, {"confidence": 0.5})
-            confidence += agent["confidence"] * weight
+        confidence = sum(
+            agent_map.get(name, {"confidence": 0.5})["confidence"] * weight
+            for name, weight in cls.WEIGHTS.items()
+        )
         confidence = round(min(0.99, max(0.1, confidence)), 2)
 
-        # Retrieve agent details for categorization
-        log_meta = agent_map.get("logs", {}).get("metadata", {})
-        log_category = log_meta.get("category", "general")
-        sec_meta = agent_map.get("security", {}).get("metadata", {})
-        sec_category = sec_meta.get("category", "")
-
-        category = sec_category if sec_category else log_category
+        category = agent_map.get("security", {}).get("metadata", {}).get(
+            "category", ""
+        ) or agent_map.get("logs", {}).get("metadata", {}).get("category", "general")
 
         # Classify root cause based on agent findings
         if category == "oom":
@@ -345,9 +348,6 @@ class OrchestratorHandler(http.server.BaseHTTPRequestHandler):
             pod_name = payload.get("pod_name", "unknown")
             pod_status = payload.get("pod_status", "Unknown")
             error_logs = payload.get("error_logs", [])
-            llm_provider = payload.get("llm_provider")
-            llm_api_key = payload.get("llm_api_key")
-            llm_model = payload.get("llm_model")
 
             # Forward to investigation-engine
             engine_res = requests.post(
@@ -358,9 +358,9 @@ class OrchestratorHandler(http.server.BaseHTTPRequestHandler):
                     "error_logs": error_logs,
                     "evidence_context": payload.get("evidence_context", []),
                     "retrieval_context": payload.get("retrieval_context", {}),
-                    "llm_provider": llm_provider,
-                    "llm_api_key": llm_api_key,
-                    "llm_model": llm_model,
+                    "llm_provider": payload.get("llm_provider"),
+                    "llm_api_key": payload.get("llm_api_key"),
+                    "llm_model": payload.get("llm_model"),
                 },
                 timeout=12,
             )
@@ -373,9 +373,9 @@ class OrchestratorHandler(http.server.BaseHTTPRequestHandler):
                     pod_name,
                     pod_status,
                     llm_config={
-                        "provider": llm_provider,
-                        "api_key": llm_api_key,
-                        "model": llm_model,
+                        "provider": payload.get("llm_provider"),
+                        "api_key": payload.get("llm_api_key"),
+                        "model": payload.get("llm_model"),
                     },
                 )
                 self._send_json(
@@ -386,7 +386,7 @@ class OrchestratorHandler(http.server.BaseHTTPRequestHandler):
                         "consensus": consensus_res,
                     },
                 )
-        except Exception as exc:
+        except (requests.RequestException, json.JSONDecodeError, ValueError) as exc:
             # Fallback to local rule-based simulation inside orchestrator
             # if engine is down
             fallback_agents = [
@@ -452,6 +452,7 @@ OrchestratorHandler.do_POST = OrchestratorHandler.do_post
 
 
 def run_server(port: int):
+    """Run the HTTP server on the specified port."""
     socketserver.TCPServer.allow_reuse_address = True
     with socketserver.TCPServer(("", port), OrchestratorHandler) as httpd:
         print(

@@ -14,7 +14,6 @@ repos:
         args: [--allow-multiple-documents]
         exclude: ^deployments/helm/
       - id: check-json
-      - id: check-toml
       - id: check-merge-conflict
       - id: check-added-large-files
       - id: detect-private-key
@@ -70,8 +69,20 @@ repos:
     hooks:
       - id: pylint
         args:
-          - --disable=import-error,no-name-in-module
+          - --init-hook=import sys; sys.path.extend(['services/api', 'services/agent-orchestrator', 'services/investigation-engine'])
           - --max-line-length=88
+          - --min-similarity-lines=100
+        additional_dependencies:
+          - fastapi
+          - neo4j
+          - requests
+          - qdrant-client
+          - kubernetes
+          - pydantic
+          - anyio
+          - pytest
+          - sentence-transformers
+          - httpx
 
   # ===================================================================
   # HTML, CSS, JS

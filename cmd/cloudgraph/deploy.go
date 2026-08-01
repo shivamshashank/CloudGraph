@@ -1009,6 +1009,24 @@ func waitForDeployment() {
 	printHeader("Waiting for CloudGraph pods to be ready")
 	_ = runCmd("kubectl", "wait", "--for=condition=available", "--timeout=600s",
 		"deployment", "-l", "app.kubernetes.io/instance=cloudgraph", "-n", "cloudgraph-system")
+
+	// Wait for Qdrant StatefulSet if it exists in the namespace
+	if err := exec.Command("kubectl", "get", "statefulset", "cloudgraph-qdrant", "-n", "cloudgraph-system").Run(); err == nil {
+		printInfo("Waiting for Qdrant database to be ready...")
+		_ = runCmd("kubectl", "rollout", "status", "statefulset/cloudgraph-qdrant", "-n", "cloudgraph-system", "--timeout=300s")
+	}
+
+	// Wait for Neo4j StatefulSet if it exists in the namespace (discover the statefulset name dynamically)
+	if out, err := exec.Command("kubectl", "get", "statefulset", "-n", "cloudgraph-system", "-o", "jsonpath={.items[*].metadata.name}").Output(); err == nil {
+		names := strings.Fields(string(out))
+		for _, name := range names {
+			if strings.Contains(name, "neo4j") {
+				printInfo(fmt.Sprintf("Waiting for Neo4j database rollout (%s)...", name))
+				_ = runCmd("kubectl", "rollout", "status", "statefulset/"+name, "-n", "cloudgraph-system", "--timeout=300s")
+			}
+		}
+	}
+
 	printSuccess("CloudGraph pods are ready")
 }
 

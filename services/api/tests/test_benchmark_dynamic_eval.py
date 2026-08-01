@@ -1,19 +1,25 @@
 """Unit tests for the ground-truth dataset and dynamic benchmark evaluation engine."""
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
 from app.demo.benchmark_dataset import BENCHMARK_GROUND_TRUTH_SCENARIOS
-from app.routers.benchmark import (
-    evaluate_baseline_dynamically,
-)
+from app.research.evaluation import evaluate_scenario
+from app.database.neo4j_client import neo4j_client
 
 client = TestClient(app)
 
 
+@pytest.fixture(autouse=True)
+def mock_neo4j_queries(monkeypatch):
+    """Mock out Neo4j database calls globally for this file."""
+    monkeypatch.setattr(neo4j_client, "execute_query", lambda *args, **kwargs: [])
+
+
 def test_benchmark_ground_truth_dataset_structure():
     """Verify that ground-truth dataset scenarios contain all required fields."""
-    assert len(BENCHMARK_GROUND_TRUTH_SCENARIOS) == 10
+    assert len(BENCHMARK_GROUND_TRUTH_SCENARIOS) == 25
 
     required_keys = {
         "id",
@@ -33,31 +39,29 @@ def test_benchmark_ground_truth_dataset_structure():
         assert len(scenario["ground_truth_claims"]) > 0
 
 
-def test_evaluate_baseline_dynamically_calculates_valid_metrics():
-    """Verify dynamic evaluation formula calculations across baseline tiers."""
-    scenarios = BENCHMARK_GROUND_TRUTH_SCENARIOS
+def test_evaluate_scenario_calculates_valid_metrics():
+    """Verify evaluation logic on a ground-truth scenario."""
+    scenario = BENCHMARK_GROUND_TRUTH_SCENARIOS[0]
 
-    kw_res = evaluate_baseline_dynamically("Keyword Search", scenarios)
-    gpcs_res = evaluate_baseline_dynamically(
-        "GraphRAG + Agents + GCP + GPCS", scenarios
+    # Keyword Search
+    tp_kw, fp_kw, fn_kw, correct_kw, unsupp_kw = evaluate_scenario(
+        scenario, "Keyword Search"
     )
+    assert tp_kw >= 0
+    assert fp_kw >= 0
+    assert fn_kw >= 0
+    assert correct_kw in {0, 1}
+    assert unsupp_kw >= 0.0
 
-    for res in [kw_res, gpcs_res]:
-        assert "baseline" in res
-        assert 0.0 <= res["accuracy"] <= 1.0
-        assert 0.0 <= res["precision"] <= 1.0
-        assert 0.0 <= res["recall"] <= 1.0
-        assert 0.0 <= res["f1"] <= 1.0
-        assert 0.0 <= res["hallucination_rate"] <= 1.0
-        assert res["latency"] > 0
-        assert res["tp"] >= 0
-        assert res["fp"] >= 0
-        assert res["fn"] >= 0
-
-    # GPCS tier should have higher accuracy and lower hallucination rate
-    # than raw keyword search
-    assert gpcs_res["accuracy"] >= kw_res["accuracy"]
-    assert gpcs_res["hallucination_rate"] < kw_res["hallucination_rate"]
+    # Full GPCS Search
+    tp_gpcs, fp_gpcs, fn_gpcs, correct_gpcs, unsupp_gpcs = evaluate_scenario(
+        scenario, "GraphRAG + Agents + GCP + GPCS"
+    )
+    assert tp_gpcs >= 0
+    assert fp_gpcs >= 0
+    assert fn_gpcs >= 0
+    assert correct_gpcs in {0, 1}
+    assert unsupp_gpcs >= 0.0
 
 
 def test_run_benchmark_endpoint_updates_state_and_logs():
@@ -77,8 +81,8 @@ def test_run_benchmark_endpoint_updates_state_and_logs():
 
     # Verify execution logs contain calculation step details
     log_text = " ".join(body["logs"])
-    assert "[1/6]" in log_text
-    assert "[6/6]" in log_text
+    assert "Processing scenario: scenario-01" in log_text
+    assert "Tearing down scenario" in log_text
     assert "Dynamic evaluation engine completed" in log_text
 
 

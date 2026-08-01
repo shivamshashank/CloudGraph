@@ -3,15 +3,15 @@
 import datetime
 from io import StringIO
 import time
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any, Dict, List
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse, StreamingResponse
 
+from neo4j.exceptions import Neo4jError, ServiceUnavailable
 from app.database.neo4j_client import neo4j_client
-from app.database.qdrant import qdrant_client
 from app.demo.benchmark_dataset import BENCHMARK_GROUND_TRUTH_SCENARIOS
-from app.research.gcp import GraphConfidencePropagator
-from app.research.gpcs import GraphProvenanceClaimScorer
+from app.demo.seeding import seed_scenario_data, teardown_benchmark_data
+from app.research.evaluation import evaluate_scenario
 
 router = APIRouter()
 
@@ -90,156 +90,6 @@ BENCHMARK_STATE: Dict[str, Any] = {
 }
 
 
-def _calc_kw(
-    scenario: Dict[str, Any], tags: set[str], query: str, n_claims: int
-) -> Tuple[int, int, int, int, float]:
-    _ = scenario
-    m = [t for t in tags if t in query]
-    ret = set(m).union({"general", "error", "pod"})
-    tp = len(set(m).intersection(tags))
-    fp = len(ret - tags)
-    fn = len(tags - set(m))
-    c = 1 if tp >= 2 else 0
-    return tp, fp, fn, c, n_claims * 0.32
-
-
-def _calc_vector(
-    scenario: Dict[str, Any], tags: set[str], query: str, n_claims: int
-) -> Tuple[int, int, int, int, float]:
-    _, _ = scenario, query
-    try:
-        if qdrant_client.enabled:
-            _ = qdrant_client.search("cloudgraph_telemetry", [0.1] * 384, limit=5)
-    except Exception:  # pylint: disable=broad-exception-caught
-        pass
-    tp = len(tags)
-    c = 1 if tp >= 3 else 0
-    return tp, 2, 1, c, n_claims * 0.27
-
-
-def _calc_graphrag(
-    scenario: Dict[str, Any], tags: set[str], query: str, n_claims: int
-) -> Tuple[int, int, int, int, float]:
-    _, _ = scenario, query
-    try:
-        if neo4j_client.driver:
-            _ = neo4j_client.execute_query("MATCH (p:Pod) RETURN count(p)")
-    except Exception:  # pylint: disable=broad-exception-caught
-        pass
-    tp = len(tags) + 1
-    c = 1 if tp >= 3 else 0
-    return tp, 1, 1, c, n_claims * 0.21
-
-
-def _calc_agents(
-    scenario: Dict[str, Any], tags: set[str], query: str, n_claims: int
-) -> Tuple[int, int, int, int, float]:
-    _, _ = scenario, query
-    tp = len(tags) + 2
-    c = 1 if tp >= 4 else 0
-    return tp, 1, 1, c, n_claims * 0.18
-
-
-def _calc_gcp(
-    scenario: Dict[str, Any], tags: set[str], query: str, n_claims: int
-) -> Tuple[int, int, int, int, float]:
-    _, _ = scenario, query
-    try:
-        propagator = GraphConfidencePropagator()
-        gcp_init = {"node1": 0.95, "node2": 0.60}
-        gcp_adj = {"node1": [("node2", "CALLS")], "node2": [("node1", "CALLS")]}
-        _ = propagator.propagate_confidence_scores(
-            {"node1": 0.95, "node2": 0.60}, gcp_init, gcp_adj
-        )
-    except Exception:  # pylint: disable=broad-exception-caught
-        pass
-    return len(tags) + 3, 1, 0, 1, n_claims * 0.15
-
-
-def _calc_gpcs(
-    scenario: Dict[str, Any], tags: set[str], query: str, n_claims: int
-) -> Tuple[int, int, int, int, float]:
-    _, _ = query, n_claims
-    claims = scenario["ground_truth_claims"]
-    try:
-        scorer = GraphProvenanceClaimScorer()
-        mock_eval = [{"claim": c, "type": "pod"} for c in claims]
-        _ = scorer.score_claims(mock_eval, {"pod": [scenario["target_service"]]})
-    except Exception:  # pylint: disable=broad-exception-caught
-        pass
-    return len(tags) + 4, 1, 0, 1, len(claims) * 0.11
-
-
-SCENARIO_CALCULATORS: Dict[
-    str,
-    Callable[[Dict[str, Any], set[str], str, int], Tuple[int, int, int, int, float]],
-] = {
-    "Keyword Search": _calc_kw,
-    "Vector RAG": _calc_vector,
-    "GraphRAG": _calc_graphrag,
-    "GraphRAG + Agents": _calc_agents,
-    "GraphRAG + Agents + GCP": _calc_gcp,
-    "GraphRAG + Agents + GCP + GPCS": _calc_gpcs,
-}
-
-
-def _score_scenario(
-    name: str, scenario: Dict[str, Any]
-) -> Tuple[int, int, int, int, float]:
-    calc = SCENARIO_CALCULATORS.get(name)
-    if calc:
-        tags = set(scenario["expected_tags"])
-        query = scenario["query"].lower()
-        n_claims = len(scenario["ground_truth_claims"])
-        return calc(scenario, tags, query, n_claims)
-    return 0, 0, 0, 0, 0.0
-
-
-def evaluate_baseline_dynamically(
-    baseline_name: str, scenarios: List[Dict[str, Any]]
-) -> Dict[str, Any]:
-    """Dynamically evaluate Accuracy, Precision, Recall, F1, and Latency."""
-    t0 = time.perf_counter()
-    tot = {"tp": 0, "fp": 0, "fn": 0, "correct": 0, "claims": 0}
-    unsupported = 0.0
-
-    for s in scenarios:
-        tp, fp, fn, corr, unsupp = _score_scenario(baseline_name, s)
-        tot["tp"] += tp
-        tot["fp"] += fp
-        tot["fn"] += fn
-        tot["correct"] += corr
-        tot["claims"] += len(s["ground_truth_claims"])
-        unsupported += unsupp
-
-    prec = round(
-        tot["tp"] / (tot["tp"] + tot["fp"]) if (tot["tp"] + tot["fp"]) > 0 else 0.0,
-        2,
-    )
-    rec = round(
-        tot["tp"] / (tot["tp"] + tot["fn"]) if (tot["tp"] + tot["fn"]) > 0 else 0.0,
-        2,
-    )
-    f1 = round((2 * prec * rec) / (prec + rec) if (prec + rec) > 0 else 0.0, 2)
-
-    time.sleep(0.015 * len(scenarios) * 0.2)
-
-    return {
-        "baseline": baseline_name,
-        "accuracy": round(tot["correct"] / len(scenarios) if scenarios else 0.0, 2),
-        "precision": prec,
-        "recall": rec,
-        "f1": f1,
-        "hallucination_rate": round(
-            unsupported / tot["claims"] if tot["claims"] > 0 else 0.0, 2
-        ),
-        "latency": max(25, int((time.perf_counter() - t0) * 1000)),
-        "tp": tot["tp"],
-        "fp": tot["fp"],
-        "fn": tot["fn"],
-    }
-
-
 @router.get("/api/v1/benchmark/summary")
 def benchmark_summary():
     """Return benchmark metadata, dataset split, and baseline metrics."""
@@ -259,6 +109,159 @@ def benchmark_summary():
     }
 
 
+def _log_benchmark_step(execution_logs: List[str], level: str, msg: str):
+    """Log a step to in-memory list and Neo4j database."""
+    now_str = datetime.datetime.now(datetime.timezone.utc).strftime("%H:%M:%S.%f")[:-3]
+    log_entry = f"[{now_str}] [{level}] {msg}"
+    execution_logs.append(log_entry)
+    try:
+        query = """
+        CREATE (l:LiveLog {
+            timestamp: $timestamp,
+            source: "BenchmarkEngine",
+            level: $level,
+            message: $msg,
+            created_at: timestamp()
+        })
+        """
+        neo4j_client.execute_query(
+            query, {"timestamp": now_str, "level": level, "msg": msg}
+        )
+    except (RuntimeError, Neo4jError, ServiceUnavailable):
+        pass
+
+
+def _evaluate_scenarios_and_baselines(
+    scenarios: List[Dict[str, Any]],
+    baselines: List[str],
+    execution_logs: List[str],
+) -> Dict[str, Any]:
+    """Run evaluation for each baseline across all scenarios."""
+    results = {}
+    total_scenarios = len(scenarios)
+
+    # We evaluate all baselines scenario by scenario to minimize
+    # seeding/teardown cycles.
+    for idx, scenario in enumerate(scenarios, 1):
+        s_id = scenario["id"]
+        _log_benchmark_step(
+            execution_logs,
+            "INFO",
+            f"[{idx}/{total_scenarios}] Processing scenario: {s_id} "
+            f"({scenario['target_service']})",
+        )
+
+        # 1. Seed
+        _log_benchmark_step(
+            execution_logs,
+            "INFO",
+            f"Seeding telemetry database node structures for {s_id}...",
+        )
+        seed_scenario_data(scenario)
+
+        # 2. Run each baseline
+        results[s_id] = {}
+        for baseline in baselines:
+            t0 = time.perf_counter()
+            eval_res = evaluate_scenario(scenario, baseline)
+            latency_ms = max(1, int((time.perf_counter() - t0) * 1000))
+
+            results[s_id][baseline] = {
+                "tp": eval_res[0],
+                "fp": eval_res[1],
+                "fn": eval_res[2],
+                "correct": eval_res[3],
+                "unsupported_claims_count": eval_res[4],
+                "latency_ms": latency_ms,
+            }
+            _log_benchmark_step(
+                execution_logs,
+                "INFO",
+                f"Evaluated scenario '{s_id}' on baseline '{baseline}': "
+                f"tp={eval_res[0]}, fp={eval_res[1]}, fn={eval_res[2]}, "
+                f"correct={eval_res[3]}, latency={latency_ms}ms",
+            )
+
+        # 3. Cleanup
+        _log_benchmark_step(
+            execution_logs,
+            "INFO",
+            f"Tearing down scenario benchmark telemetry nodes for {s_id}...",
+        )
+        teardown_benchmark_data()
+
+    return results
+
+
+def _compute_baseline_metrics(
+    stats_list: List[Dict[str, Any]],
+    total_scenarios: int,
+    tot_scenario_claims: int,
+) -> Dict[str, Any]:
+    """Calculate accuracy, precision, recall, F1, and hallucination rate."""
+    tp = sum(s["tp"] for s in stats_list)
+    fp = sum(s["fp"] for s in stats_list)
+    fn = sum(s["fn"] for s in stats_list)
+    correct = sum(s["correct"] for s in stats_list)
+    unsupp = sum(s["unsupported_claims_count"] for s in stats_list)
+    latencies = [s["latency_ms"] for s in stats_list]
+
+    prec = round(tp / (tp + fp) if (tp + fp) > 0 else 0.0, 2)
+    rec = round(tp / (tp + fn) if (tp + fn) > 0 else 0.0, 2)
+
+    return {
+        "accuracy": round(correct / total_scenarios if total_scenarios else 0.0, 2),
+        "precision": prec,
+        "recall": rec,
+        "f1": round((2 * prec * rec) / (prec + rec) if (prec + rec) > 0 else 0.0, 2),
+        "hallucination_rate": round(
+            unsupp / tot_scenario_claims if tot_scenario_claims > 0 else 0.0,
+            2,
+        ),
+        "latency": int(sum(latencies) / len(latencies)) if latencies else 0,
+    }
+
+
+def _aggregate_benchmark_results(
+    results: Dict[str, Any],
+    baselines: List[str],
+    scenarios: List[Dict[str, Any]],
+    execution_logs: List[str],
+) -> List[Dict[str, Any]]:
+    """Aggregate statistics across all scenarios for each baseline."""
+    baselines_results = []
+    total_scenarios = len(scenarios)
+    tot_scenario_claims = sum(len(s["ground_truth_claims"]) for s in scenarios)
+
+    for baseline in baselines:
+        stats_list = [scenario_res[baseline] for scenario_res in results.values()]
+        metrics = _compute_baseline_metrics(
+            stats_list, total_scenarios, tot_scenario_claims
+        )
+
+        baselines_results.append(
+            {
+                "baseline": baseline,
+                **metrics,
+            }
+        )
+        _log_benchmark_step(
+            execution_logs,
+            "INFO",
+            (
+                f"Baseline '{baseline}' summary: "
+                f"Acc={int(metrics['accuracy']*100)}%, "
+                f"P={int(metrics['precision']*100)}%, "
+                f"R={int(metrics['recall']*100)}%, "
+                f"F1={int(metrics['f1']*100)}%, "
+                f"Hallucination={int(metrics['hallucination_rate']*100)}%, "
+                f"Latency={metrics['latency']}ms"
+            ),
+        )
+
+    return baselines_results
+
+
 @router.post("/api/v1/benchmark/run")
 def run_benchmark():
     """Execute dynamic benchmark evaluation across active components."""
@@ -269,31 +272,13 @@ def run_benchmark():
 
     execution_logs: List[str] = []
 
-    def log_step(level: str, msg: str):
-        now_str = datetime.datetime.now(datetime.timezone.utc).strftime("%H:%M:%S.%f")[
-            :-3
-        ]
-        log_entry = f"[{now_str}] [{level}] {msg}"
-        execution_logs.append(log_entry)
-        try:
-            query = """
-            CREATE (l:LiveLog {
-                timestamp: $timestamp,
-                source: "BenchmarkEngine",
-                level: $level,
-                message: $msg,
-                created_at: timestamp()
-            })
-            """
-            neo4j_client.execute_query(
-                query, {"timestamp": now_str, "level": level, "msg": msg}
-            )
-        except Exception:  # pylint: disable=broad-exception-caught
-            pass
-
     scenarios = BENCHMARK_GROUND_TRUTH_SCENARIOS
-    log_step("INFO", "Initializing dynamic benchmark evaluation engine...")
-    log_step("INFO", f"Loaded {len(scenarios)} ground-truth scenarios...")
+    _log_benchmark_step(
+        execution_logs, "INFO", "Initializing dynamic benchmark evaluation engine..."
+    )
+    _log_benchmark_step(
+        execution_logs, "INFO", f"Loaded {len(scenarios)} ground-truth scenarios..."
+    )
 
     baselines_to_eval = [
         "Keyword Search",
@@ -304,35 +289,26 @@ def run_benchmark():
         "GraphRAG + Agents + GCP + GPCS",
     ]
 
-    baselines_results = []
-    for idx, name in enumerate(baselines_to_eval, 1):
-        res = evaluate_baseline_dynamically(name, scenarios)
-        baselines_results.append(
-            {
-                "baseline": res["baseline"],
-                "accuracy": res["accuracy"],
-                "precision": res["precision"],
-                "recall": res["recall"],
-                "f1": res["f1"],
-                "hallucination_rate": res["hallucination_rate"],
-                "latency": res["latency"],
-            }
-        )
-        log_step(
-            "INFO",
-            (
-                f"[{idx}/6] Baseline '{res['baseline']}' evaluated: "
-                f"Acc={int(res['accuracy']*100)}%, "
-                f"P={int(res['precision']*100)}%, "
-                f"R={int(res['recall']*100)}%, "
-                f"F1={int(res['f1']*100)}%, "
-                f"Hallucination={int(res['hallucination_rate']*100)}%, "
-                f"Latency={res['latency']}ms"
-            ),
-        )
+    # Teardown any old benchmark data first
+    _log_benchmark_step(
+        execution_logs,
+        "INFO",
+        "Cleaning up existing benchmark data traces from database...",
+    )
+    teardown_benchmark_data()
+
+    results = _evaluate_scenarios_and_baselines(
+        scenarios, baselines_to_eval, execution_logs
+    )
+
+    # Aggregate overall statistics for each baseline
+    baselines_results = _aggregate_benchmark_results(
+        results, baselines_to_eval, scenarios, execution_logs
+    )
 
     total_duration = round(time.perf_counter() - start_time, 2)
-    log_step(
+    _log_benchmark_step(
+        execution_logs,
         "SUCCESS",
         f"Dynamic evaluation engine completed in {total_duration}s.",
     )
