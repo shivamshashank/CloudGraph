@@ -1,0 +1,6 @@
+gpcs_unsupported,True,True
+self_consistency_unsupported,False,True
+claim_type,,
+causal,1,0
+general,0,1
+state,3,1

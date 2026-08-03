@@ -50,71 +50,37 @@ class MockResponse:
             raise requests.HTTPError("Mock status error")
 
 
-def test_call_llm_providers(monkeypatch):
-    """Test call_llm support for OpenAI, Gemini, and Claude."""
+def test_call_llm_ollama(monkeypatch):
+    """Test call_llm against the local Ollama server — the only supported
+    provider now that CloudGraph runs entirely on local models."""
 
-    # 1. Test OpenAI
-    def mock_post_openai(url, headers, json, timeout=20):
-        assert "api.openai.com" in url
-        assert headers["Authorization"] == "Bearer sk-test-openai"
-        assert json["model"] == "gpt-4o-mini"
-        assert timeout == 20
-        res_content = '{"finding": "OpenAI Success", "confidence": 0.9}'
+    def mock_post_ollama(url, json, timeout=120, **_kwargs):
+        assert "/v1/chat/completions" in url
+        assert json["model"] == "llama3.1:8b"
+        assert timeout == 120
+        res_content = '{"finding": "Ollama Success", "confidence": 0.9}'
         return MockResponse({"choices": [{"message": {"content": res_content}}]})
 
-    monkeypatch.setattr(requests, "post", mock_post_openai)
+    monkeypatch.setattr(requests, "post", mock_post_ollama)
     res = investigation_main.call_llm(
         prompt="Test prompt",
-        provider="openai",
-        api_key="sk-test-openai",  # gitleaks:allow
-        model="gpt-4o-mini",
+        provider="ollama",
+        model="llama3.1:8b",
     )
-    assert res["finding"] == "OpenAI Success"
+    assert res["finding"] == "Ollama Success"
     assert res["confidence"] == 0.9
 
-    # 2. Test Gemini
-    def mock_post_gemini(url, headers, json, timeout=20):
-        assert "generativelanguage.googleapis.com" in url
-        assert headers["Authorization"] == "Bearer gemini-test-token"
-        assert json["model"] == "gemini-1.5-flash"
-        assert timeout == 20
-        res_content = '{"finding": "Gemini Success", "confidence": 0.8}'
-        return MockResponse({"choices": [{"message": {"content": res_content}}]})
-
-    monkeypatch.setattr(requests, "post", mock_post_gemini)
-    res = investigation_main.call_llm(
-        prompt="Test prompt",
-        provider="gemini",
-        api_key="gemini-test-token",  # gitleaks:allow
-        model="gemini-1.5-flash",
-    )
-    assert res["finding"] == "Gemini Success"
-    assert res["confidence"] == 0.8
-
-    # 3. Test Claude
-    def mock_post_claude(url, headers, json, timeout=20):
-        assert "api.anthropic.com" in url
-        assert headers["x-api-key"] == "claude-test-token"
-        assert json["model"] == "claude-3-5-sonnet-latest"
-        assert timeout == 20
-        res_content = '{"finding": "Claude Success", "confidence": 0.7}'
-        return MockResponse({"content": [{"text": res_content}]})
-
-    monkeypatch.setattr(requests, "post", mock_post_claude)
-    res = investigation_main.call_llm(
-        prompt="Test prompt",
-        provider="claude",
-        api_key="claude-test-token",  # gitleaks:allow
-        model="claude-3-5-sonnet-latest",
-    )
-    assert res["finding"] == "Claude Success"
-    assert res["confidence"] == 0.7
+    # No provider given defaults to "ollama" too.
+    monkeypatch.setattr(requests, "post", mock_post_ollama)
+    res = investigation_main.call_llm(prompt="Test prompt", model="llama3.1:8b")
+    assert res["finding"] == "Ollama Success"
 
 
-def test_call_llm_missing_api_key():
-    """Verify call_llm raises ValueError if API key is missing."""
-    with pytest.raises(ValueError, match="No API Key available"):
-        investigation_main.call_llm(prompt="test", provider="openai", api_key="")
+def test_call_llm_unsupported_provider():
+    """Verify call_llm rejects any provider other than "ollama" — cloud
+    providers were removed entirely, not just left unconfigured."""
+    with pytest.raises(ValueError, match="Unsupported LLM provider"):
+        investigation_main.call_llm(prompt="test", provider="openai")
 
 
 def test_monitoring_agent_reasoning_and_fallback(monkeypatch):
@@ -139,9 +105,9 @@ def test_monitoring_agent_reasoning_and_fallback(monkeypatch):
     )
 
     llm_config = {
-        "provider": "openai",
+        "provider": "ollama",
         "api_key": "test-mock-token",  # gitleaks:allow
-        "model": "gpt-4o",
+        "model": "llama3.1:8b",
     }
 
     mon_ai = run_monitoring_agent("test-pod", llm_config=llm_config)
@@ -168,9 +134,9 @@ def test_log_agent_reasoning_and_fallback(monkeypatch):
     )
 
     llm_config = {
-        "provider": "openai",
+        "provider": "ollama",
         "api_key": "test-mock-token",  # gitleaks:allow
-        "model": "gpt-4o",
+        "model": "llama3.1:8b",
     }
 
     # Mock LLM Success
@@ -207,9 +173,9 @@ def test_log_agent_reasoning_and_fallback(monkeypatch):
 def test_deployment_agent_reasoning_and_fallback(monkeypatch):
     """Test run_deployment_agent reasoning and rule fallback paths."""
     llm_config = {
-        "provider": "openai",
+        "provider": "ollama",
         "api_key": "test-mock-token",  # gitleaks:allow
-        "model": "gpt-4o",
+        "model": "llama3.1:8b",
     }
 
     # Mock LLM Success
@@ -254,9 +220,9 @@ def test_deployment_agent_reasoning_and_fallback(monkeypatch):
 def test_topology_agent_reasoning_and_fallback(monkeypatch):
     """Test run_topology_agent reasoning and rule fallback paths."""
     llm_config = {
-        "provider": "openai",
+        "provider": "ollama",
         "api_key": "test-mock-token",  # gitleaks:allow
-        "model": "gpt-4o",
+        "model": "llama3.1:8b",
     }
 
     # Mock LLM Success
@@ -300,9 +266,9 @@ def test_topology_agent_reasoning_and_fallback(monkeypatch):
 def test_security_agent_reasoning_and_fallback(monkeypatch):
     """Test run_security_agent reasoning and rule fallback paths."""
     llm_config = {
-        "provider": "openai",
+        "provider": "ollama",
         "api_key": "test-mock-token",  # gitleaks:allow
-        "model": "gpt-4o",
+        "model": "llama3.1:8b",
     }
 
     # Mock LLM Success
@@ -394,9 +360,9 @@ def test_consensus_engine_reasoning_and_fallback(monkeypatch):
         pod_name="billing-pod",
         pod_status="CrashLoopBackOff",
         llm_config={
-            "provider": "openai",
+            "provider": "ollama",
             "api_key": "test-mock-token",  # gitleaks:allow
-            "model": "gpt-4",
+            "model": "llama3.1:8b",
         },
     )
 

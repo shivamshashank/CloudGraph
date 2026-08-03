@@ -1,6 +1,7 @@
 """Unit tests for the ground-truth dataset and dynamic benchmark evaluation engine."""
 
 import pytest
+import requests
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -11,10 +12,51 @@ from app.research.evaluation import evaluate_scenario
 client = TestClient(app)
 
 
+class _FakeOrchestratorResponse:  # pylint: disable=too-few-public-methods
+    """Stand-in for requests.Response, used to mock the agent-orchestrator
+    HTTP boundary only — evaluate_scenario's own logic runs unmodified."""
+
+    def __init__(self, payload, status_code=200):
+        self._payload = payload
+        self.status_code = status_code
+
+    def json(self):
+        """Return the mocked orchestrator payload."""
+        return self._payload
+
+
+def _fake_orchestrator_post(*_args, **_kwargs):
+    return _FakeOrchestratorResponse(
+        {
+            "status": "success",
+            "consensus": {
+                "title": "Mock RCA",
+                "summary": "Mocked orchestrator consensus for unit testing.",
+                "cause": "Simulated root cause for unit test.",
+                "recommendation": "Investigate further.",
+                "severity": "CRITICAL",
+                "evidence": ["mock evidence line"],
+            },
+        }
+    )
+
+
 @pytest.fixture(autouse=True)
 def mock_neo4j_queries(monkeypatch):
     """Mock out Neo4j database calls globally for this file."""
     monkeypatch.setattr(neo4j_client, "execute_query", lambda *args, **kwargs: [])
+
+
+@pytest.fixture(autouse=True)
+def mock_agent_orchestrator(monkeypatch):
+    """Mock the live agent-orchestrator HTTP call at the network boundary so
+    'Agents' tiers can be exercised without a running orchestrator process.
+    evaluate_scenario must never fall back to fabricated ground-truth data
+    on its own — that contract is what individual tests below verify by
+    overriding this default (successful) mock where needed."""
+    monkeypatch.setattr(
+        "app.research.evaluation.requests.post", _fake_orchestrator_post
+    )
 
 
 def test_benchmark_ground_truth_dataset_structure():
@@ -43,7 +85,8 @@ def test_evaluate_scenario_calculates_valid_metrics():
     """Verify evaluation logic on a ground-truth scenario."""
     scenario = BENCHMARK_GROUND_TRUTH_SCENARIOS[0]
 
-    # Keyword Search
+    # Keyword Search generates no text/claims, so hallucination rate is
+    # undefined (None / N/A), not a fabricated number.
     tp_kw, fp_kw, fn_kw, correct_kw, unsupp_kw = evaluate_scenario(
         scenario, "Keyword Search"
     )
@@ -51,17 +94,50 @@ def test_evaluate_scenario_calculates_valid_metrics():
     assert fp_kw >= 0
     assert fn_kw >= 0
     assert correct_kw in {0, 1}
-    assert unsupp_kw >= 0.0
+    assert unsupp_kw is None
 
-    # Full GPCS Search
-    tp_gpcs, fp_gpcs, fn_gpcs, correct_gpcs, unsupp_gpcs = evaluate_scenario(
-        scenario, "GraphRAG + Agents + GCP + GPCS"
-    )
+    # Full GPCS Search: real orchestrator call (mocked at the HTTP boundary
+    # only) + real GCP propagation + real GPCS claim scoring.
+    result = evaluate_scenario(scenario, "GraphRAG + Agents + GCP + GPCS")
+    assert result is not None
+    tp_gpcs, fp_gpcs, fn_gpcs, correct_gpcs, unsupp_gpcs = result
     assert tp_gpcs >= 0
     assert fp_gpcs >= 0
     assert fn_gpcs >= 0
     assert correct_gpcs in {0, 1}
-    assert unsupp_gpcs >= 0.0
+    # GPCS scoring can itself fail open (returns None) in edge cases, but
+    # when it succeeds the rate must be a real non-negative measurement.
+    assert unsupp_gpcs is None or unsupp_gpcs >= 0.0
+
+
+def test_evaluate_scenario_excludes_when_orchestrator_unreachable(monkeypatch):
+    """An 'Agents' baseline must be excluded (return None), never fall back
+    to fabricating a result from the scenario's own ground truth, when the
+    agent-orchestrator cannot be reached."""
+
+    def _raise_connection_error(*_args, **_kwargs):
+        raise requests.exceptions.ConnectionError("mock: connection refused")
+
+    monkeypatch.setattr(
+        "app.research.evaluation.requests.post", _raise_connection_error
+    )
+
+    scenario = BENCHMARK_GROUND_TRUTH_SCENARIOS[0]
+    result = evaluate_scenario(scenario, "GraphRAG + Agents")
+    assert result is None
+
+
+def test_evaluate_scenario_excludes_on_non_200_orchestrator_response(monkeypatch):
+    """A non-200 orchestrator response must also exclude the result rather
+    than silently substitute fabricated data."""
+    monkeypatch.setattr(
+        "app.research.evaluation.requests.post",
+        lambda *a, **k: _FakeOrchestratorResponse({}, status_code=500),
+    )
+
+    scenario = BENCHMARK_GROUND_TRUTH_SCENARIOS[0]
+    result = evaluate_scenario(scenario, "GraphRAG + Agents + GCP")
+    assert result is None
 
 
 def test_run_benchmark_endpoint_updates_state_and_logs():

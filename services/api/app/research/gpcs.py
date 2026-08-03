@@ -35,97 +35,48 @@ def call_llm(
     api_key: str = "",
     model: str = "",
 ) -> dict[str, Any] | list[dict[str, Any]] | None:
-    """Execute direct LLM queries against OpenAI, Gemini, or Claude.
+    """Execute a direct LLM query against the local Ollama server.
 
-    Returns the parsed JSON response or None on failure.
+    CloudGraph runs entirely on local models via Ollama — no cloud LLM
+    provider is supported. Returns the parsed JSON response, or None on
+    failure (unsupported provider, unreachable server, malformed response).
     """
-    provider = (provider or os.getenv("LLM_PROVIDER", "openai")).lower().strip()
-    api_key = (
-        api_key
-        or os.getenv("OPENAI_API_KEY")
-        or os.getenv("GEMINI_API_KEY")
-        or os.getenv("ANTHROPIC_API_KEY")
-    )
-
-    if not api_key:
+    provider = (provider or "ollama").lower().strip()
+    if provider != "ollama":
         return None
 
-    if not model:
-        if provider == "openai":
-            model = os.getenv("LLM_MODEL", "gpt-4o-mini")
-        elif provider == "gemini":
-            model = os.getenv("LLM_MODEL", "gemini-1.5-flash")
-        elif provider == "claude":
-            model = os.getenv("LLM_MODEL", "claude-3-5-sonnet-latest")
+    model = model or os.getenv("LLM_MODEL", "llama3.1:8b")
 
     try:
-        if provider == "openai":
-            url = "https://api.openai.com/v1/chat/completions"
-            headers = {
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            }
-            payload = {
-                "model": model,
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt},
-                ],
-                "temperature": 0.1,
-                "response_format": {"type": "json_object"},
-            }
-            res = requests.post(url, headers=headers, json=payload, timeout=20)
-            res.raise_for_status()
-            content = res.json()["choices"][0]["message"]["content"]
-            return json.loads(content)
-
-        if provider == "gemini":
-            url = (
-                "https://generativelanguage.googleapis.com"
-                "/v1beta/openai/chat/completions"
-            )
-            headers = {
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            }
-            payload = {
-                "model": model,
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt},
-                ],
-                "temperature": 0.1,
-                "response_format": {"type": "json_object"},
-            }
-            res = requests.post(url, headers=headers, json=payload, timeout=20)
-            res.raise_for_status()
-            content = res.json()["choices"][0]["message"]["content"]
-            return json.loads(content)
-
-        if provider == "claude":
-            url = "https://api.anthropic.com/v1/messages"
-            headers = {
-                "x-api-key": api_key,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
-            }
-            payload = {
-                "model": model,
-                "max_tokens": 4000,
-                "system": system_prompt,
-                "messages": [{"role": "user", "content": prompt}],
-                "temperature": 0.1,
-            }
-            res = requests.post(url, headers=headers, json=payload, timeout=20)
-            res.raise_for_status()
-            text = res.json()["content"][0]["text"]
-            if "{" in text:
-                text = text[text.index("{") : text.rindex("}") + 1]
-            return json.loads(text)
-    except (requests.RequestException, ValueError, KeyError):
+        base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+        url = f"{base_url.rstrip('/')}/v1/chat/completions"
+        headers = {"Content-Type": "application/json"}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+        payload = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt},
+            ],
+            "temperature": 0.1,
+            "response_format": {"type": "json_object"},
+        }
+        res = requests.post(url, headers=headers, json=payload, timeout=120)
+        res.raise_for_status()
+        content = res.json()["choices"][0]["message"]["content"]
+        return json.loads(content)
+    except (
+        requests.RequestException,
+        AttributeError,
+        KeyError,
+        IndexError,
+        ValueError,
+    ):
+        # Contract of this function is "never raise" — any failure to reach
+        # the server or parse its response degrades to the heuristic,
+        # non-LLM claim extraction path in the caller.
         return None
-
-    return None
 
 
 class GraphProvenanceClaimScorer:

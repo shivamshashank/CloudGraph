@@ -765,11 +765,14 @@ def graphrag_search(payload: GraphRAGSearchPayload, method: str | None = None):
             WHERE any(label in labels(n) WHERE label IN [
                 'Pod', 'Service', 'Deployment', 'Incident', 'Node', 'Commit'
             ])
-              AND (
-                toLower(coalesce(n.name, '')) CONTAINS toLower($query)
-                OR toLower(coalesce(n.title, '')) CONTAINS toLower($query)
-                OR toLower(coalesce(n.status, '')) CONTAINS toLower($query)
-                OR toLower(coalesce(n.message, '')) CONTAINS toLower($query)
+              AND any(
+                word IN split(toLower($query), ' ') WHERE
+                size(word) > 2 AND (
+                  toLower(coalesce(n.name, '')) CONTAINS word
+                  OR toLower(coalesce(n.title, '')) CONTAINS word
+                  OR toLower(coalesce(n.status, '')) CONTAINS word
+                  OR toLower(coalesce(n.message, '')) CONTAINS word
+                )
               )
             WITH n
             RETURN labels(n) as labels, n.name as name, n.status as status,

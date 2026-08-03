@@ -61,6 +61,7 @@ Commands:
   health         Check the CloudGraph API health endpoint
   ingest         Send a sample payload to the CloudGraph API
   deploy         Install Kubernetes (kubeadm), Helm, and CloudGraph
+  deploy llm     Pull a local Llama model via Ollama and connect it to CloudGraph
   uninstall      Uninstall CloudGraph and optionally dismantle the cluster
   help           Show this help message
 
@@ -71,6 +72,8 @@ Examples:
   cloudgraph health http://localhost:8000
   cloudgraph ingest http://localhost:8000 /api/v1/telemetry/logs
   sudo cloudgraph deploy
+  cloudgraph deploy llm
+  cloudgraph deploy llm http://localhost:8000
   cloudgraph uninstall
 `
 	fmt.Print(helpText)
@@ -177,7 +180,11 @@ func main() {
 	case "ingest":
 		runIngest(cmdArgs)
 	case "deploy":
-		runDeploy()
+		if len(cmdArgs) > 0 && cmdArgs[0] == "llm" {
+			runDeployLLM(cmdArgs[1:])
+		} else {
+			runDeploy()
+		}
 	case "doctor":
 		runDoctor()
 	case "status":

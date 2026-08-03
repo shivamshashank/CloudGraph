@@ -31,90 +31,69 @@ def call_llm(
     api_key: str = "",
     model: str = "",
 ) -> dict:
-    """Make direct HTTP request to configured LLM provider and return parsed JSON."""
-    provider = (provider or os.getenv("LLM_PROVIDER", "openai")).lower().strip()
-    api_key = (
-        api_key
-        or os.getenv("OPENAI_API_KEY")
-        or os.getenv("GEMINI_API_KEY")
-        or os.getenv("ANTHROPIC_API_KEY")
-    )
+    """Make a direct HTTP request to the local Ollama server and return
+    parsed JSON. CloudGraph runs entirely on local models via Ollama — no
+    cloud LLM provider is supported, so there is no API key to manage, no
+    rate limit, and no quota."""
+    provider = (provider or "ollama").lower().strip()
+    if provider != "ollama":
+        raise ValueError(
+            f"Unsupported LLM provider: {provider!r} — only 'ollama' is "
+            "supported. Run `cloudgraph deploy llm` to connect a local model."
+        )
 
-    if not api_key:
-        raise ValueError("No API Key available for LLM service")
+    model = model or os.getenv("LLM_MODEL", "llama3.1:8b")
 
-    if not model:
-        if provider == "openai":
-            model = os.getenv("LLM_MODEL", "gpt-4o-mini")
-        elif provider == "gemini":
-            model = os.getenv("LLM_MODEL", "gemini-1.5-flash")
-        elif provider == "claude":
-            model = os.getenv("LLM_MODEL", "claude-3-5-sonnet-latest")
+    base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+    url = f"{base_url.rstrip('/')}/v1/chat/completions"
+    headers = {"Content-Type": "application/json"}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": prompt},
+        ],
+        "response_format": {"type": "json_object"},
+        "temperature": 0.1,
+    }
+    res = requests.post(url, headers=headers, json=payload, timeout=120)
+    res.raise_for_status()
+    content = res.json()["choices"][0]["message"]["content"]
+    return json.loads(content)
 
-    if provider == "openai":
-        url = "https://api.openai.com/v1/chat/completions"
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        }
-        payload = {
-            "model": model,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": prompt},
-            ],
-            "response_format": {"type": "json_object"},
-            "temperature": 0.1,
-        }
-        res = requests.post(url, headers=headers, json=payload, timeout=20)
-        res.raise_for_status()
-        content = res.json()["choices"][0]["message"]["content"]
-        return json.loads(content)
 
-    if provider == "gemini":
-        url = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        }
-        payload = {
-            "model": model,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": prompt},
-            ],
-            "response_format": {"type": "json_object"},
-            "temperature": 0.1,
-        }
-        res = requests.post(url, headers=headers, json=payload, timeout=20)
-        res.raise_for_status()
-        content = res.json()["choices"][0]["message"]["content"]
-        return json.loads(content)
+_QUALITATIVE_CONFIDENCE = {
+    "very high": 0.95,
+    "high": 0.85,
+    "medium": 0.6,
+    "moderate": 0.6,
+    "low": 0.35,
+    "very low": 0.15,
+}
 
-    if provider == "claude":
-        url = "https://api.anthropic.com/v1/messages"
-        headers = {
-            "x-api-key": api_key,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json",
-        }
-        payload = {
-            "model": model,
-            "max_tokens": 4000,
-            "system": system_prompt,
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.1,
-        }
-        res = requests.post(url, headers=headers, json=payload, timeout=20)
-        res.raise_for_status()
-        content = res.json()["content"][0]["text"]
-        if "{" in content:
-            start = content.index("{")
-            end = content.rindex("}") + 1
-            content = content[start:end]
-        return json.loads(content)
 
-    raise ValueError(f"Unsupported LLM provider: {provider}")
+def _coerce_confidence(value: Any, default: float = 0.5) -> float:
+    """Coerce an LLM-provided confidence value to a 0.0-1.0 float.
+
+    Prompts ask for a numeric 0.0-1.0 score, but real LLMs sometimes
+    ignore that and return a qualitative label (e.g. "High") instead —
+    never crash on this (a bare `float(x)` did, in production, the first
+    time this ran against a real model), coerce or fall back to a safe
+    default.
+    """
+    if isinstance(value, (int, float)):
+        return max(0.0, min(1.0, float(value)))
+    if isinstance(value, str):
+        text = value.strip().lower()
+        try:
+            return max(0.0, min(1.0, float(text)))
+        except ValueError:
+            pass
+        if text in _QUALITATIVE_CONFIDENCE:
+            return _QUALITATIVE_CONFIDENCE[text]
+    return default
 
 
 class Neo4jClient:
@@ -171,16 +150,11 @@ def _call_llm_agent(
 ) -> dict | None:
     """Helper to execute LLM calls for agents, catching exceptions."""
     try:
-        provider = (llm_provider or os.getenv("LLM_PROVIDER", "")).strip().lower()
-        api_key = (
-            llm_api_key
-            or os.getenv("OPENAI_API_KEY")
-            or os.getenv("GEMINI_API_KEY")
-            or os.getenv("ANTHROPIC_API_KEY")
-            or ""
-        ).strip()
+        provider = (llm_provider or os.getenv("LLM_PROVIDER", "ollama")).strip().lower()
+        api_key = (llm_api_key or "").strip()
 
-        if provider and api_key:
+        # Ollama needs no API key — only require a provider to be set.
+        if provider:
             return call_llm(
                 prompt=prompt,
                 system_prompt=system_prompt,
@@ -412,7 +386,7 @@ def run_monitoring_agent(
             return {
                 "name": "monitoring",
                 "finding": str(llm_res["finding"]),
-                "confidence": round(float(llm_res["confidence"]), 2),
+                "confidence": round(_coerce_confidence(llm_res.get("confidence")), 2),
                 "metadata": {
                     **metadata,
                     "anomalies": llm_res.get("anomalies", []),
@@ -493,7 +467,7 @@ def run_log_agent(
             return {
                 "name": "logs",
                 "finding": str(llm_res["finding"]),
-                "confidence": round(float(llm_res["confidence"]), 2),
+                "confidence": round(_coerce_confidence(llm_res.get("confidence")), 2),
                 "metadata": {
                     "category": llm_res.get("category", "general"),
                     "scanned_logs_count": len(logs_to_scan),
@@ -583,7 +557,7 @@ def run_deployment_agent(
             return {
                 "name": "deployments",
                 "finding": str(llm_res["finding"]),
-                "confidence": round(float(llm_res["confidence"]), 2),
+                "confidence": round(_coerce_confidence(llm_res.get("confidence")), 2),
                 "metadata": metadata,
             }
 
@@ -675,7 +649,7 @@ def run_topology_agent(
             return {
                 "name": "topology",
                 "finding": str(llm_res["finding"]),
-                "confidence": round(float(llm_res["confidence"]), 2),
+                "confidence": round(_coerce_confidence(llm_res.get("confidence")), 2),
                 "metadata": metadata,
             }
 
@@ -773,7 +747,7 @@ def run_security_agent(
             return {
                 "name": "security",
                 "finding": str(llm_res["finding"]),
-                "confidence": round(float(llm_res["confidence"]), 2),
+                "confidence": round(_coerce_confidence(llm_res.get("confidence")), 2),
                 "metadata": {
                     **metadata,
                     "threat_detected": bool(llm_res.get("threat_detected", True)),
@@ -850,7 +824,9 @@ class InvestigationHandler(http.server.BaseHTTPRequestHandler):
             "model": payload.get("llm_model"),
         }
 
-        # Execute all 5 specialized agents
+        # Execute all 5 specialized agents. No inter-agent pacing needed —
+        # Ollama is local with no external rate limit to burst past (unlike
+        # the cloud providers this project previously supported).
         monitoring_res = run_monitoring_agent(
             pod_name,
             llm_config=llm_config,

@@ -2,7 +2,8 @@
 
 import logging
 import os
-from typing import Any, Dict, List, Tuple
+import time
+from typing import Any, Dict, List, Optional, Tuple
 
 import requests
 
@@ -12,8 +13,22 @@ from app.retrieval.graph_traversal import graph_traversal_retriever
 from app.retrieval.hybrid_ranker import hybrid_ranker
 from app.research.gcp import GraphConfidencePropagator
 from app.research.gpcs import GraphProvenanceClaimScorer
+from app.research.llm_settings import load_stored_llm_settings
 
 logger = logging.getLogger(__name__)
+
+# First-pass constant, matching GPCS's own default trust threshold
+# (see gpcs.py). Not yet calibrated on a held-out split — see
+# IMPLEMENTATION_ROADMAP.md Phase 4.
+GCP_CORRECTNESS_THRESHOLD = 0.50
+
+
+class OrchestratorUnavailableError(RuntimeError):
+    """Raised when the agent-orchestrator cannot be reached for a real,
+    non-fabricated evaluation call. Callers must exclude this
+    (scenario, baseline) pair from aggregate metrics rather than
+    substitute synthetic data — never silently backfill with the
+    scenario's own ground truth."""
 
 
 def run_keyword_search(query: str) -> List[Dict[str, Any]]:
@@ -27,11 +42,14 @@ def run_keyword_search(query: str) -> List[Dict[str, Any]]:
             WHERE any(label in labels(n) WHERE label IN [
                 'Pod', 'Service', 'Deployment', 'Incident', 'Node', 'Commit'
             ])
-              AND (
-                toLower(coalesce(n.name, '')) CONTAINS toLower($query)
-                OR toLower(coalesce(n.title, '')) CONTAINS toLower($query)
-                OR toLower(coalesce(n.status, '')) CONTAINS toLower($query)
-                OR toLower(coalesce(n.message, '')) CONTAINS toLower($query)
+              AND any(
+                word IN split(toLower($query), ' ') WHERE
+                size(word) > 2 AND (
+                  toLower(coalesce(n.name, '')) CONTAINS word
+                  OR toLower(coalesce(n.title, '')) CONTAINS word
+                  OR toLower(coalesce(n.status, '')) CONTAINS word
+                  OR toLower(coalesce(n.message, '')) CONTAINS word
+                )
               )
             WITH n
             RETURN labels(n) as labels, n.name as name, n.status as status,
@@ -85,10 +103,14 @@ def run_hybrid_search(query: str) -> List[Dict[str, Any]]:
         )
         if label in {"Incident", "Pod"}:
             try:
+                # retrieve() returns a plain list[dict], not a
+                # {"nodes": [...]} envelope — .get("nodes") on a list
+                # would raise AttributeError (previously masked because
+                # raw_results was always empty; see run_keyword_search).
                 graph_context = graph_traversal_retriever.retrieve(
                     record.get("id"), depth=2
                 )
-                for item in graph_context.get("nodes", []):
+                for item in graph_context:
                     graph_hits.append(
                         {
                             "id": item.get("id"),
@@ -105,28 +127,22 @@ def run_hybrid_search(query: str) -> List[Dict[str, Any]]:
                 )
 
     semantic_hits = run_vector_search(query)
-    semantic_results = [
-        {
-            "id": hit["id"],
-            "label": hit["metadata"].get("label", "Node"),
-            "type": str(hit["metadata"].get("label", "Node")).lower(),
-            "name": hit["metadata"].get("name", hit["id"]),
-            "status": hit["metadata"].get("status", "Active"),
-            "score": round(hit["score"], 3),
-            "sources": ["vector"],
-            "detail": hit["text"],
-        }
-        for hit in semantic_hits
-    ]
-
+    # HybridRanker.rank()'s vector_hits contract expects "text" (flat) and
+    # "metadata" (nested dict) — semantic_hits (semantic_store.search()'s
+    # raw output) already has exactly that shape. The previous code
+    # reshaped this into a "detail"/flat-name/flat-status dict that the
+    # ranker's field names don't match, silently dropping all vector
+    # content before scoring (ranker read hit.get("text","") -> "" and
+    # hit.get("metadata") -> {} for every candidate). Pass semantic_hits
+    # straight through instead of re-inventing its shape.
     try:
         ranked = hybrid_ranker.rank(
-            semantic_results, graph_hits, reference_time=1600000000, limit=5
+            semantic_hits, graph_hits, reference_time=1600000000, limit=5
         )
         return ranked
     except (RuntimeError, ValueError) as exc:
         logger.error("Hybrid ranker failed: %s", exc)
-        return semantic_results[:5]
+        return semantic_hits[:5]
 
 
 def extract_text_from_results(results: List[Dict[str, Any]], method_key: str) -> str:
@@ -148,10 +164,20 @@ def extract_text_from_results(results: List[Dict[str, Any]], method_key: str) ->
             parts.append(props.get("message") or "")
             parts.append(props.get("detail") or "")
     else:  # hybrid
+        # HybridRanker.rank() candidates carry "text" (preserved verbatim
+        # from vector hits) and nested "properties"/"metadata" (from graph
+        # hits) — there is no top-level "detail"/"status" key. Reading
+        # "detail" here previously always returned "", silently discarding
+        # every vector-sourced match's content.
         for hit in results:
             parts.append(hit.get("name") or "")
-            parts.append(hit.get("detail") or "")
-            parts.append(hit.get("status") or "")
+            parts.append(hit.get("text") or "")
+            props = hit.get("properties") or {}
+            parts.append(props.get("message") or "")
+            parts.append(props.get("status") or "")
+            meta = hit.get("metadata") or {}
+            parts.append(meta.get("status") or "")
+            parts.append(meta.get("message") or "")
     return " ".join(parts)
 
 
@@ -178,15 +204,59 @@ def _calculate_fp(
                 fp += 1
     else:
         for hit in results:
-            node_text = f"{hit.get('name', '')} {hit.get('detail', '')}".lower()
+            props = hit.get("properties") or {}
+            node_text = (
+                f"{hit.get('name', '')} {hit.get('text', '')} "
+                f"{props.get('message', '')} {props.get('status', '')}"
+            ).lower()
             if not any(tag.lower() in node_text for tag in expected_tags):
                 fp += 1
     return fp
 
 
+MAX_AGENT_STEP_ATTEMPTS = 3
+AGENT_STEP_RETRY_BACKOFF_SECONDS = 4.0
+
+
 def _run_agents_step(scenario: Dict[str, Any], results: List[Dict[str, Any]]) -> Any:
-    """Call agent orchestrator; return consensus analysis dict or a fallback."""
+    """Call the real agent orchestrator, retrying transient failures up to
+    MAX_AGENT_STEP_ATTEMPTS times; never fabricate a response.
+
+    Raises OrchestratorUnavailableError only after all attempts fail
+    (network error, non-200, malformed body) — never silently substitutes
+    a canned analysis built from the scenario's own ground-truth claims.
+    Retrying is honest (each attempt is still a real request); the
+    orchestrator chains 6 sequential LLM calls once a key is configured
+    (5 specialists + 1 consensus), so ordinary API flakiness on any single
+    call would otherwise sour an entire scenario's result.
+    """
+    last_error: Optional[OrchestratorUnavailableError] = None
+    for attempt in range(1, MAX_AGENT_STEP_ATTEMPTS + 1):
+        try:
+            return _request_agents_step(scenario, results)
+        except OrchestratorUnavailableError as exc:
+            last_error = exc
+            logger.warning(
+                "Agents step attempt %d/%d failed for scenario '%s': %s",
+                attempt,
+                MAX_AGENT_STEP_ATTEMPTS,
+                scenario["id"],
+                exc,
+            )
+            if attempt < MAX_AGENT_STEP_ATTEMPTS:
+                time.sleep(AGENT_STEP_RETRY_BACKOFF_SECONDS * attempt)
+    raise OrchestratorUnavailableError(
+        f"all {MAX_AGENT_STEP_ATTEMPTS} attempts failed for scenario "
+        f"'{scenario['id']}': {last_error}"
+    ) from last_error
+
+
+def _request_agents_step(
+    scenario: Dict[str, Any], results: List[Dict[str, Any]]
+) -> Any:
+    """Single attempt to call the real agent orchestrator."""
     orch_addr = os.getenv("AGENT_ORCHESTRATOR_URL", "http://localhost:8082")
+    llm_settings = load_stored_llm_settings()
     try:
         response = requests.post(
             f"{orch_addr.rstrip('/')}/orchestrate",
@@ -198,60 +268,77 @@ def _run_agents_step(scenario: Dict[str, Any], results: List[Dict[str, Any]]) ->
                 "error_logs": scenario["ground_truth_claims"],
                 "evidence_context": [],
                 "retrieval_context": {"results": results},
+                "llm_provider": llm_settings.get("provider"),
+                "llm_api_key": llm_settings.get("api_key"),
+                "llm_model": llm_settings.get("model"),
             },
-            timeout=6,
+            # Must accommodate a real LLM-backed orchestrator chain (5
+            # sequential specialist calls + 1 consensus call) against a
+            # local Ollama model — 6s only ever worked because the
+            # rule-based fallback path is instant. Local CPU/GPU inference
+            # speed varies a lot by model size and hardware, so this is
+            # sized with real headroom.
+            timeout=420,
         )
-        if response.status_code == 200:
-            rdata = response.json()
-            if rdata.get("status") == "success" and "consensus" in rdata:
-                return rdata["consensus"]
-    except (requests.RequestException, ValueError) as exc:
-        logger.warning(
-            "Could not contact agent orchestrator, using fallback analysis: %s", exc
+    except requests.RequestException as exc:
+        raise OrchestratorUnavailableError(
+            f"agent-orchestrator unreachable at {orch_addr}: {exc}"
+        ) from exc
+
+    if response.status_code != 200:
+        raise OrchestratorUnavailableError(
+            f"agent-orchestrator returned HTTP {response.status_code} "
+            f"for scenario {scenario['id']}"
         )
-    return {
-        "title": f"Root Cause Analysis for {scenario['target_entity']}",
-        "summary": scenario["ground_truth_claims"][0],
-        "cause": f"Incident matches root cause {scenario['root_cause']}.",
-        "recommendation": "Investigate cluster logs and configurations.",
-        "severity": "CRITICAL",
-        "evidence": scenario["ground_truth_claims"],
-    }
+
+    rdata = response.json()
+    if rdata.get("status") != "success" or "consensus" not in rdata:
+        raise OrchestratorUnavailableError(
+            f"agent-orchestrator response missing consensus for "
+            f"scenario {scenario['id']}: {rdata}"
+        )
+    return rdata["consensus"]
 
 
-def _run_gcp_step(target_entity: str) -> None:
-    """Run graph confidence propagation (GCP) if available."""
+def _run_gcp_step(target_entity: str) -> float:
+    """Run graph confidence propagation (GCP) and return the real
+    root-cause confidence score. Returns 0.0 (not a fabricated confident
+    value) if propagation cannot run at all."""
     try:
         propagator = GraphConfidencePropagator()
-        propagator.run_propagation(target_entity)
-    except (RuntimeError, ValueError) as exc:
+        result = propagator.run_propagation(target_entity)
+        return float(result.get("root_cause", 0.0))
+    except (RuntimeError, ValueError, TypeError) as exc:
         logger.warning("Confidence propagation failed: %s", exc)
+        return 0.0
 
 
-def _run_gpcs_step(analysis: Any) -> float:
-    """Score hallucination rate using GPCS; return unsupported-claim rate."""
+def _run_gpcs_step(analysis: Any) -> Optional[float]:
+    """Score hallucination rate using GPCS; return unsupported-claim rate,
+    or None if scoring failed (never a fabricated placeholder rate)."""
     try:
         scorer = GraphProvenanceClaimScorer()
         gpcs_res = scorer.score_claims(analysis, run_hybrid_search)
         return gpcs_res.get("unsupported_claim_rate", 0.0)
     except (RuntimeError, ValueError) as exc:
         logger.warning("GPCS claim scoring failed: %s", exc)
-        return 0.11
-
-
-_BASELINE_UNSUPPORTED_RATES: Dict[str, float] = {
-    "Keyword Search": 0.32,
-    "Vector RAG": 0.28,
-    "GraphRAG": 0.21,
-    "GraphRAG + Agents": 0.18,
-    "GraphRAG + Agents + GCP": 0.15,
-}
+        return None
 
 
 def evaluate_scenario(
     scenario: Dict[str, Any], baseline_name: str
-) -> Tuple[int, int, int, int, float]:
-    """Evaluate a single baseline against a ground truth scenario."""
+) -> Optional[Tuple[int, int, int, int, Optional[float]]]:
+    """Evaluate a single baseline against a ground-truth scenario using only
+    real pipeline calls.
+
+    Returns None if a required live component (the agent-orchestrator) is
+    unreachable — callers must exclude this result from aggregate metrics
+    rather than substitute fabricated data.
+
+    The fifth element of the returned tuple (unsupported claim count) is
+    None for baselines that generate no text to score (pure retrieval),
+    since hallucination rate is undefined for them, not merely unmeasured.
+    """
     if baseline_name == "Keyword Search":
         method_key = "keyword"
         results = run_keyword_search(scenario["query"])
@@ -272,13 +359,39 @@ def evaluate_scenario(
 
     analysis = None
     if "Agents" in baseline_name:
-        analysis = _run_agents_step(scenario, results)
-    if "GCP" in baseline_name:
-        _run_gcp_step(scenario["target_entity"])
+        try:
+            analysis = _run_agents_step(scenario, results)
+        except OrchestratorUnavailableError as exc:
+            logger.error(
+                "Excluding scenario '%s' baseline '%s' from results: %s",
+                scenario["id"],
+                baseline_name,
+                exc,
+            )
+            return None
 
-    if "GPCS" in baseline_name:
+    if "GCP" in baseline_name:
+        gcp_confidence = _run_gcp_step(scenario["target_entity"])
+        # GCP-tier baselines must also clear a confidence bar to count as
+        # correct, not just pass the tag-overlap check — otherwise this
+        # tier is indistinguishable from "Agents" alone.
+        correct = 1 if (correct and gcp_confidence >= GCP_CORRECTNESS_THRESHOLD) else 0
+
+    if analysis is not None:
+        # Any baseline that produced real generated text gets a real,
+        # measured hallucination rate via GPCS — the only claim-scoring
+        # mechanism this system has. This may legitimately come out close
+        # to (or identical to) later tiers' numbers, since GPCS here is a
+        # measurement instrument, not yet a remediation step — report that
+        # honestly rather than adjusting the harness.
         unsupported_rate = _run_gpcs_step(analysis)
     else:
-        unsupported_rate = _BASELINE_UNSUPPORTED_RATES.get(baseline_name, 0.0)
+        unsupported_rate = None
 
-    return tp, fp, fn, correct, len(scenario["ground_truth_claims"]) * unsupported_rate
+    unsupported_claims_count = (
+        len(scenario["ground_truth_claims"]) * unsupported_rate
+        if unsupported_rate is not None
+        else None
+    )
+
+    return tp, fp, fn, correct, unsupported_claims_count
