@@ -132,6 +132,22 @@ integration tests:
   go tool cover -html=coverage.out
   ```
 
+**Python (`services/api`)** — install `requirements-dev.txt` once, then:
+
+```bash
+cd services/api
+.venv/bin/pip install -r requirements.txt -r requirements-dev.txt
+
+# Full suite, serially — measured at ~32 minutes on this project's suite
+.venv/bin/pytest tests/ -q
+
+# Parallel across CPU cores — measured at ~18 minutes (-n auto) on the same
+# suite, a real ~45% reduction, not just a theoretical one. A single slow
+# test (the real 25-scenario x 6-baseline benchmark evaluation) sets a
+# floor xdist can't parallelize away, so don't expect more than this.
+.venv/bin/pytest tests/ -q -n auto
+```
+
 ---
 
 ## 📝 Commit Guidelines

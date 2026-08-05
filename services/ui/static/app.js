@@ -74,14 +74,11 @@ document.addEventListener("DOMContentLoaded", () => {
         console.error("Failed to fetch settings:", err);
       }
 
-      if (!settings.api_key) {
+      if (!settings.provider || !settings.model) {
         showToast(
-          "Please add an AI API Key in LLM Settings before running AI Diagnosis.",
+          "No local model connected. Run `cloudgraph deploy llm` to set one up.",
           "error",
         );
-        setTimeout(() => {
-          window.location.href = "settings.html";
-        }, 1500);
         return;
       }
       if (!isDiagnosisPage) {

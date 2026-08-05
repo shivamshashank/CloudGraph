@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-cache-app
+  namespace: cloudgraph-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: demo-cache-app
+  template:
+    metadata:
+      labels:
+        app: demo-cache-app
+    spec:
+      containers:
+        - name: cache
+          image: redis:7-alpine
+          resources:
+            limits:
+              memory: "8Mi"
+            requests:
+              memory: "8Mi"
+          env:
+            - name: MAXMEMORY_POLICY
+              value: allkeys-lru

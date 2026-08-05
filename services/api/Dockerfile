@@ -12,10 +12,20 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt ./
+# torch is installed in the same resolution pass as everything else, with
+# the CPU-only wheel index as primary. Installing it as a separate prior
+# step (as before) doesn't stick: requirements.txt also pins an exact
+# torch version, so the later `pip install -r requirements.txt` call
+# re-resolves torch against the default index (no --index-url in that
+# invocation) and silently replaces the CPU build with the full CUDA
+# build — pulling in ~4.5GB of nvidia-*/triton packages this CPU-only
+# service never uses. One atomic install avoids that entirely.
 RUN python -m venv /opt/venv \
     && /opt/venv/bin/pip install --upgrade pip \
-    && /opt/venv/bin/pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu \
-    && /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
+    && /opt/venv/bin/pip install --no-cache-dir \
+         --index-url https://download.pytorch.org/whl/cpu \
+         --extra-index-url https://pypi.org/simple \
+         -r requirements.txt
 
 ARG EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
 ENV EMBEDDING_MODEL=${EMBEDDING_MODEL}

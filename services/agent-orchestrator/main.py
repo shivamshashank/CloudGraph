@@ -12,7 +12,7 @@ INVESTIGATION_ENGINE_URL = os.getenv(
 ).rstrip("/")
 
 
-def call_llm(
+def call_llm(  # pylint: disable=too-many-arguments
     prompt: str,
     system_prompt: str = (
         "You are a helpful AIOps assistant. Output strictly valid JSON."
@@ -20,91 +20,75 @@ def call_llm(
     provider: str = "",
     api_key: str = "",
     model: str = "",
+    temperature: float = 0.1,
 ) -> dict:
-    """Make direct HTTP request to configured LLM provider and return parsed JSON."""
-    provider = (provider or os.getenv("LLM_PROVIDER", "openai")).lower().strip()
-    api_key = (
-        api_key
-        or os.getenv("OPENAI_API_KEY")
-        or os.getenv("GEMINI_API_KEY")
-        or os.getenv("ANTHROPIC_API_KEY")
-    )
+    """Make a direct HTTP request to the local Ollama server and return
+    parsed JSON. CloudGraph runs entirely on local models via Ollama — no
+    cloud LLM provider is supported, so there is no API key to manage, no
+    rate limit, and no quota."""
+    provider = (provider or "ollama").lower().strip()
+    if provider != "ollama":
+        raise ValueError(
+            f"Unsupported LLM provider: {provider!r} — only 'ollama' is "
+            "supported. Run `cloudgraph deploy llm` to connect a local model."
+        )
 
-    if not api_key:
-        raise ValueError("No API Key available for LLM service")
+    model = model or os.getenv("LLM_MODEL", "llama3.1:8b")
 
-    if not model:
-        if provider == "openai":
-            model = os.getenv("LLM_MODEL", "gpt-4o-mini")
-        elif provider == "gemini":
-            model = os.getenv("LLM_MODEL", "gemini-1.5-flash")
-        elif provider == "claude":
-            model = os.getenv("LLM_MODEL", "claude-3-5-sonnet-latest")
+    # Local, self-hosted, OpenAI-compatible server — no external
+    # quota/rate-limit. OLLAMA_BASE_URL must point at wherever the Ollama
+    # server actually runs relative to this process (e.g. an OrbStack VM
+    # reaching the macOS host needs the host's LAN IP, since neither
+    # "localhost" nor OrbStack's gateway IP route there — verified live,
+    # not assumed).
+    base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+    url = f"{base_url.rstrip('/')}/v1/chat/completions"
+    headers = {"Content-Type": "application/json"}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": prompt},
+        ],
+        "response_format": {"type": "json_object"},
+        "temperature": temperature,
+    }
+    # Local CPU/GPU inference on consumer hardware can be far slower
+    # per-call than a hosted API, especially under concurrent load from 5
+    # sequential specialist calls in a row.
+    res = requests.post(url, headers=headers, json=payload, timeout=180)
+    res.raise_for_status()
+    content = res.json()["choices"][0]["message"]["content"]
+    return json.loads(content)
 
-    if provider == "openai":
-        url = "https://api.openai.com/v1/chat/completions"
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        }
-        payload = {
-            "model": model,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": prompt},
-            ],
-            "response_format": {"type": "json_object"},
-            "temperature": 0.1,
-        }
-        res = requests.post(url, headers=headers, json=payload, timeout=20)
-        res.raise_for_status()
-        content = res.json()["choices"][0]["message"]["content"]
-        return json.loads(content)
 
-    if provider == "gemini":
-        url = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        }
-        payload = {
-            "model": model,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": prompt},
-            ],
-            "response_format": {"type": "json_object"},
-            "temperature": 0.1,
-        }
-        res = requests.post(url, headers=headers, json=payload, timeout=20)
-        res.raise_for_status()
-        content = res.json()["choices"][0]["message"]["content"]
-        return json.loads(content)
+_QUALITATIVE_CONFIDENCE = {
+    "very high": 0.95,
+    "high": 0.85,
+    "medium": 0.6,
+    "moderate": 0.6,
+    "low": 0.35,
+    "very low": 0.15,
+}
 
-    if provider == "claude":
-        url = "https://api.anthropic.com/v1/messages"
-        headers = {
-            "x-api-key": api_key,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json",
-        }
-        payload = {
-            "model": model,
-            "max_tokens": 4000,
-            "system": system_prompt,
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.1,
-        }
-        res = requests.post(url, headers=headers, json=payload, timeout=20)
-        res.raise_for_status()
-        content = res.json()["content"][0]["text"]
-        if "{" in content:
-            start = content.index("{")
-            end = content.rindex("}") + 1
-            content = content[start:end]
-        return json.loads(content)
 
-    raise ValueError(f"Unsupported LLM provider: {provider}")
+def _coerce_confidence(value: Any, default: float = 0.5) -> float:
+    """Coerce an LLM-provided confidence value to a 0.0-1.0 float — real
+    LLMs sometimes return a qualitative label (e.g. "High") instead of the
+    requested number; never crash on this, coerce or fall back."""
+    if isinstance(value, (int, float)):
+        return max(0.0, min(1.0, float(value)))
+    if isinstance(value, str):
+        text = value.strip().lower()
+        try:
+            return max(0.0, min(1.0, float(text)))
+        except ValueError:
+            pass
+        if text in _QUALITATIVE_CONFIDENCE:
+            return _QUALITATIVE_CONFIDENCE[text]
+    return default
 
 
 class ConsensusEngine:
@@ -140,19 +124,14 @@ class ConsensusEngine:
         # Try LLM first
         try:
             provider = (
-                (llm_config.get("provider") or os.getenv("LLM_PROVIDER", ""))
+                (llm_config.get("provider") or os.getenv("LLM_PROVIDER", "ollama"))
                 .strip()
                 .lower()
             )
-            api_key = (
-                llm_config.get("api_key")
-                or os.getenv("OPENAI_API_KEY")
-                or os.getenv("GEMINI_API_KEY")
-                or os.getenv("ANTHROPIC_API_KEY")
-                or ""
-            ).strip()
+            api_key = (llm_config.get("api_key") or "").strip()
 
-            if provider and api_key:
+            # Ollama needs no API key — only require a provider to be set.
+            if provider:
                 agent_findings = "\n".join(
                     [
                         f"- {a['name'].upper()} Agent "
@@ -189,6 +168,7 @@ class ConsensusEngine:
                     provider=provider,
                     api_key=api_key,
                     model=llm_config.get("model"),
+                    temperature=float(llm_config.get("temperature", 0.1)),
                 )
 
                 required = [
@@ -201,7 +181,7 @@ class ConsensusEngine:
                     "evidence",
                 ]
                 if all(k in llm_res for k in required):
-                    pct = int(float(llm_res["confidence"]) * 100)
+                    pct = int(_coerce_confidence(llm_res.get("confidence")) * 100)
                     return {
                         "title": str(llm_res["title"]),
                         "summary": str(llm_res["summary"]),
@@ -215,6 +195,7 @@ class ConsensusEngine:
                         "evidence": [f"Consensus Engine confidence: {pct}%"]
                         + list(llm_res["evidence"]),
                         "agents": agents,
+                        "generation_source": "llm",
                     }
         except (
             ValueError,
@@ -226,12 +207,19 @@ class ConsensusEngine:
                 "ConsensusEngine LLM resolution failed, "
                 f"falling back to rule-based logic: {str(e)}"
             )
+            return cls._resolve_fallback(
+                agents, pod_name, pod_status, llm_failure_reason=str(e)
+            )
 
         return cls._resolve_fallback(agents, pod_name, pod_status)
 
     @classmethod
     def _resolve_fallback(
-        cls, agents: List[Dict[str, Any]], pod_name: str, pod_status: str
+        cls,
+        agents: List[Dict[str, Any]],
+        pod_name: str,
+        pod_status: str,
+        llm_failure_reason: str | None = None,
     ) -> Dict[str, Any]:
         """Rule-based fallback for consensus resolution when LLM is unavailable."""
         # Map agent name -> details
@@ -314,6 +302,8 @@ class ConsensusEngine:
             ],
             "evidence": evidence,
             "agents": agents,
+            "generation_source": "rule_based_fallback",
+            "llm_failure_reason": llm_failure_reason,
         }
 
 
@@ -362,7 +352,15 @@ class OrchestratorHandler(http.server.BaseHTTPRequestHandler):
                     "llm_api_key": payload.get("llm_api_key"),
                     "llm_model": payload.get("llm_model"),
                 },
-                timeout=12,
+                # investigation-engine runs 5 specialists sequentially, each
+                # with its own local Ollama call (up to call_llm's own 180s
+                # timeout) — worst case 5 x 180s = 900s. This must exceed
+                # that worst case with real margin, not just approach it
+                # (a prior version of this comment claimed "headroom" at
+                # 330s, which is actually 270s *short* of 5 x 120s — that
+                # mismatch was a real, verified cause of spurious timeouts
+                # under normal local CPU load, not just a hypothetical one).
+                timeout=960,
             )
 
             if engine_res.status_code == 200:
@@ -376,6 +374,7 @@ class OrchestratorHandler(http.server.BaseHTTPRequestHandler):
                         "provider": payload.get("llm_provider"),
                         "api_key": payload.get("llm_api_key"),
                         "model": payload.get("llm_model"),
+                        "temperature": payload.get("llm_temperature", 0.1),
                     },
                 )
                 self._send_json(
@@ -433,6 +432,9 @@ class OrchestratorHandler(http.server.BaseHTTPRequestHandler):
                     "provider": payload.get("llm_provider") if has_payload else None,
                     "api_key": payload.get("llm_api_key") if has_payload else None,
                     "model": payload.get("llm_model") if has_payload else None,
+                    "temperature": (
+                        payload.get("llm_temperature", 0.1) if has_payload else 0.1
+                    ),
                 },
             )
             self._send_json(
