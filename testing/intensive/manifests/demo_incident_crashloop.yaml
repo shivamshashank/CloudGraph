@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-checkout-app
+  namespace: cloudgraph-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: demo-checkout-app
+  template:
+    metadata:
+      labels:
+        app: demo-checkout-app
+    spec:
+      containers:
+        - name: checkout
+          image: busybox:latest
+          command: ["sh", "-c"]
+          args:
+            - "echo 'FATAL: unhandled exception in checkout worker, exiting' >&2; exit 1"
+          env:
+            - name: QUEUE_HOST
+              value: rabbitmq.cloudgraph-system.svc.cluster.local

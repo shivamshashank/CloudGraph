@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-payment-app
+  namespace: cloudgraph-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: demo-payment-app
+  template:
+    metadata:
+      labels:
+        app: demo-payment-app
+    spec:
+      containers:
+        - name: payment
+          image: nginx:does-not-exist
+          env:
+            - name: DB_PASSWORD
+              value: wrong-password
+            - name: DB_HOST
+              value: postgres.default.svc.cluster.local

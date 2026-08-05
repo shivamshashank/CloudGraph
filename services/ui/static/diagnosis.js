@@ -21,16 +21,13 @@ document.addEventListener("DOMContentLoaded", () => {
       console.error("Failed to fetch settings:", err);
     }
 
-    if (!settings.api_key) {
+    if (!settings.provider || !settings.model) {
       if (typeof window.CloudGraph.showToast === "function") {
         window.CloudGraph.showToast(
-          "Please add an AI API Key in LLM Settings before running AI Diagnosis.",
+          "No local model connected. Run `cloudgraph deploy llm` to set one up.",
           "error",
         );
       }
-      setTimeout(() => {
-        window.location.href = "settings.html";
-      }, 1500);
       return;
     }
 
@@ -59,6 +56,18 @@ document.addEventListener("DOMContentLoaded", () => {
       if (data.status === "success" && data.results.length > 0) {
         renderRCA(data.results);
         window.CloudGraph.fetchGraph();
+
+        const usedFallback = data.results.some(
+          (r) => r.generation_source && r.generation_source !== "llm",
+        );
+        if (usedFallback && typeof window.CloudGraph.showToast === "function") {
+          window.CloudGraph.showToast(
+            "Some findings used the rule-based fallback, not your connected " +
+              "model — the LLM may be unreachable or slow to respond. " +
+              "Check `cloudgraph deploy llm` is still connected.",
+            "error",
+          );
+        }
       }
     } catch (err) {
       if (rcaOutput) {

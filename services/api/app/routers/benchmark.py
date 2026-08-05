@@ -166,6 +166,20 @@ def _evaluate_scenarios_and_baselines(
             eval_res = evaluate_scenario(scenario, baseline)
             latency_ms = max(1, int((time.perf_counter() - t0) * 1000))
 
+            if eval_res is None:
+                # Required live component (agent-orchestrator) was
+                # unreachable — exclude this cell rather than fabricate a
+                # result. Surfaced in aggregate metrics as excluded_count.
+                results[s_id][baseline] = None
+                _log_benchmark_step(
+                    execution_logs,
+                    "ERROR",
+                    f"Excluded scenario '{s_id}' baseline '{baseline}': "
+                    f"required live component unavailable (no fabricated "
+                    f"result substituted).",
+                )
+                continue
+
             results[s_id][baseline] = {
                 "tp": eval_res[0],
                 "fp": eval_res[1],
@@ -193,32 +207,62 @@ def _evaluate_scenarios_and_baselines(
     return results
 
 
+def _compute_hallucination_rate(evaluated: List[Any]) -> float | None:
+    """Compute hallucination rate over evaluated entries that actually
+    produced a measured unsupported_claims_count (pure-retrieval baselines
+    generate no claims, so this is undefined for them). Returns None (N/A)
+    if no evaluated entry produced a measurement, never a fabricated 0.0.
+    """
+    halluc_pairs = [
+        (s["unsupported_claims_count"], c)
+        for s, c in evaluated
+        if s["unsupported_claims_count"] is not None
+    ]
+    if not halluc_pairs:
+        return None
+
+    unsupported_sum = sum(u for u, _ in halluc_pairs)
+    claims_sum = sum(c for _, c in halluc_pairs)
+    if claims_sum == 0:
+        return None
+    return round(unsupported_sum / claims_sum, 2)
+
+
 def _compute_baseline_metrics(
-    stats_list: List[Dict[str, Any]],
-    total_scenarios: int,
-    tot_scenario_claims: int,
+    stats_list: List[Any],
+    claim_counts: List[int],
 ) -> Dict[str, Any]:
-    """Calculate accuracy, precision, recall, F1, and hallucination rate."""
-    tp = sum(s["tp"] for s in stats_list)
-    fp = sum(s["fp"] for s in stats_list)
-    fn = sum(s["fn"] for s in stats_list)
-    correct = sum(s["correct"] for s in stats_list)
-    unsupp = sum(s["unsupported_claims_count"] for s in stats_list)
-    latencies = [s["latency_ms"] for s in stats_list]
+    """Calculate accuracy, precision, recall, F1, and hallucination rate.
+
+    stats_list entries are None for scenarios excluded because a required
+    live component was unreachable (see evaluate_scenario). Excluded
+    entries are dropped from every metric, and their count is reported
+    explicitly rather than silently treated as failures or successes.
+    """
+    paired = list(zip(stats_list, claim_counts))
+    evaluated = [(s, c) for s, c in paired if s is not None]
+    excluded_count = len(paired) - len(evaluated)
+    evaluated_count = len(evaluated)
+
+    tp = sum(s["tp"] for s, _ in evaluated)
+    fp = sum(s["fp"] for s, _ in evaluated)
+    fn = sum(s["fn"] for s, _ in evaluated)
+    correct = sum(s["correct"] for s, _ in evaluated)
+    latencies = [s["latency_ms"] for s, _ in evaluated]
 
     prec = round(tp / (tp + fp) if (tp + fp) > 0 else 0.0, 2)
     rec = round(tp / (tp + fn) if (tp + fn) > 0 else 0.0, 2)
+    hallucination_rate = _compute_hallucination_rate(evaluated)
 
     return {
-        "accuracy": round(correct / total_scenarios if total_scenarios else 0.0, 2),
+        "accuracy": round(correct / evaluated_count if evaluated_count else 0.0, 2),
         "precision": prec,
         "recall": rec,
         "f1": round((2 * prec * rec) / (prec + rec) if (prec + rec) > 0 else 0.0, 2),
-        "hallucination_rate": round(
-            unsupp / tot_scenario_claims if tot_scenario_claims > 0 else 0.0,
-            2,
-        ),
+        "hallucination_rate": hallucination_rate,
         "latency": int(sum(latencies) / len(latencies)) if latencies else 0,
+        "evaluated_count": evaluated_count,
+        "excluded_count": excluded_count,
     }
 
 
@@ -230,20 +274,22 @@ def _aggregate_benchmark_results(
 ) -> List[Dict[str, Any]]:
     """Aggregate statistics across all scenarios for each baseline."""
     baselines_results = []
-    total_scenarios = len(scenarios)
-    tot_scenario_claims = sum(len(s["ground_truth_claims"]) for s in scenarios)
+    claim_counts = [len(s["ground_truth_claims"]) for s in scenarios]
 
     for baseline in baselines:
         stats_list = [scenario_res[baseline] for scenario_res in results.values()]
-        metrics = _compute_baseline_metrics(
-            stats_list, total_scenarios, tot_scenario_claims
-        )
+        metrics = _compute_baseline_metrics(stats_list, claim_counts)
 
         baselines_results.append(
             {
                 "baseline": baseline,
                 **metrics,
             }
+        )
+        halluc_str = (
+            f"{int(metrics['hallucination_rate']*100)}%"
+            if metrics["hallucination_rate"] is not None
+            else "N/A"
         )
         _log_benchmark_step(
             execution_logs,
@@ -254,8 +300,10 @@ def _aggregate_benchmark_results(
                 f"P={int(metrics['precision']*100)}%, "
                 f"R={int(metrics['recall']*100)}%, "
                 f"F1={int(metrics['f1']*100)}%, "
-                f"Hallucination={int(metrics['hallucination_rate']*100)}%, "
-                f"Latency={metrics['latency']}ms"
+                f"Hallucination={halluc_str}, "
+                f"Latency={metrics['latency']}ms, "
+                f"Evaluated={metrics['evaluated_count']}, "
+                f"Excluded={metrics['excluded_count']}"
             ),
         )
 
@@ -362,9 +410,14 @@ def benchmark_export(export_format: str = Query("json", alias="format")):
             "baseline,accuracy,precision,recall,f1,hallucination_rate,latency_ms\n"
         )
         for row in data["baselines"]:
+            halluc = (
+                row["hallucination_rate"]
+                if row.get("hallucination_rate") is not None
+                else "N/A"
+            )
             csv_buffer.write(
                 f"{row['baseline']},{row['accuracy']},{row['precision']},"
-                f"{row['recall']},{row['f1']},{row['hallucination_rate']},"
+                f"{row['recall']},{row['f1']},{halluc},"
                 f"{row['latency']}\n"
             )
         csv_buffer.seek(0)

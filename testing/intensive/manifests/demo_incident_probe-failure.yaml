@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-search-app
+  namespace: cloudgraph-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: demo-search-app
+  template:
+    metadata:
+      labels:
+        app: demo-search-app
+    spec:
+      containers:
+        - name: search
+          image: nginx:alpine
+          ports:
+            - containerPort: 80
+          livenessProbe:
+            httpGet:
+              path: /healthz/deep
+              port: 9999
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 1
+          env:
+            - name: SEARCH_INDEX_HOST
+              value: elasticsearch.cloudgraph-system.svc.cluster.local

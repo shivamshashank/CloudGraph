@@ -326,8 +326,8 @@ provides:
   investigations proceed.
 - **Agent Monitoring**: Displays the status and findings of individual agents.
 
-- React / Vue / Svelte
-- D3.js / Vis.js (for graph visualization)
+- Static HTML/CSS/vanilla JavaScript (`services/ui/static`), served directly — no framework or build step
+- Topology graph rendered via hand-built SVG DOM manipulation (`topology.js`) — no charting/graph library
 
 ---
 

@@ -1,0 +1,5 @@
+gpcs_unsupported,True,True
+self_consistency_unsupported,False,True
+claim_type,,
+general,0,5
+state,1,0

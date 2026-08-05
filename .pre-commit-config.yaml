@@ -83,6 +83,7 @@ repos:
           - pytest
           - sentence-transformers
           - httpx
+          - pandas
 
   # ===================================================================
   # HTML, CSS, JS
