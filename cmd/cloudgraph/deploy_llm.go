@@ -64,10 +64,15 @@ func runDeployLLM(args []string) {
 
 	printHeader("Connect a local LLM to CloudGraph")
 
-	if !commandExists("ollama") {
-		printError("ollama is not installed.")
-		printInfo("Install it from https://ollama.com/download, then re-run: cloudgraph deploy llm")
+	inCluster := ollamaDeploymentExists()
+	if !inCluster && !commandExists("ollama") {
+		printError("ollama is not installed, and no in-cluster Ollama deployment was found.")
+		printInfo("Either install Ollama locally (https://ollama.com/download) and re-run,")
+		printInfo("or deploy CloudGraph's Helm chart first (it includes an in-cluster Ollama).")
 		os.Exit(1)
+	}
+	if inCluster {
+		printInfo("Found an in-cluster Ollama deployment (cloudgraph-system/ollama) — pulling into it.")
 	}
 
 	fmt.Println("Choose a model (highest to lowest capability):")
@@ -102,10 +107,10 @@ func runDeployLLM(args []string) {
 	}
 
 	printInfo(fmt.Sprintf(
-		"Pulling %s via Ollama — this may take a while depending on your connection...",
+		"Pulling %s — this may take a while depending on your connection...",
 		chosen.Tag,
 	))
-	if err := runCmd("ollama", "pull", chosen.Tag); err != nil {
+	if err := pullModel(chosen.Tag, inCluster); err != nil {
 		printError(fmt.Sprintf("Failed to pull %s: %v", chosen.Tag, err))
 		os.Exit(1)
 	}
@@ -119,6 +124,36 @@ func runDeployLLM(args []string) {
 	}
 
 	printSuccess(fmt.Sprintf("CloudGraph is now connected to %s", chosen.Tag))
+}
+
+// ollamaDeploymentExists reports whether an in-cluster Ollama Deployment
+// (installed by this project's Helm chart, see deployments/helm/cloudgraph/
+// templates/ollama.yaml) is reachable via kubectl. Used to decide whether
+// to pull the model into that pod instead of assuming a local `ollama`
+// binary — the same `cloudgraph deploy llm` command works unmodified for
+// both a local dev setup and a full Kubernetes deployment.
+func ollamaDeploymentExists() bool {
+	if !commandExists("kubectl") {
+		return false
+	}
+	_, err := commandOutput(
+		"kubectl", "get", "deployment", "ollama",
+		"-n", "cloudgraph-system", "-o", "name",
+	)
+	return err == nil
+}
+
+// pullModel pulls the given model tag either into the in-cluster Ollama
+// pod (via kubectl exec, streamed live) or into a local Ollama install,
+// depending on inCluster.
+func pullModel(tag string, inCluster bool) error {
+	if inCluster {
+		return runCmd(
+			"kubectl", "exec", "-n", "cloudgraph-system", "deploy/ollama",
+			"--", "ollama", "pull", tag,
+		)
+	}
+	return runCmd("ollama", "pull", tag)
 }
 
 // saveLLMSettings POSTs the chosen provider/model to CloudGraph's settings

@@ -54,10 +54,10 @@ def test_call_llm_ollama(monkeypatch):
     """Test call_llm against the local Ollama server — the only supported
     provider now that CloudGraph runs entirely on local models."""
 
-    def mock_post_ollama(url, json, timeout=120, **_kwargs):
+    def mock_post_ollama(url, json, timeout=180, **_kwargs):
         assert "/v1/chat/completions" in url
         assert json["model"] == "llama3.1:8b"
-        assert timeout == 120
+        assert timeout == 180
         res_content = '{"finding": "Ollama Success", "confidence": 0.9}'
         return MockResponse({"choices": [{"message": {"content": res_content}}]})
 

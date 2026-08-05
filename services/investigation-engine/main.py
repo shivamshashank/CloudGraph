@@ -58,7 +58,7 @@ def call_llm(
         "response_format": {"type": "json_object"},
         "temperature": 0.1,
     }
-    res = requests.post(url, headers=headers, json=payload, timeout=120)
+    res = requests.post(url, headers=headers, json=payload, timeout=180)
     res.raise_for_status()
     content = res.json()["choices"][0]["message"]["content"]
     return json.loads(content)

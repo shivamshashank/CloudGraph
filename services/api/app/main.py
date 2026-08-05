@@ -40,6 +40,7 @@ from app.routers.benchmark import router as benchmark_router
 from app.routers.incidents import router as incidents_router
 from app.routers.settings import router as settings_router
 from app.routers.logs import router as logs_router
+from app.routers.report import router as report_router
 from app.helpers import (
     build_relevant_evidence,
     build_retrieval_context_for_investigation,
@@ -86,16 +87,39 @@ app.include_router(benchmark_router)
 app.include_router(incidents_router)
 app.include_router(settings_router)
 app.include_router(logs_router)
+app.include_router(report_router)
+
+
+def _check_ollama_reachable() -> bool:
+    """Pings Ollama directly using the server's own OLLAMA_BASE_URL — never
+    guess this client-side (e.g. in the CLI), since it's a plain localhost
+    URL only in local dev; in the Kubernetes deployment it's an in-cluster
+    service address the CLI's machine can't reach at all."""
+    base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+    try:
+        resp = requests.get(f"{base_url.rstrip('/')}/api/tags", timeout=5)
+        return resp.status_code == 200
+    except requests.RequestException:
+        return False
 
 
 @app.get("/health")
 def health_check():
-    """Verify service and database connection health status."""
+    """Verify service, database, and local-model connection health."""
+    ollama_reachable = _check_ollama_reachable()
     try:
         neo4j_client.execute_query("RETURN 1")
-        return {"status": "healthy", "neo4j": "connected"}
+        return {
+            "status": "healthy",
+            "neo4j": "connected",
+            "ollama": "reachable" if ollama_reachable else "unreachable",
+        }
     except NEO4J_CONNECTION_ERRORS as e:
-        return {"status": "unhealthy", "error": str(e)}
+        return {
+            "status": "unhealthy",
+            "error": str(e),
+            "ollama": "reachable" if ollama_reachable else "unreachable",
+        }
 
 
 @app.get("/ready")
@@ -277,7 +301,15 @@ def _investigate_pod(
                 "llm_api_key": llm_api_key,
                 "llm_model": llm_model,
             },
-            timeout=12,
+            # Must accommodate a real LLM-backed orchestrator chain, same as
+            # self_consistency.py's and evaluation.py's calls to this same
+            # /orchestrate endpoint — see the timeout comment in
+            # agent-orchestrator/main.py. This was previously 12s, which
+            # meant the live "Run AI Diagnosis" flow almost certainly timed
+            # out and silently used the rule-based fallback below on every
+            # real request, never the LLM path — verified as a real bug,
+            # not a hypothetical one.
+            timeout=1200,
         )
         if response.status_code == 200:
             rdata = response.json()
@@ -289,6 +321,12 @@ def _investigate_pod(
                     "recommendation": rdata["consensus"]["recommendation"],
                     "severity": rdata["consensus"]["severity"],
                     "evidence": rdata["consensus"]["evidence"],
+                    # Defaults to the fallback assumption, not "llm" — if the
+                    # orchestrator ever omits this field, treat it as
+                    # unverified rather than silently claiming success.
+                    "generation_source": rdata["consensus"].get(
+                        "generation_source", "rule_based_fallback"
+                    ),
                 }
     except (requests.RequestException, ValueError, KeyError):
         pass
@@ -299,6 +337,11 @@ def _investigate_pod(
             pod_status=pod["status"],
             error_msgs=error_msgs,
         )
+        # Orchestrator was unreachable entirely — this is a local,
+        # non-LLM-backed fallback, same class of result as the
+        # orchestrator's own internal rule_based_fallback, just from a
+        # different code path.
+        analysis["generation_source"] = "rule_based_fallback"
     evidence_context = build_relevant_evidence(
         pod_name=pod["name"], namespace=namespace
     )
@@ -403,6 +446,7 @@ def _investigate_pod(
         "timestamp": int(time.time()),
         "root_cause_confidence": gcp_res["root_cause"],
         "recommendation_confidence": gcp_res["recommendation"],
+        "generation_source": analysis.get("generation_source", "rule_based_fallback"),
     }
 
 

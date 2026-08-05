@@ -73,6 +73,71 @@ def run_vector_search(query: str) -> List[Dict[str, Any]]:
         return []
 
 
+def run_raw_context_search(query: str) -> List[Dict[str, Any]]:
+    """Raw-context control (research/7_DAY_SPRINT_CHECKLIST.md Day 3): pull
+    *all* evidence seeded for the current scenario, unranked and
+    unfiltered — no graph traversal, no hop-limit, no top-k cutoff. Answers
+    "does structured retrieval earn its complexity, or is dumping
+    everything just as good" — the point is to remove the retrieval
+    system's intelligence entirely, not just its ranking step.
+
+    Every scenario-seeded Neo4j node is tagged `is_benchmark = true` by
+    seed_scenario_data/teardown_benchmark_data (see app/demo/seeding.py) —
+    that tag already precisely scopes "the incident window" for whichever
+    scenario is currently seeded, so no additional traversal is needed to
+    find it.
+
+    There's no "fetch everything" API on the Qdrant side (semantic_store
+    only supports similarity search with a limit) — using a generously
+    large limit stands in for "all matching docs" in practice, since a
+    single scenario's seeded corpus is a handful of documents, not enough
+    to hit this ceiling.
+    """
+    raw_results: List[Dict[str, Any]] = []
+    if neo4j_client.driver:
+        try:
+            records = neo4j_client.execute_query(
+                """
+                MATCH (n)
+                WHERE n.is_benchmark = true
+                RETURN labels(n) as labels, n.name as name, n.status as status,
+                       n.title as title, properties(n) as properties,
+                       elementId(n) as id
+                """
+            )
+            for record in records:
+                labels = record.get("labels") or []
+                raw_results.append(
+                    {
+                        "id": record.get("id"),
+                        "labels": labels,
+                        "properties": {
+                            **(dict(record.get("properties") or {})),
+                            "name": record.get("name")
+                            or record.get("title")
+                            or "unknown",
+                            "status": record.get("status") or "Active",
+                        },
+                        "hop_distance": 0,
+                        "relationships": [],
+                        "path": [],
+                    }
+                )
+        except (RuntimeError, OSError) as exc:
+            logger.error("Raw-context Neo4j query failed: %s", exc)
+
+    try:
+        # limit=50: comfortably above any single scenario's seeded doc
+        # count (a handful) — see docstring above on why this stands in
+        # for "fetch everything" without a scroll API.
+        semantic_hits = semantic_store.search(query, limit=50)
+        raw_results.extend(semantic_hits)
+    except (RuntimeError, ValueError) as exc:
+        logger.error("Raw-context vector search failed: %s", exc)
+
+    return raw_results
+
+
 def run_hybrid_search(query: str) -> List[Dict[str, Any]]:
     """Execute real GraphRAG hybrid retrieval."""
     raw_results = run_keyword_search(query)
@@ -274,11 +339,12 @@ def _request_agents_step(
             },
             # Must accommodate a real LLM-backed orchestrator chain (5
             # sequential specialist calls + 1 consensus call) against a
-            # local Ollama model — 6s only ever worked because the
-            # rule-based fallback path is instant. Local CPU/GPU inference
-            # speed varies a lot by model size and hardware, so this is
-            # sized with real headroom.
-            timeout=420,
+            # local Ollama model — must exceed the orchestrator's own wait
+            # for investigation-engine (960s) plus its own consensus call
+            # (up to 180s); see the timeout comment in
+            # agent-orchestrator/main.py. The prior 420s value was verified
+            # insufficient, the same way main.py's old 12s value was.
+            timeout=1200,
         )
     except requests.RequestException as exc:
         raise OrchestratorUnavailableError(
@@ -395,3 +461,52 @@ def evaluate_scenario(
     )
 
     return tp, fp, fn, correct, unsupported_claims_count
+
+
+# Neuro-symbolic ablation (research/7_DAY_SPRINT_CHECKLIST.md Day 3,
+# NOVEL_CONTRIBUTIONS.md Contribution 3): keyword = near-pure
+# symbolic/lexical, vector = near-pure neural/semantic, hybrid =
+# neuro-symbolic. This mapping is data, not logic — it's how the three
+# existing retrieval modes get framed for the ablation, nothing new to run.
+NEUROSYMBOLIC_METHOD_LABELS = {
+    "keyword": "symbolic",
+    "vector": "neural",
+    "hybrid": "neuro-symbolic",
+}
+
+
+def retrieval_detail_for_scenario(
+    scenario: Dict[str, Any], method_key: str
+) -> Dict[str, Any]:
+    """Per-scenario retrieval detail for one method (keyword/vector/hybrid),
+    for the neuro-symbolic ablation's qualitative failure-mode analysis.
+
+    Deliberately returns data, not a verdict — *why* one method missed a
+    tag that another caught is a judgment call for a human reading this
+    output, not something this function should guess at or categorize
+    automatically.
+    """
+    if method_key == "keyword":
+        results = run_keyword_search(scenario["query"])
+    elif method_key == "vector":
+        results = run_vector_search(scenario["query"])
+    else:
+        results = run_hybrid_search(scenario["query"])
+
+    retrieved_text = extract_text_from_results(results, method_key)
+    retrieved_text_lower = retrieved_text.lower()
+    expected_tags = scenario["expected_tags"]
+    hit_tags = [tag for tag in expected_tags if tag.lower() in retrieved_text_lower]
+    missed_tags = [tag for tag in expected_tags if tag not in hit_tags]
+
+    return {
+        "scenario_id": scenario["id"],
+        "method": method_key,
+        "method_class": NEUROSYMBOLIC_METHOD_LABELS[method_key],
+        "n_results": len(results),
+        "expected_tags": ";".join(expected_tags),
+        "hit_tags": ";".join(hit_tags),
+        "missed_tags": ";".join(missed_tags),
+        "correct": 1 if len(hit_tags) >= max(1, len(expected_tags) // 2) else 0,
+        "retrieved_text_preview": retrieved_text[:500],
+    }

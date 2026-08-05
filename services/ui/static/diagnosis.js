@@ -56,6 +56,18 @@ document.addEventListener("DOMContentLoaded", () => {
       if (data.status === "success" && data.results.length > 0) {
         renderRCA(data.results);
         window.CloudGraph.fetchGraph();
+
+        const usedFallback = data.results.some(
+          (r) => r.generation_source && r.generation_source !== "llm",
+        );
+        if (usedFallback && typeof window.CloudGraph.showToast === "function") {
+          window.CloudGraph.showToast(
+            "Some findings used the rule-based fallback, not your connected " +
+              "model — the LLM may be unreachable or slow to respond. " +
+              "Check `cloudgraph deploy llm` is still connected.",
+            "error",
+          );
+        }
       }
     } catch (err) {
       if (rcaOutput) {

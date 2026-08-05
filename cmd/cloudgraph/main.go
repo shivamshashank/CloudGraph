@@ -62,6 +62,7 @@ Commands:
   ingest         Send a sample payload to the CloudGraph API
   deploy         Install Kubernetes (kubeadm), Helm, and CloudGraph
   deploy llm     Pull a local Llama model via Ollama and connect it to CloudGraph
+  report         Generate the GPCS-vs-self-consistency research report
   uninstall      Uninstall CloudGraph and optionally dismantle the cluster
   help           Show this help message
 
@@ -74,6 +75,8 @@ Examples:
   sudo cloudgraph deploy
   cloudgraph deploy llm
   cloudgraph deploy llm http://localhost:8000
+  cloudgraph report --limit 3
+  cloudgraph report http://localhost:8000
   cloudgraph uninstall
 `
 	fmt.Print(helpText)
@@ -185,6 +188,8 @@ func main() {
 		} else {
 			runDeploy()
 		}
+	case "report":
+		runReport(cmdArgs)
 	case "doctor":
 		runDoctor()
 	case "status":

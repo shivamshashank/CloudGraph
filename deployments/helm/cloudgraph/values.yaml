@@ -5,7 +5,11 @@
 global:
   namespace: cloudgraph-system
   imagePullPolicy: IfNotPresent
-  openaiApiKey: ""
+  # Optional override for the Ollama model tag the services default to
+  # (call_llm's own hardcoded default is "llama3.1:8b" if this is empty).
+  # Actual model selection normally happens via `cloudgraph deploy llm`,
+  # which writes provider/model to the Settings API (stored in Neo4j) —
+  # this is just a fallback for requests that don't specify one.
   llmModel: ""
 
 # CloudGraph API
@@ -70,6 +74,30 @@ agentOrchestrator:
     requests:
       cpu: 10m
       memory: 128Mi
+
+# Ollama — local LLM server, in-cluster. CloudGraph runs entirely on a
+# local model reached at cloudgraph-ollama.<namespace>.svc.cluster.local —
+# no cloud LLM provider or API key is used anywhere in this chart.
+ollama:
+  enabled: true
+
+  image:
+    repository: ollama/ollama
+    tag: "latest"
+
+  persistence:
+    # Must comfortably fit whichever model `cloudgraph deploy llm` pulls —
+    # llama3.1:8b is ~4.7GB, llama3.3:70b is ~43GB. Sized for the 8B
+    # default with headroom; raise this before pulling a larger model.
+    size: 20Gi
+
+  resources:
+    limits:
+      cpu: "4"
+      memory: 8Gi
+    requests:
+      cpu: "1"
+      memory: 4Gi
 
 # CloudGraph UI
 cloudgraphUI:

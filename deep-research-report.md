@@ -60,7 +60,7 @@ The repository’s structure reflects its architecture:
 - **`deployments/`** – Kubernetes and Helm manifests for the backend and agents.
 - **`services/api/`** – Python backend (FastAPI/uvicorn) providing the investigation API endpoints.
 - **`services/agent-orchestrator/` & `investigation-engine/`** – Python services running the multi-agent orchestration and LLM-driven investigation logic.
-- **`services/ui/`** – Web frontend (JavaScript/React or similar) for visualizing RCA results.
+- **`services/ui/`** – Web frontend: static HTML/CSS/vanilla JavaScript (no framework, no build step) for visualizing RCA results.
 - **`graph/`** – (Likely) code for graph ingestion and ontology (not detailed in README).
 - **`tests/`** – End-to-end tests, including observability endpoint checks (e.g. Prometheus/Loki health) and CLI tests.
 - **`docs/`** – Documentation and design notes (Week-1 strategy, etc.).

@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-notification-app
+  namespace: cloudgraph-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: demo-notification-app
+  template:
+    metadata:
+      labels:
+        app: demo-notification-app
+    spec:
+      containers:
+        - name: notification
+          image: nginx:alpine
+          envFrom:
+            - secretRef:
+                name: notification-smtp-credentials

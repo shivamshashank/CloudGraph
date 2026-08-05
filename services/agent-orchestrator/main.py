@@ -58,7 +58,7 @@ def call_llm(  # pylint: disable=too-many-arguments
     # Local CPU/GPU inference on consumer hardware can be far slower
     # per-call than a hosted API, especially under concurrent load from 5
     # sequential specialist calls in a row.
-    res = requests.post(url, headers=headers, json=payload, timeout=120)
+    res = requests.post(url, headers=headers, json=payload, timeout=180)
     res.raise_for_status()
     content = res.json()["choices"][0]["message"]["content"]
     return json.loads(content)
@@ -353,12 +353,14 @@ class OrchestratorHandler(http.server.BaseHTTPRequestHandler):
                     "llm_model": payload.get("llm_model"),
                 },
                 # investigation-engine runs 5 specialists sequentially, each
-                # with its own local Ollama call (up to call_llm's own 120s
-                # timeout) plus inter-agent pacing delays between them —
-                # sized with headroom above the theoretical worst case
-                # (5 x 120s) since local CPU/GPU inference speed varies a
-                # lot by model size and hardware.
-                timeout=330,
+                # with its own local Ollama call (up to call_llm's own 180s
+                # timeout) — worst case 5 x 180s = 900s. This must exceed
+                # that worst case with real margin, not just approach it
+                # (a prior version of this comment claimed "headroom" at
+                # 330s, which is actually 270s *short* of 5 x 120s — that
+                # mismatch was a real, verified cause of spurious timeouts
+                # under normal local CPU load, not just a hypothetical one).
+                timeout=960,
             )
 
             if engine_res.status_code == 200:

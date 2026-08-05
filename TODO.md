@@ -3,6 +3,11 @@
 **Goal:** Reach 95+ marks on the current dissertation (v1), then extend the work
 toward journal publication and PhD positioning (v2 / v3).
 
+This file is the forward-looking plan. For current implementation status
+(what's actually done vs. not, verified against the code), see
+`PROJECT_STATUS.md` — that file, not this one, is the source of truth for
+"is X built yet."
+
 ---
 
 ## How to Use This Document
@@ -24,16 +29,14 @@ common way dissertation time budgets fail.
 
 ## 1. Evaluation Rigor (Highest Priority — Do This First)
 
-- [ ] Replace heuristic benchmark calculators (`_calc_kw`, `_calc_vector`,
+- [x] Replace heuristic benchmark calculators (`_calc_kw`, `_calc_vector`,
       `_calc_graphrag`, `_calc_agents`, `_calc_gcp`, `_calc_gpcs` in
-      `routers/benchmark.py`) with **real pipeline invocations** — each baseline
-      must actually run keyword search / vector search / GraphRAG traversal /
-      agent orchestration / GCP / GPCS against the ground-truth dataset, not
-      simulate scores via formulas.
-- [ ] Expand the benchmark dataset from 10 to **25–30 scenarios** if time
-      allows, maintaining balanced coverage across Kubernetes, Networking,
-      Security, Deployment, and Observability categories already defined in
-      `research-methodology.md`.
+      `routers/benchmark.py`) with **real pipeline invocations** — done;
+      `routers/benchmark.py` now calls the real `evaluate_scenario()`
+      (`app/research/evaluation.py`) for all 6 baselines, no fabricated
+      offsets remain. See `experiments/results/day1_real_benchmark.json`.
+- [x] Expand the benchmark dataset to **25 scenarios** (done — see
+      `app/demo/benchmark_dataset.py`; the 25–30 target's low end is met).
 - [ ] Implement a **train/held-out split** (e.g. 70/30, matching the split
       already documented in `docs/week-2` evidence but not yet applied to actual
       threshold calibration).
@@ -44,17 +47,26 @@ common way dissertation time budgets fail.
         deltas.
   - [ ] Add **bootstrap or normal-approximation confidence intervals** on
         headline accuracy/F1/hallucination-rate numbers.
-- [ ] Implement the **GPCS self-consistency baseline** (explicitly marked "not
-      optional" in `HALLUCINATION_SCORING_DESIGN.md` but currently absent from
-      `gpcs.py`):
-  - [ ] Generate 2–3 RCA outputs per incident at higher temperature.
-  - [ ] Extract claims from each generation using the existing Step A claim
-        extractor.
-  - [ ] Flag claims as unsupported if they don't recur consistently across
-        generations.
-  - [ ] Produce a comparison table: GPCS vs self-consistency
-        agreement/disagreement, broken down by claim type (temporal, causal,
-        entity_relationship, state).
+- [x] Implement the **GPCS self-consistency baseline** (explicitly marked "not
+      optional" in `HALLUCINATION_SCORING_DESIGN.md`) — code complete in
+      `app/research/self_consistency.py` and `scripts/run_day2_self_consistency.py`,
+      unit-tested (`tests/test_self_consistency.py`):
+  - [x] Generate N RCA outputs per incident at higher temperature
+        (`generate_and_score(scenario, n_samples, temperature)`).
+  - [x] Extract claims from each generation using the existing
+        `GraphProvenanceClaimScorer.extract_claims` (identical extractor GPCS
+        uses, so the comparison is fair by construction).
+  - [x] Flag claims as unsupported if they don't recur consistently across
+        generations (cosine similarity ≥ 0.8 recurrence check).
+  - [ ] **Produce the actual comparison table with real data** — the code
+        above has never successfully run to completion: every prior attempt
+        excluded all 25 scenarios because the (now-removed) cloud provider's
+        free-tier quota was exhausted before real LLM samples could be
+        collected (see `experiments/results/day2_excluded_scenarios.json`).
+        This is now unblocked — CloudGraph runs entirely on a local Ollama
+        model with no quota, and a real end-to-end investigation has been
+        verified working. **Re-running `scripts/run_day2_self_consistency.py`
+        is the next concrete step**, before anything else in this file.
 - [ ] Calibrate the GPCS `threshold` value (currently hardcoded at 0.50 in
       `GraphProvenanceClaimScorer.__init__`) on the held-out split rather than
       leaving it as an unvalidated constant.
@@ -80,10 +92,11 @@ common way dissertation time budgets fail.
   - [x] Replace "LangGraph" orchestration claims with accurate description of
         the custom `http.server`-based JSON orchestration layer
         (`agent-orchestrator/main.py`, `investigation-engine/main.py`).
-  - [ ] Replace "React / Vue / Svelte + D3.js" frontend claims with accurate
+  - [x] Replace "React / Vue / Svelte + D3.js" frontend claims with accurate
         description of the static HTML/CSS/vanilla-JS UI
-        (`services/ui/static/*`), or add a small real D3 enhancement to
-        `topology.js` to make the claim true.
+        (`services/ui/static/*`) — done in `README.md` and
+        `deep-research-report.md`; the topology graph is hand-built SVG DOM
+        manipulation, no D3/charting library is actually used anywhere.
   - [ ] Reframe AWS EKS/IAM/S3 references as historical/superseded, consistent
         with the annotations already present in
         `docs/week-1/architecture-design.md` and
@@ -116,8 +129,11 @@ common way dissertation time budgets fail.
 
 - [ ] Add minimal API authentication (a simple API-key header check is
       sufficient) to `services/api/app/main.py` — currently
-      `allow_origins=["*"]` with zero auth on any route, including LLM settings
-      endpoints that store plaintext API keys in Neo4j.
+      `allow_origins=["*"]` with zero auth on any route. Lower severity than
+      before the Ollama migration (there's no cloud API key left to leak —
+      `/api/v1/settings` now only ever stores a provider/model pair for a
+      local Ollama connection, `api_key` is always empty), but the endpoints
+      are still unauthenticated and reachable by anyone who can reach the API.
 - [ ] Either deploy Tempo genuinely in the demo environment (manifest already
       exists at `deployments/kubernetes/observability/tempo.yaml`) so real trace
       data drives `CALLS` relationship generation, or explicitly document that

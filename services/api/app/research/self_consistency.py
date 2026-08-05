@@ -101,8 +101,16 @@ def _request_one_sample(
     temperature: float,
     orch_addr: str,
     request_logger: Optional[RequestLogger] = None,
+    retrieval_results: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
-    """Request one real, LLM-backed RCA generation for a scenario."""
+    """Request one real, LLM-backed RCA generation for a scenario.
+
+    retrieval_results defaults to empty — the original Day-2 condition:
+    agents reason from error_logs alone, no retrieved evidence injected.
+    Passing a populated list is what the Day-3 raw-context and
+    ranked-hybrid conditions use to inject their retrieval into the exact
+    same generation pipeline, so only the context varies, nothing else.
+    """
     llm_settings = load_stored_llm_settings()
     request_payload = {
         "pod_id": f"pod-{scenario['id']}",
@@ -111,7 +119,7 @@ def _request_one_sample(
         "namespace": "cloudgraph-system",
         "error_logs": scenario["ground_truth_claims"],
         "evidence_context": [],
-        "retrieval_context": {"results": []},
+        "retrieval_context": {"results": retrieval_results or []},
         "llm_temperature": temperature,
         "llm_provider": llm_settings.get("provider"),
         "llm_api_key": llm_settings.get("api_key"),
@@ -139,9 +147,12 @@ def _request_one_sample(
             f"{orch_addr.rstrip('/')}/orchestrate",
             json=request_payload,
             # Must exceed the orchestrator's own wait for investigation-engine
-            # (330s) plus its own consensus LLM call against local Ollama —
-            # see the timeout comment in agent-orchestrator/main.py for why.
-            timeout=420,
+            # (960s) plus its own consensus LLM call against local Ollama
+            # (up to 180s) — see the timeout comment in
+            # agent-orchestrator/main.py for why. The prior 420s value was
+            # verified insufficient (a real, not hypothetical, cause of
+            # excluded scenarios during the Day-2 pilot run).
+            timeout=1200,
         )
     except requests.RequestException as exc:
         _log(None, None, str(exc))
@@ -190,6 +201,7 @@ def _generate_one_sample(
     temperature: float,
     orch_addr: str,
     request_logger: Optional[RequestLogger] = None,
+    retrieval_results: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """Request one real, LLM-backed generation, retrying transient failures
     with a backoff delay between attempts.
@@ -207,7 +219,11 @@ def _generate_one_sample(
     for attempt in range(1, MAX_ATTEMPTS_PER_SAMPLE + 1):
         try:
             return _request_one_sample(
-                scenario, temperature, orch_addr, request_logger=request_logger
+                scenario,
+                temperature,
+                orch_addr,
+                request_logger=request_logger,
+                retrieval_results=retrieval_results,
             )
         except SelfConsistencyUnavailableError as exc:
             last_error = exc
@@ -243,12 +259,13 @@ def _cosine_similarity(a: List[float], b: List[float]) -> float:
     return sum(x * y for x, y in zip(a, b))
 
 
-def _generate_samples(
+def _generate_samples(  # pylint: disable=too-many-arguments
     scenario: Dict[str, Any],
     n_samples: int,
     temperature: float,
     orch_addr: str,
     request_logger: Optional[RequestLogger],
+    retrieval_results: Optional[List[Dict[str, Any]]] = None,
 ) -> List[Dict[str, Any]]:
     """Generate n_samples real RCA analyses, spacing calls out rather than
     bursting all n_samples * 6 calls back to back — same token-per-minute
@@ -259,7 +276,11 @@ def _generate_samples(
             time.sleep(INTER_SAMPLE_DELAY_SECONDS)
         generations.append(
             _generate_one_sample(
-                scenario, temperature, orch_addr, request_logger=request_logger
+                scenario,
+                temperature,
+                orch_addr,
+                request_logger=request_logger,
+                retrieval_results=retrieval_results,
             )
         )
     return generations
@@ -306,12 +327,13 @@ def _score_claim_recurrence(
     return scored_claims, unsupported
 
 
-def generate_and_score(
+def generate_and_score(  # pylint: disable=too-many-arguments
     scenario: Dict[str, Any],
     n_samples: int = DEFAULT_N_SAMPLES,
     temperature: float = DEFAULT_TEMPERATURE,
     orch_addr: Optional[str] = None,
     request_logger: Optional[RequestLogger] = None,
+    retrieval_results: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """Generate n_samples real RCA analyses for a scenario at elevated
     temperature and score self-consistency.
@@ -326,6 +348,12 @@ def generate_and_score(
     the identical extractor GPCS uses — so the comparison is fair: the same
     text is split into the same claims by both methods, only the
     verification mechanism differs.
+
+    retrieval_results is None by default (the original Day-2 condition —
+    no retrieved evidence injected, agents reason from error_logs alone).
+    Passing Day 3's raw-context or ranked-hybrid retrieval results here
+    runs the identical generation+scoring pipeline against a different
+    context condition — see app/research/report_runner.py.
     """
     if n_samples < 2:
         raise ValueError("self-consistency requires at least 2 samples")
@@ -337,7 +365,12 @@ def generate_and_score(
     embedder = SentenceTransformerEmbedder()
 
     generations = _generate_samples(
-        scenario, n_samples, temperature, orch_addr, request_logger
+        scenario,
+        n_samples,
+        temperature,
+        orch_addr,
+        request_logger,
+        retrieval_results=retrieval_results,
     )
 
     claims_per_generation = [scorer.extract_claims(g) for g in generations]

@@ -1,102 +1,10 @@
 [
   {
-    "scenario_id": "scenario-01",
-    "reason": "all 3 attempts failed for scenario 'scenario-01': agent-orchestrator used its deterministic rule-based fallback instead of a real LLM call (no API key configured server-side, or the LLM request itself failed) \u2014 self-consistency cannot be measured without genuine sample-to-sample variation. Configure OPENAI_API_KEY / GEMINI_API_KEY / ANTHROPIC_API_KEY for the agent-orchestrator process and retry."
-  },
-  {
     "scenario_id": "scenario-02",
-    "reason": "all 3 attempts failed for scenario 'scenario-02': agent-orchestrator used its deterministic rule-based fallback instead of a real LLM call (no API key configured server-side, or the LLM request itself failed) \u2014 self-consistency cannot be measured without genuine sample-to-sample variation. Configure OPENAI_API_KEY / GEMINI_API_KEY / ANTHROPIC_API_KEY for the agent-orchestrator process and retry."
+    "reason": "all attempts failed for scenario 'scenario-02': agent-orchestrator used its deterministic rule-based fallback instead of a real LLM call \u2014 Underlying error: HTTPConnectionPool(host='localhost', port=11434): Read timed out. (read timeout=180) self-consistency cannot be measured without genuine sample-to-sample variation."
   },
   {
     "scenario_id": "scenario-03",
-    "reason": "all 3 attempts failed for scenario 'scenario-03': agent-orchestrator used its deterministic rule-based fallback instead of a real LLM call (no API key configured server-side, or the LLM request itself failed) \u2014 self-consistency cannot be measured without genuine sample-to-sample variation. Configure OPENAI_API_KEY / GEMINI_API_KEY / ANTHROPIC_API_KEY for the agent-orchestrator process and retry."
-  },
-  {
-    "scenario_id": "scenario-04",
-    "reason": "all 3 attempts failed for scenario 'scenario-04': agent-orchestrator used its deterministic rule-based fallback instead of a real LLM call (no API key configured server-side, or the LLM request itself failed) \u2014 self-consistency cannot be measured without genuine sample-to-sample variation. Configure OPENAI_API_KEY / GEMINI_API_KEY / ANTHROPIC_API_KEY for the agent-orchestrator process and retry."
-  },
-  {
-    "scenario_id": "scenario-05",
-    "reason": "all 3 attempts failed for scenario 'scenario-05': agent-orchestrator used its deterministic rule-based fallback instead of a real LLM call (no API key configured server-side, or the LLM request itself failed) \u2014 self-consistency cannot be measured without genuine sample-to-sample variation. Configure OPENAI_API_KEY / GEMINI_API_KEY / ANTHROPIC_API_KEY for the agent-orchestrator process and retry."
-  },
-  {
-    "scenario_id": "scenario-06",
-    "reason": "all 3 attempts failed for scenario 'scenario-06': agent-orchestrator used its deterministic rule-based fallback instead of a real LLM call (no API key configured server-side, or the LLM request itself failed) \u2014 self-consistency cannot be measured without genuine sample-to-sample variation. Configure OPENAI_API_KEY / GEMINI_API_KEY / ANTHROPIC_API_KEY for the agent-orchestrator process and retry."
-  },
-  {
-    "scenario_id": "scenario-07",
-    "reason": "all 3 attempts failed for scenario 'scenario-07': agent-orchestrator used its deterministic rule-based fallback instead of a real LLM call (no API key configured server-side, or the LLM request itself failed) \u2014 self-consistency cannot be measured without genuine sample-to-sample variation. Configure OPENAI_API_KEY / GEMINI_API_KEY / ANTHROPIC_API_KEY for the agent-orchestrator process and retry."
-  },
-  {
-    "scenario_id": "scenario-08",
-    "reason": "all 3 attempts failed for scenario 'scenario-08': agent-orchestrator used its deterministic rule-based fallback instead of a real LLM call (no API key configured server-side, or the LLM request itself failed) \u2014 self-consistency cannot be measured without genuine sample-to-sample variation. Configure OPENAI_API_KEY / GEMINI_API_KEY / ANTHROPIC_API_KEY for the agent-orchestrator process and retry."
-  },
-  {
-    "scenario_id": "scenario-09",
-    "reason": "all 3 attempts failed for scenario 'scenario-09': agent-orchestrator used its deterministic rule-based fallback instead of a real LLM call (no API key configured server-side, or the LLM request itself failed) \u2014 self-consistency cannot be measured without genuine sample-to-sample variation. Configure OPENAI_API_KEY / GEMINI_API_KEY / ANTHROPIC_API_KEY for the agent-orchestrator process and retry."
-  },
-  {
-    "scenario_id": "scenario-10",
-    "reason": "all 3 attempts failed for scenario 'scenario-10': agent-orchestrator used its deterministic rule-based fallback instead of a real LLM call (no API key configured server-side, or the LLM request itself failed) \u2014 self-consistency cannot be measured without genuine sample-to-sample variation. Configure OPENAI_API_KEY / GEMINI_API_KEY / ANTHROPIC_API_KEY for the agent-orchestrator process and retry."
-  },
-  {
-    "scenario_id": "scenario-11",
-    "reason": "all 3 attempts failed for scenario 'scenario-11': agent-orchestrator used its deterministic rule-based fallback instead of a real LLM call (no API key configured server-side, or the LLM request itself failed) \u2014 self-consistency cannot be measured without genuine sample-to-sample variation. Configure OPENAI_API_KEY / GEMINI_API_KEY / ANTHROPIC_API_KEY for the agent-orchestrator process and retry."
-  },
-  {
-    "scenario_id": "scenario-12",
-    "reason": "all 3 attempts failed for scenario 'scenario-12': agent-orchestrator used its deterministic rule-based fallback instead of a real LLM call (no API key configured server-side, or the LLM request itself failed) \u2014 self-consistency cannot be measured without genuine sample-to-sample variation. Configure OPENAI_API_KEY / GEMINI_API_KEY / ANTHROPIC_API_KEY for the agent-orchestrator process and retry."
-  },
-  {
-    "scenario_id": "scenario-13",
-    "reason": "all 3 attempts failed for scenario 'scenario-13': agent-orchestrator used its deterministic rule-based fallback instead of a real LLM call (no API key configured server-side, or the LLM request itself failed) \u2014 self-consistency cannot be measured without genuine sample-to-sample variation. Configure OPENAI_API_KEY / GEMINI_API_KEY / ANTHROPIC_API_KEY for the agent-orchestrator process and retry."
-  },
-  {
-    "scenario_id": "scenario-14",
-    "reason": "all 3 attempts failed for scenario 'scenario-14': agent-orchestrator used its deterministic rule-based fallback instead of a real LLM call (no API key configured server-side, or the LLM request itself failed) \u2014 self-consistency cannot be measured without genuine sample-to-sample variation. Configure OPENAI_API_KEY / GEMINI_API_KEY / ANTHROPIC_API_KEY for the agent-orchestrator process and retry."
-  },
-  {
-    "scenario_id": "scenario-15",
-    "reason": "all 3 attempts failed for scenario 'scenario-15': agent-orchestrator used its deterministic rule-based fallback instead of a real LLM call (no API key configured server-side, or the LLM request itself failed) \u2014 self-consistency cannot be measured without genuine sample-to-sample variation. Configure OPENAI_API_KEY / GEMINI_API_KEY / ANTHROPIC_API_KEY for the agent-orchestrator process and retry."
-  },
-  {
-    "scenario_id": "scenario-16",
-    "reason": "all 3 attempts failed for scenario 'scenario-16': agent-orchestrator used its deterministic rule-based fallback instead of a real LLM call (no API key configured server-side, or the LLM request itself failed) \u2014 self-consistency cannot be measured without genuine sample-to-sample variation. Configure OPENAI_API_KEY / GEMINI_API_KEY / ANTHROPIC_API_KEY for the agent-orchestrator process and retry."
-  },
-  {
-    "scenario_id": "scenario-17",
-    "reason": "all 3 attempts failed for scenario 'scenario-17': agent-orchestrator used its deterministic rule-based fallback instead of a real LLM call (no API key configured server-side, or the LLM request itself failed) \u2014 self-consistency cannot be measured without genuine sample-to-sample variation. Configure OPENAI_API_KEY / GEMINI_API_KEY / ANTHROPIC_API_KEY for the agent-orchestrator process and retry."
-  },
-  {
-    "scenario_id": "scenario-18",
-    "reason": "all 3 attempts failed for scenario 'scenario-18': agent-orchestrator used its deterministic rule-based fallback instead of a real LLM call (no API key configured server-side, or the LLM request itself failed) \u2014 self-consistency cannot be measured without genuine sample-to-sample variation. Configure OPENAI_API_KEY / GEMINI_API_KEY / ANTHROPIC_API_KEY for the agent-orchestrator process and retry."
-  },
-  {
-    "scenario_id": "scenario-19",
-    "reason": "all 3 attempts failed for scenario 'scenario-19': agent-orchestrator used its deterministic rule-based fallback instead of a real LLM call (no API key configured server-side, or the LLM request itself failed) \u2014 self-consistency cannot be measured without genuine sample-to-sample variation. Configure OPENAI_API_KEY / GEMINI_API_KEY / ANTHROPIC_API_KEY for the agent-orchestrator process and retry."
-  },
-  {
-    "scenario_id": "scenario-20",
-    "reason": "all 3 attempts failed for scenario 'scenario-20': agent-orchestrator used its deterministic rule-based fallback instead of a real LLM call (no API key configured server-side, or the LLM request itself failed) \u2014 self-consistency cannot be measured without genuine sample-to-sample variation. Configure OPENAI_API_KEY / GEMINI_API_KEY / ANTHROPIC_API_KEY for the agent-orchestrator process and retry."
-  },
-  {
-    "scenario_id": "scenario-21",
-    "reason": "all 3 attempts failed for scenario 'scenario-21': agent-orchestrator used its deterministic rule-based fallback instead of a real LLM call (no API key configured server-side, or the LLM request itself failed) \u2014 self-consistency cannot be measured without genuine sample-to-sample variation. Configure OPENAI_API_KEY / GEMINI_API_KEY / ANTHROPIC_API_KEY for the agent-orchestrator process and retry."
-  },
-  {
-    "scenario_id": "scenario-22",
-    "reason": "all 3 attempts failed for scenario 'scenario-22': agent-orchestrator used its deterministic rule-based fallback instead of a real LLM call (no API key configured server-side, or the LLM request itself failed) \u2014 self-consistency cannot be measured without genuine sample-to-sample variation. Configure OPENAI_API_KEY / GEMINI_API_KEY / ANTHROPIC_API_KEY for the agent-orchestrator process and retry."
-  },
-  {
-    "scenario_id": "scenario-23",
-    "reason": "all 3 attempts failed for scenario 'scenario-23': agent-orchestrator used its deterministic rule-based fallback instead of a real LLM call (no API key configured server-side, or the LLM request itself failed) \u2014 self-consistency cannot be measured without genuine sample-to-sample variation. Configure OPENAI_API_KEY / GEMINI_API_KEY / ANTHROPIC_API_KEY for the agent-orchestrator process and retry."
-  },
-  {
-    "scenario_id": "scenario-24",
-    "reason": "all 3 attempts failed for scenario 'scenario-24': agent-orchestrator used its deterministic rule-based fallback instead of a real LLM call (no API key configured server-side, or the LLM request itself failed) \u2014 self-consistency cannot be measured without genuine sample-to-sample variation. Configure OPENAI_API_KEY / GEMINI_API_KEY / ANTHROPIC_API_KEY for the agent-orchestrator process and retry."
-  },
-  {
-    "scenario_id": "scenario-25",
-    "reason": "all 3 attempts failed for scenario 'scenario-25': agent-orchestrator used its deterministic rule-based fallback instead of a real LLM call (no API key configured server-side, or the LLM request itself failed) \u2014 self-consistency cannot be measured without genuine sample-to-sample variation. Configure OPENAI_API_KEY / GEMINI_API_KEY / ANTHROPIC_API_KEY for the agent-orchestrator process and retry."
+    "reason": "all attempts failed for scenario 'scenario-03': agent-orchestrator used its deterministic rule-based fallback instead of a real LLM call \u2014 Underlying error: HTTPConnectionPool(host='localhost', port=11434): Read timed out. (read timeout=180) self-consistency cannot be measured without genuine sample-to-sample variation."
   }
 ]
