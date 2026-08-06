@@ -90,35 +90,19 @@ app.include_router(logs_router)
 app.include_router(report_router)
 
 
-def _check_ollama_reachable() -> bool:
-    """Pings Ollama directly using the server's own OLLAMA_BASE_URL — never
-    guess this client-side (e.g. in the CLI), since it's a plain localhost
-    URL only in local dev; in the Kubernetes deployment it's an in-cluster
-    service address the CLI's machine can't reach at all."""
-    base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-    try:
-        resp = requests.get(f"{base_url.rstrip('/')}/api/tags", timeout=5)
-        return resp.status_code == 200
-    except requests.RequestException:
-        return False
-
-
 @app.get("/health")
 def health_check():
-    """Verify service, database, and local-model connection health."""
-    ollama_reachable = _check_ollama_reachable()
+    """Verify service and database connection health."""
     try:
         neo4j_client.execute_query("RETURN 1")
         return {
             "status": "healthy",
             "neo4j": "connected",
-            "ollama": "reachable" if ollama_reachable else "unreachable",
         }
     except NEO4J_CONNECTION_ERRORS as e:
         return {
             "status": "unhealthy",
             "error": str(e),
-            "ollama": "reachable" if ollama_reachable else "unreachable",
         }
 
 

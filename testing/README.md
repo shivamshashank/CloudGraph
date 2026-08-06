@@ -27,10 +27,10 @@ different questions and run on different timescales:
   - **`run_report_full.sh`** — for local dev against a full source
     checkout, wraps `services/api/scripts/generate_research_report.py`
     directly (no HTTP round-trip). Same pre-flight checks (stack reachable,
-    a local model actually connected) and end-of-run summary either way.
+    an LLM provider actually connected) and end-of-run summary either way.
 
 Both `intensive/` and the local-checkout `report/` path expect the full
-stack (Neo4j, Qdrant, Ollama, investigation-engine, agent-orchestrator, api)
+stack (Neo4j, Qdrant, investigation-engine, agent-orchestrator, api)
 already running and reachable — neither script starts it for you.
 
 ## Quick reference

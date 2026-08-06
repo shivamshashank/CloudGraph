@@ -67,8 +67,6 @@ spec:
               value: "cloudgraph-qdrant.{{ .Values.global.namespace }}.svc.cluster.local"
             - name: AGENT_ORCHESTRATOR_URL
               value: "http://cloudgraph-agent-orchestrator.{{ .Values.global.namespace }}.svc.cluster.local:8082"
-            - name: OLLAMA_BASE_URL
-              value: "http://cloudgraph-ollama.{{ .Values.global.namespace }}.svc.cluster.local:11434"
             - name: LLM_MODEL
               value: {{ .Values.global.llmModel | quote }}
           resources:

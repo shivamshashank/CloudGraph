@@ -81,36 +81,21 @@ func runReport(args []string) {
 		printError(fmt.Sprintf("Failed to reach CloudGraph API at %s: %v", baseURL, err))
 		os.Exit(1)
 	}
-	if settings.Provider == "" || settings.Model == "" {
-		printError("No local model connected.")
-		printInfo("Run `cloudgraph deploy llm` to set one up, then re-run this command.")
+	if settings.Provider == "" {
+		printError("No LLM provider connected.")
+		printInfo("Configure one on the Settings page, then re-run this command.")
 		os.Exit(1)
 	}
-	printSuccess(fmt.Sprintf("Local model connected: %s", settings.Model))
-
-	// A configured model isn't the same as a reachable one — check the
-	// server's own view of Ollama connectivity (it knows the real
-	// OLLAMA_BASE_URL for this deployment; the CLI's machine can't safely
-	// guess it, since it's an in-cluster address in the Kubernetes case).
-	ollamaReachable, err := checkOllamaReachable(baseURL)
-	if err != nil {
-		printError(fmt.Sprintf("Failed to check Ollama status via %s: %v", baseURL, err))
-		os.Exit(1)
+	modelDesc := settings.Model
+	if modelDesc == "" {
+		modelDesc = "provider default"
 	}
-	if !ollamaReachable {
-		printError("Ollama is not reachable from CloudGraph right now.")
-		printInfo("A model is configured, but the Ollama server itself isn't responding —")
-		printInfo("check it's running (in-cluster: `kubectl get pods -n cloudgraph-system`,")
-		printInfo("local: `ollama serve`) before starting a run that would otherwise just")
-		printInfo("exclude every scenario after running the full stack for nothing.")
-		os.Exit(1)
-	}
-	printSuccess("Ollama is reachable")
+	printSuccess(fmt.Sprintf("Provider connected: %s (%s)", settings.Provider, modelDesc))
 
 	if limit > 0 {
 		printInfo(fmt.Sprintf("Starting report generation (pilot — %d scenario(s))...", limit))
 	} else {
-		printInfo("Starting report generation (full — 25 scenarios; this can take a long time on local CPU inference)...")
+		printInfo("Starting report generation (full — 25 scenarios)...")
 	}
 
 	if err := startReportRun(baseURL, limit); err != nil {
@@ -193,31 +178,6 @@ func fetchLLMSettings(baseURL string) (*reportSettings, error) {
 		return nil, fmt.Errorf("unexpected response: %s", string(body))
 	}
 	return &parsed.Settings, nil
-}
-
-// checkOllamaReachable asks the API's own /health endpoint whether it can
-// reach Ollama — the server, not the CLI, knows the real OLLAMA_BASE_URL
-// for whatever deployment this is (localhost in local dev, an in-cluster
-// service address in the Kubernetes deployment).
-func checkOllamaReachable(baseURL string) (bool, error) {
-	client := &http.Client{Timeout: 15 * time.Second}
-	resp, err := client.Get(baseURL + "/health")
-	if err != nil {
-		return false, err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return false, err
-	}
-	var parsed struct {
-		Ollama string `json:"ollama"`
-	}
-	if err := json.Unmarshal(body, &parsed); err != nil {
-		return false, fmt.Errorf("unexpected response: %s", string(body))
-	}
-	return parsed.Ollama == "reachable", nil
 }
 
 func startReportRun(baseURL string, limit int) error {

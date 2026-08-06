@@ -15,7 +15,7 @@ func TestFetchLLMSettings(t *testing.T) {
 			t.Errorf("path = %q, want /api/v1/settings", r.URL.Path)
 		}
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"status":"success","settings":{"provider":"ollama","api_key":"","model":"llama3.1:8b"}}`))
+		_, _ = w.Write([]byte(`{"status":"success","settings":{"provider":"openai","api_key":"","model":"gpt-4o-mini"}}`))
 	}))
 	defer server.Close()
 
@@ -23,46 +23,11 @@ func TestFetchLLMSettings(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fetchLLMSettings returned an error: %v", err)
 	}
-	if settings.Provider != "ollama" {
-		t.Errorf("Provider = %q, want ollama", settings.Provider)
+	if settings.Provider != "openai" {
+		t.Errorf("Provider = %q, want openai", settings.Provider)
 	}
-	if settings.Model != "llama3.1:8b" {
-		t.Errorf("Model = %q, want llama3.1:8b", settings.Model)
-	}
-}
-
-func TestCheckOllamaReachableTrue(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/health" {
-			t.Errorf("path = %q, want /health", r.URL.Path)
-		}
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"status":"healthy","neo4j":"connected","ollama":"reachable"}`))
-	}))
-	defer server.Close()
-
-	reachable, err := checkOllamaReachable(server.URL)
-	if err != nil {
-		t.Fatalf("checkOllamaReachable returned an error: %v", err)
-	}
-	if !reachable {
-		t.Error("reachable = false, want true")
-	}
-}
-
-func TestCheckOllamaReachableFalse(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"status":"healthy","neo4j":"connected","ollama":"unreachable"}`))
-	}))
-	defer server.Close()
-
-	reachable, err := checkOllamaReachable(server.URL)
-	if err != nil {
-		t.Fatalf("checkOllamaReachable returned an error: %v", err)
-	}
-	if reachable {
-		t.Error("reachable = true, want false")
+	if settings.Model != "gpt-4o-mini" {
+		t.Errorf("Model = %q, want gpt-4o-mini", settings.Model)
 	}
 }
 

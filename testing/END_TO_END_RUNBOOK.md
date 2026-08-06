@@ -2,13 +2,14 @@
 
 Every command below, in order, with the exact path it's run from. This
 assumes the flow agreed on: OrbStack Linux VM → `cloudgraph deploy` →
-UI → `cloudgraph deploy llm` → demo incidents → verify RCA → full report run.
+UI → connect an LLM provider via Settings → demo incidents → verify RCA →
+full report run.
 
 **Two things that will bite you if skipped** (both already cost real time
 this session):
 
 1. **Local uncommitted changes aren't on any remote yet.** Today's fixes
-   (Ollama-in-Helm, the timeout-chain fix, `testing/`, the extra demo
+   (the timeout-chain fix, `testing/`, the extra demo
    incidents) exist only in this working directory. `git clone` from
    GitHub/GitLab right now would get you the *old* code. **Don't clone —
    copy this exact working directory to the VM** (Step 2).
@@ -143,23 +144,29 @@ Open `http://<vm-ip-or-localhost>:3000` in a browser reachable from the VM
 
 ---
 
-## 8. Connect Ollama
+## 8. Connect an LLM provider
 
 ```bash
 cd ~/CloudGraph
 kubectl port-forward -n cloudgraph-system svc/cloudgraph-api 8080:8080 &
-./cloudgraph deploy llm http://localhost:8080
 ```
 
-Pick a model (recommend `llama3.1:8b`, index 2 — already proven this
-session). The CLI detects the in-cluster `ollama` Deployment automatically
-and pulls into it via `kubectl exec`, not a local binary.
+Open `http://localhost:8080` isn't the UI — use the UI port-forward from
+Step 7, navigate to **LLM Settings**, and enter a provider (OpenAI, Gemini,
+or Meta Llama API), a valid paid/upgraded-tier API key, and optionally a
+model name. Or set it directly over the API port-forward above:
+
+```bash
+curl -s -X POST http://localhost:8080/api/v1/settings \
+  -H 'Content-Type: application/json' \
+  -d '{"provider":"openai","api_key":"sk-...","model":"gpt-4o-mini"}'
+```
 
 Verify:
 
 ```bash
 curl -s http://localhost:8080/api/v1/settings
-# expect: {"status":"success","settings":{"provider":"ollama","api_key":"","model":"llama3.1:8b"}}
+# expect: {"status":"success","settings":{"provider":"openai","api_key":"sk-...","model":"gpt-4o-mini"}}
 ```
 
 ---
@@ -201,7 +208,7 @@ cd ~/CloudGraph
 ./cloudgraph report --limit 3 http://localhost:8080
 ```
 
-It checks the local model is connected (failing fast with a clear message
+It checks an LLM provider is connected (failing fast with a clear message
 if not — same check as the UI toast), starts the run, and sits polling
 with live progress until it finishes (this ties up the terminal for the
 run's duration, by design — open a new SSH session for anything else).

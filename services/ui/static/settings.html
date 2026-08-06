@@ -3,7 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CloudGraph - Benchmark Dashboard</title>
+    <title>CloudGraph - LLM Settings</title>
+    <!-- Modern Premium Typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -11,9 +12,74 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="style.css" />
+    <style>
+      .settings-container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 40px 20px;
+      }
+      .form-group {
+        margin-bottom: 24px;
+      }
+      .form-label {
+        display: block;
+        font-family: var(--font-heading);
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: #a5b4fc;
+      }
+      .form-select,
+      .form-input {
+        width: 100%;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        color: var(--text-main);
+        font-family: var(--font-body);
+        font-size: 14px;
+        padding: 12px 16px;
+        outline: none;
+        transition: all 0.3s ease;
+      }
+      .form-select:focus,
+      .form-input:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 10px rgba(99, 102, 241, 0.2);
+        background: rgba(255, 255, 255, 0.06);
+      }
+      .form-desc {
+        font-size: 12px;
+        color: var(--text-muted);
+        margin-top: 6px;
+      }
+      .settings-actions {
+        display: flex;
+        gap: 16px;
+        margin-top: 32px;
+      }
+      .alert-box {
+        padding: 16px;
+        border-radius: 8px;
+        margin-bottom: 24px;
+        font-size: 14px;
+        display: none;
+      }
+      .alert-success {
+        background-color: rgba(16, 185, 129, 0.1);
+        border: 1px solid rgba(16, 185, 129, 0.2);
+        color: #6ee7b7;
+      }
+      .alert-error {
+        background-color: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.2);
+        color: #fca5a5;
+      }
+    </style>
   </head>
   <body>
     <div class="app-container">
+      <!-- Sidebar Navigation & Control Panel -->
       <aside class="sidebar">
         <div class="brand">
           <span class="logo-icon">⚡</span>
@@ -86,7 +152,7 @@
             ></span>
             Evidence & Search
           </a>
-          <a href="benchmark.html" class="nav-item active">
+          <a href="benchmark.html" class="nav-item">
             <span class="nav-icon"
               ><svg
                 viewBox="0 0 24 24"
@@ -102,7 +168,7 @@
             ></span>
             Benchmark
           </a>
-          <a href="settings.html" class="nav-item" id="nav-settings">
+          <a href="settings.html" class="nav-item active" id="nav-settings">
             <span class="nav-icon"
               ><svg
                 viewBox="0 0 24 24"
@@ -144,155 +210,105 @@
         <div class="connection-status">
           <div class="status-indicator">
             <span class="indicator-dot online" id="api-dot"></span>
-            <span class="indicator-text">
-              API: <strong id="api-status">Connecting...</strong>
-            </span>
+            <span class="indicator-text"
+              >API: <strong id="api-status">Connecting...</strong></span
+            >
           </div>
           <div class="status-indicator">
             <span class="indicator-dot online" id="db-dot"></span>
-            <span class="indicator-text">
-              Neo4j: <strong id="db-status">Connecting...</strong>
-            </span>
+            <span class="indicator-text"
+              >Neo4j: <strong id="db-status">Connecting...</strong></span
+            >
           </div>
         </div>
       </aside>
 
+      <!-- Main Dashboard View -->
       <main class="main-content" style="overflow-y: auto">
-        <div class="card benchmark-card">
-          <div class="card-header">
-            <div>
-              <h2>Benchmark Dashboard</h2>
+        <div class="settings-container">
+          <div class="card" style="padding: 32px">
+            <div class="card-header" style="margin-bottom: 24px">
+              <h2>LLM Settings Configuration</h2>
               <span class="card-subtitle"
-                >Baseline comparison, dataset split, and experiment notes.</span
+                >Select LLM provider and configure credentials to enable real
+                AI-powered Multi-Agent investigation.</span
               >
             </div>
-          </div>
 
-          <div class="benchmark-controls">
-            <div class="benchmark-filter-group">
-              <label class="benchmark-filter-label" for="metric-select"
-                >Metric</label
-              >
-              <select id="metric-select" class="benchmark-filter-select">
-                <option value="accuracy">Accuracy</option>
-                <option value="precision">Precision</option>
-                <option value="recall">Recall</option>
-                <option value="f1">F1 Score</option>
-                <option value="hallucination_rate">Hallucination Rate</option>
-                <option value="latency">Latency (ms)</option>
-              </select>
-            </div>
-            <div class="benchmark-actions">
-              <button id="btn-run-benchmark" class="btn btn-primary">
-                <span class="btn-icon">⚡</span> Run Benchmark Test
-              </button>
-              <button id="btn-export-json" class="btn btn-secondary">
-                Export JSON
-              </button>
-              <button id="btn-export-csv" class="btn btn-secondary">
-                Export CSV
-              </button>
-            </div>
-          </div>
+            <div id="settings-alert" class="alert-box"></div>
 
-          <!-- Empty State Container -->
-          <div
-            id="benchmark-empty-state"
-            class="empty-state"
-            style="padding: 60px 20px"
-          >
-            <div class="empty-icon">📊</div>
-            <h3>No Benchmark Test Run Yet</h3>
-            <p>
-              Click "Run Benchmark Test" above to execute the evaluation suite
-              and compute baseline metrics.
-            </p>
-          </div>
-
-          <!-- Results Container (Hidden until benchmark test is executed) -->
-          <div
-            id="benchmark-results-container"
-            class="hidden"
-            style="display: flex; flex-direction: column; gap: 18px"
-          >
-            <div class="benchmark-summary" id="benchmark-summary">
-              <div class="benchmark-summary-item">
-                <span class="benchmark-summary-label">Dataset</span>
-                <span class="benchmark-summary-value" id="dataset-name"
-                  >Loading...</span
+            <form id="settings-form">
+              <div class="form-group">
+                <label class="form-label" for="llm-provider"
+                  >LLM Provider</label
                 >
+                <select id="llm-provider" class="form-select">
+                  <option value="openai">OpenAI (GPT Models)</option>
+                  <option value="gemini">
+                    Google Gemini (v1beta OpenAI endpoint)
+                  </option>
+                  <option value="meta">Meta Llama API</option>
+                </select>
+                <div class="form-desc">
+                  Select the LLM service to power agentic consensus.
+                </div>
               </div>
-              <div class="benchmark-summary-item">
-                <span class="benchmark-summary-label">Split / Last Run</span>
-                <span class="benchmark-summary-value" id="dataset-split"
-                  >Loading...</span
+
+              <div class="form-group">
+                <label class="form-label" for="llm-api-key">API Key</label>
+                <input
+                  type="password"
+                  id="llm-api-key"
+                  class="form-input"
+                  placeholder="••••••••••••••••••••••••••••••••"
+                />
+                <div class="form-desc">
+                  Credentials are stored in CloudGraph's database and used
+                  server-side to call your chosen provider.
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="llm-model"
+                  >Custom Model Name (Optional)</label
                 >
+                <input
+                  type="text"
+                  id="llm-model"
+                  class="form-input"
+                  placeholder="e.g. gpt-4o-mini, gemini-1.5-flash, muse-spark-1.2"
+                />
+                <div class="form-desc">
+                  Leave blank to use the standard default model for the selected
+                  provider.
+                </div>
               </div>
-              <div class="benchmark-summary-item">
-                <span class="benchmark-summary-label">Notes</span>
-                <span class="benchmark-summary-value" id="benchmark-notes"
-                  >Loading benchmark notes...</span
+
+              <div class="settings-actions">
+                <button
+                  type="submit"
+                  class="btn btn-primary"
+                  style="width: auto"
                 >
+                  <span class="btn-icon">💾</span> Save Settings
+                </button>
+                <button
+                  type="button"
+                  id="btn-reset-settings"
+                  class="btn btn-secondary"
+                  style="width: auto; margin-left: auto"
+                >
+                  <span class="btn-icon">🗑️</span> Clear Credentials
+                </button>
               </div>
-            </div>
-
-            <div class="benchmark-chart-card">
-              <div class="benchmark-chart-header">
-                <h3>Baseline Comparison</h3>
-              </div>
-              <div id="benchmark-chart" class="benchmark-chart"></div>
-            </div>
-
-            <div class="benchmark-table-card">
-              <div class="benchmark-table-header">
-                <h3>Baseline Metrics Table</h3>
-              </div>
-              <div class="benchmark-table-container">
-                <table class="benchmark-table" id="benchmark-table">
-                  <thead>
-                    <tr>
-                      <th>Baseline</th>
-                      <th>Accuracy</th>
-                      <th>Precision</th>
-                      <th>Recall</th>
-                      <th>F1</th>
-                      <th>Hallucination</th>
-                      <th>Latency (ms)</th>
-                    </tr>
-                  </thead>
-                  <tbody></tbody>
-                </table>
-              </div>
-            </div>
-
-            <div class="benchmark-notes-card">
-              <div class="benchmark-notes-header">
-                <h3>Research Experiment Notes</h3>
-              </div>
-              <div id="benchmark-notes-list" class="benchmark-notes-list"></div>
-            </div>
-
-            <div class="benchmark-notes-card">
-              <div class="benchmark-notes-header">
-                <h3>Calculation Steps & Execution Logs</h3>
-              </div>
-              <div
-                id="benchmark-calculation-logs"
-                class="logs-console"
-                style="
-                  max-height: 220px;
-                  border-radius: 8px;
-                  font-family: var(--font-mono);
-                  font-size: 11px;
-                "
-              ></div>
-            </div>
+            </form>
           </div>
         </div>
       </main>
     </div>
 
+    <!-- App bindings for connections status polling -->
     <script src="app.js"></script>
-    <script src="benchmark.js"></script>
+    <script src="settings.js"></script>
   </body>
 </html>

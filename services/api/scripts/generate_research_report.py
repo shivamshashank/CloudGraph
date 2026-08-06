@@ -8,9 +8,9 @@ For anyone without a full checkout (e.g. installed via install.sh), use
 `cloudgraph report` instead — it drives the same underlying logic over
 HTTP against a running CloudGraph API, no local Python environment needed.
 
-Requires a local model connected via Ollama (`cloudgraph deploy llm`, or
-`POST /api/v1/settings` with provider="ollama") and the Ollama server
-reachable from the agent-orchestrator process — self-consistency is not a
+Requires an LLM provider connected via `POST /api/v1/settings` (or the
+Settings page in the UI) with a valid API key for one of the supported
+providers (OpenAI, Gemini, or Meta's Llama API) — self-consistency is not a
 meaningful measurement without genuine LLM stochasticity across samples.
 Scenarios where the orchestrator falls back to its deterministic rule-based
 path are excluded, not fabricated (see
@@ -23,8 +23,7 @@ Usage (from services/api, with the full stack running):
 Every /orchestrate request and response this run makes is appended, one
 JSON object per line, to experiments/results/requests_log.jsonl as it
 happens (crash-safe) — the api_key field is always redacted before it's
-written (Ollama itself needs no key, but the log format is kept
-provider-agnostic).
+written.
 """
 
 import json

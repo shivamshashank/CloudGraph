@@ -61,8 +61,6 @@ spec:
               value: "8082"
             - name: INVESTIGATION_ENGINE_URL
               value: "http://cloudgraph-investigation-engine.{{ .Values.global.namespace }}.svc.cluster.local:8081"
-            - name: OLLAMA_BASE_URL
-              value: "http://cloudgraph-ollama.{{ .Values.global.namespace }}.svc.cluster.local:11434"
             - name: LLM_MODEL
               value: {{ .Values.global.llmModel | quote }}
           ports:

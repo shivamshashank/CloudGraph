@@ -11,8 +11,9 @@
 # round-trip and lets you inspect intermediate files as they're written.
 #
 # This is a thin wrapper, not a reimplementation: it exists to (a) verify
-# the stack is actually reachable before burning potentially hours of local
-# LLM inference, (b) set the one env var that's bitten us every session
+# the stack is actually reachable and a provider is connected before
+# burning API quota on a run that would just fail partway through,
+# (b) set the one env var that's bitten us every session
 # (NEO4J_PASSWORD), and (c) print a real summary at the end instead of
 # leaving you to go read three separate output files by hand.
 #
@@ -51,17 +52,18 @@ check_url() {
 
 fail=0
 check_url "CloudGraph API" "$API_BASE/health" || fail=1
-check_url "Ollama" "http://localhost:11434/api/tags" || fail=1
 
 settings_json="$(curl -s -m 5 "$API_BASE/api/v1/settings" || echo '{}')"
 provider="$(echo "$settings_json" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("settings",{}).get("provider",""))' 2>/dev/null || echo "")"
 model="$(echo "$settings_json" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("settings",{}).get("model",""))' 2>/dev/null || echo "")"
 
-if [[ "$provider" == "ollama" && -n "$model" ]]; then
-  echo "  [ok] CloudGraph connected to local model: $model"
+if [[ -n "$provider" && -n "$model" ]]; then
+  echo "  [ok] CloudGraph connected to $provider: $model"
 else
-  echo "  [FAIL] No local model connected (provider='$provider' model='$model')." >&2
-  echo "         Run: cloudgraph deploy llm $API_BASE" >&2
+  echo "  [FAIL] No LLM provider connected (provider='$provider' model='$model')." >&2
+  echo "         Configure one on the Settings page or via:" >&2
+  echo "         curl -X POST $API_BASE/api/v1/settings -H 'Content-Type: application/json' \\" >&2
+  echo "           -d '{\"provider\":\"openai\",\"api_key\":\"...\",\"model\":\"gpt-4o-mini\"}'" >&2
   fail=1
 fi
 

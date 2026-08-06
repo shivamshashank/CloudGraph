@@ -23,17 +23,19 @@ Propagation (GCP) and Graph-Provenance Claim Scoring (GPCS).
 
 ## ✅ Completed
 
-- **Local-only LLM integration via Ollama**: all cloud provider support
-  (OpenAI, Gemini, Claude, Groq, OpenRouter) has been removed. `call_llm` in
+- **Cloud LLM provider integration**: `call_llm` in
   `services/agent-orchestrator/main.py`, `services/investigation-engine/main.py`,
-  and `services/api/app/research/gpcs.py` now talks exclusively to a local
-  Ollama server. The Settings UI page (`settings.html`/`.js`) has been
-  deleted; model selection now happens via `cloudgraph deploy llm`
-  (`cmd/cloudgraph/deploy_llm.go`), a CLI menu of 4 Llama models (70B/8B/3B/1B)
-  that pulls the chosen model via `ollama pull` and connects CloudGraph to it
-  through the same `/api/v1/settings` endpoint the old UI used. "Run AI
-  Diagnosis" shows a toast pointing at this command when no model is
-  connected, instead of the old settings-page redirect.
+  and `services/api/app/research/gpcs.py` supports three OpenAI-compatible
+  cloud providers — OpenAI, Gemini, and Meta's official Llama API — selected
+  per-request via stored settings, not an env var. The Settings UI page
+  (`services/ui/static/settings.html`/`.js`) lets users enter a provider,
+  API key, and optional model name, which is saved through
+  `POST /api/v1/settings` (Neo4j-backed). "Run AI Diagnosis" shows a toast
+  pointing at the Settings page when no provider is connected. An earlier,
+  local-only-via-Ollama iteration of this integration (including a
+  `cloudgraph deploy llm` CLI command and an in-cluster Ollama Helm
+  deployment) was tried and then fully reverted after real-world timeouts
+  made local CPU inference impractical for this workload.
 - **Core FastAPI Backend (`services/api`)**: live API server with lifespan
   connection management and CORS, endpoints for health checks, cluster
   discovery, incident CRUD, comments, settings, and webhook-driven `Commit`
@@ -46,9 +48,9 @@ Propagation (GCP) and Graph-Provenance Claim Scoring (GPCS).
   (Monitoring, Log, Deployment, Topology, Security) in
   `investigation-engine`, aggregated by a `ConsensusEngine` in
   `agent-orchestrator`. Each falls back to deterministic rule-based
-  parsing only if no local model is connected — the previous
-  `if provider and api_key` gate (which would have permanently broken
-  Ollama, since it needs no key) has been fixed to `if provider`.
+  parsing only if no LLM provider is connected — the fallback gate checks
+  `if provider` alone, letting `call_llm`'s own env-var key fallback and
+  error handling do the rest.
 - **GCP & GPCS**: Graph Confidence Propagation (`gcp.py`, BFS + Noisy-OR edge
   decay) and Graph-Provenance Claim Scoring (`gpcs.py`, claim extraction +
   evidence retrieval + trust scoring) are both implemented and wired into
@@ -69,10 +71,9 @@ Propagation (GCP) and Graph-Provenance Claim Scoring (GPCS).
   recur across samples. It refuses to score the deterministic rule-based
   fallback (`SelfConsistencyUnavailableError`) rather than fabricate a
   measurement. **The actual data run has not yet succeeded** — every prior
-  attempt hit either the (now-removed) cloud provider's quota wall or the
-  (now-fixed) timeout-chain bug. This is unblocked now that the
-  orchestrator runs on a local Ollama model with corrected timeouts —
-  running `cloudgraph report` (or, for a full local checkout,
+  attempt hit either a cloud provider's quota wall or a timeout-chain bug
+  (since fixed). Running `cloudgraph report` with a paid-tier API key
+  connected (or, for a full local checkout,
   `scripts/generate_research_report.py` / `testing/report/run_report_full.sh`)
   is the next concrete step. The underlying comparison logic now lives in
   `app/research/report_runner.py`, callable directly, via a background HTTP
@@ -110,25 +111,21 @@ Propagation (GCP) and Graph-Provenance Claim Scoring (GPCS).
   traces, metrics, logs, security, and chaos events; parent-child span
   mapping builds service dependency maps.
 - **Go CLI (`cmd/cloudgraph`)**: `version`, `doctor`, `status`, `health`,
-  `ingest`, `deploy` (and `deploy llm`), `uninstall`. Embeds the Helm chart
+  `ingest`, `deploy`, `report`, `uninstall`. Embeds the Helm chart
   manifests. Go test suite: passing (`deploy_test.go`, `uninstall_test.go`,
-  `deploy_llm_test.go`).
-- **UI**: 5 static HTML/CSS/vanilla-JS pages (Topology Map, AI Diagnosis,
-  Log Stream, Evidence & Search, Benchmark) served with no framework and no
-  build step — the Settings page is gone, and no page uses React/Vue/Svelte
-  or a charting library; the topology graph is hand-built SVG DOM
-  manipulation (`topology.js`). Fully wired to backend endpoints for real
-  Neo4j-backed persistence.
+  `report_test.go`).
+- **UI**: 6 static HTML/CSS/vanilla-JS pages (Topology Map, AI Diagnosis,
+  Log Stream, Evidence & Search, Benchmark, LLM Settings) served with no
+  framework and no build step — no page uses React/Vue/Svelte or a
+  charting library; the topology graph is hand-built SVG DOM manipulation
+  (`topology.js`). Fully wired to backend endpoints for real Neo4j-backed
+  persistence.
 - **Helm & Kubernetes Deployments**: production Helm chart with Neo4j/Qdrant
   subcharts, validated via `validate_helm.sh`. Redis fully removed from
-  chart dependencies. **Ollama now runs in-cluster** (`templates/ollama.yaml`
-  — Deployment + Service + PVC, `ollama/ollama` image) with
-  `OLLAMA_BASE_URL` wired into the api/agent-orchestrator/investigation-engine
-  Deployments; the stale `OPENAI_API_KEY` env var reference is gone.
-  `cloudgraph deploy llm` detects an in-cluster Ollama Deployment via
-  `kubectl` and pulls into it directly (`kubectl exec ... ollama pull`)
-  instead of assuming a local `ollama` binary, so the same command works
-  for both local dev and a full Kubernetes deployment.
+  chart dependencies. No in-cluster LLM component — the API,
+  agent-orchestrator, and investigation-engine Deployments call out to
+  whichever cloud provider is configured via the Settings API; no LLM
+  env vars are wired into the chart.
 - **Testing** (`testing/`, new): `testing/intensive/apply_demo_incidents.sh`
   deploys 5 distinct real failure modes (ImagePullBackOff, CrashLoopBackOff,
   OOMKilled, CreateContainerConfigError, failing liveness probe — see
@@ -183,10 +180,10 @@ Propagation (GCP) and Graph-Provenance Claim Scoring (GPCS).
   Day 3 of the same checklist, not started.
 - **Human evaluation** — no user study on RCA usefulness/trust exists yet.
 - **API authentication** — `/api/v1/settings` and other routes have no auth
-  layer (`allow_origins=["*"]`, no API-key check). Lower severity than
-  before the Ollama migration (there's no cloud API key left to leak — the
-  `api_key` field is always empty for a local model), but still an open
-  item since the endpoint can still be hit by anyone who can reach the API.
+  layer (`allow_origins=["*"]`, no API-key check). `/api/v1/settings` now
+  stores a real cloud provider API key, so this endpoint being unauthenticated
+  is a genuine credential-exposure risk, not a theoretical one — worth
+  prioritizing before this is exposed beyond a trusted network.
 - **Dissertation chapter writing** — 0% complete; only structural outlines
   exist in `docs/week-1/`.
 

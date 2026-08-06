@@ -24,7 +24,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!settings.provider || !settings.model) {
       if (typeof window.CloudGraph.showToast === "function") {
         window.CloudGraph.showToast(
-          "No local model connected. Run `cloudgraph deploy llm` to set one up.",
+          "No LLM provider connected. Configure one on the Settings page to set one up.",
           "error",
         );
       }
@@ -63,8 +63,8 @@ document.addEventListener("DOMContentLoaded", () => {
         if (usedFallback && typeof window.CloudGraph.showToast === "function") {
           window.CloudGraph.showToast(
             "Some findings used the rule-based fallback, not your connected " +
-              "model — the LLM may be unreachable or slow to respond. " +
-              "Check `cloudgraph deploy llm` is still connected.",
+              "model — the provider may be unreachable, rate-limited, or " +
+              "slow to respond. Check the Settings page.",
             "error",
           );
         }

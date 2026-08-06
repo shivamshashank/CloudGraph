@@ -99,19 +99,24 @@ listed below.
   found and fixed, full writeup in `experiments/notes/day1_real_vs_simulated.md`.
 - **Day 2** (GPCS vs self-consistency): infrastructure complete and tested,
   but **only 2 of 25 scenarios have real comparison data** so far — blocked
-  first by cloud rate limits (Gemini, then Groq), now pivoting to a local
-  Ollama model specifically to remove that ceiling. Full status in
+  by free-tier cloud rate limits (Gemini, then Groq). A local-only Ollama
+  detour was tried to remove that ceiling entirely, but real-world CPU
+  inference latency made it impractical; the current plan is a
+  paid/upgraded-tier API key on a supported cloud provider (OpenAI, Gemini,
+  or Meta's Llama API) instead. Full status in
   `research/DAY2_HANDOFF_PROMPT.md`.
 
 ### Step by step from here
 
-**Step 1 — Finish Day 2 with Ollama (next, today/tomorrow).**
+**Step 1 — Finish Day 2 with a connected cloud provider (next, today/tomorrow).**
 
-- Pull a model that actually fits your 16GB M1 (`llama3.1:8b`, ~4.7GB —
-  not the 20B-class model you first asked about, which needs ~16GB alone).
-- Validate on 2-3 scenarios first (confirm the smaller model reliably
-  outputs valid JSON), then run the full 25 scenarios in one go — no
-  batching needed once it's local, since there's no quota to manage.
+- Connect a provider with a paid/upgraded-tier API key via the Settings UI
+  (or `POST /api/v1/settings`) — a free tier is what caused Day 2's original
+  quota wall.
+- Validate on 2-3 scenarios first (confirm the run reliably produces valid
+  JSON and doesn't fall back to the rule-based path), then run the full 25
+  scenarios. `INTER_SAMPLE_DELAY_SECONDS` in `self_consistency.py` paces
+  requests to stay under per-minute rate limits.
 - Produces: `experiments/results/day2_claims.csv`,
   `day2_agreement_crosstab.csv`, and the manual disagreement read-through
   (`day2_disagreements.md`) that's still outstanding.
@@ -160,7 +165,7 @@ before submitting anything.
 
 ## 3. How the project should continue, practically
 
-Right now: finish Day 2 on Ollama. After that, work through Days 3-7 in
+Right now: finish Day 2 with a connected cloud provider. After that, work through Days 3-7 in
 order — each one is scoped to be completable in the time given, and each
 one's output is a specific thing your dissertation's evaluation chapter
 will cite directly (see the mapping table at the end of

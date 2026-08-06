@@ -33,9 +33,9 @@ DEFAULT_TEMPERATURE = 0.8
 # Same threshold GPCS's own design doc and the rest of this sprint uses for
 # semantic-equivalence checks between two claim strings.
 RECURRENCE_SIMILARITY_THRESHOLD = 0.8
-# No longer needed for rate-limit reasons now that generation runs against
-# local Ollama (no external quota to burst past) — kept as a small, harmless
-# breather between samples for local CPU/GPU resource contention.
+# A small breather between samples — cloud providers enforce per-minute
+# rate limits that vary by provider and account tier, and this reduces the
+# odds of bursting past them when generating N samples back-to-back.
 INTER_SAMPLE_DELAY_SECONDS = 2.0
 
 
@@ -147,12 +147,9 @@ def _request_one_sample(
             f"{orch_addr.rstrip('/')}/orchestrate",
             json=request_payload,
             # Must exceed the orchestrator's own wait for investigation-engine
-            # (960s) plus its own consensus LLM call against local Ollama
-            # (up to 180s) — see the timeout comment in
-            # agent-orchestrator/main.py for why. The prior 420s value was
-            # verified insufficient (a real, not hypothetical, cause of
-            # excluded scenarios during the Day-2 pilot run).
-            timeout=1200,
+            # (360s) plus its own consensus LLM call (up to 60s) — see the
+            # timeout comment in agent-orchestrator/main.py for why.
+            timeout=600,
         )
     except requests.RequestException as exc:
         _log(None, None, str(exc))
@@ -181,8 +178,8 @@ def _request_one_sample(
         detail = (
             f" Underlying error: {failure_reason}"
             if failure_reason
-            else " No local model configured yet (run `cloudgraph deploy "
-            "llm`), or the Ollama server/request itself failed."
+            else " No LLM provider configured yet (set one on the Settings "
+            "page), or the provider request itself failed."
         )
         raise SelfConsistencyUnavailableError(
             "agent-orchestrator used its deterministic rule-based fallback "

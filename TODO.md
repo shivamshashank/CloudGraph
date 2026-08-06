@@ -60,13 +60,15 @@ common way dissertation time budgets fail.
         generations (cosine similarity ≥ 0.8 recurrence check).
   - [ ] **Produce the actual comparison table with real data** — the code
         above has never successfully run to completion: every prior attempt
-        excluded all 25 scenarios because the (now-removed) cloud provider's
-        free-tier quota was exhausted before real LLM samples could be
-        collected (see `experiments/results/day2_excluded_scenarios.json`).
-        This is now unblocked — CloudGraph runs entirely on a local Ollama
-        model with no quota, and a real end-to-end investigation has been
-        verified working. **Re-running `scripts/run_day2_self_consistency.py`
-        is the next concrete step**, before anything else in this file.
+        excluded all 25 scenarios because a cloud provider's free-tier quota
+        was exhausted before real LLM samples could be collected (see
+        `experiments/results/day2_excluded_scenarios.json`). A paid/upgraded
+        tier API key removes the quota wall; the remaining risk is per-minute
+        rate limits during a 25-scenario x 3-sample run, which
+        `INTER_SAMPLE_DELAY_SECONDS` in `self_consistency.py` is meant to
+        absorb. **Re-running `scripts/run_day2_self_consistency.py` with a
+        connected paid-tier provider is the next concrete step**, before
+        anything else in this file.
 - [ ] Calibrate the GPCS `threshold` value (currently hardcoded at 0.50 in
       `GraphProvenanceClaimScorer.__init__`) on the held-out split rather than
       leaving it as an unvalidated constant.
@@ -129,11 +131,10 @@ common way dissertation time budgets fail.
 
 - [ ] Add minimal API authentication (a simple API-key header check is
       sufficient) to `services/api/app/main.py` — currently
-      `allow_origins=["*"]` with zero auth on any route. Lower severity than
-      before the Ollama migration (there's no cloud API key left to leak —
-      `/api/v1/settings` now only ever stores a provider/model pair for a
-      local Ollama connection, `api_key` is always empty), but the endpoints
-      are still unauthenticated and reachable by anyone who can reach the API.
+      `allow_origins=["*"]` with zero auth on any route.
+      `/api/v1/settings` stores a real cloud provider API key, so this is a
+      genuine credential-exposure risk on any deployment reachable beyond a
+      trusted network, not just a completeness gap.
 - [ ] Either deploy Tempo genuinely in the demo environment (manifest already
       exists at `deployments/kubernetes/observability/tempo.yaml`) so real trace
       data drives `CALLS` relationship generation, or explicitly document that

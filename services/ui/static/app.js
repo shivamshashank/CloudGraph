@@ -76,7 +76,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (!settings.provider || !settings.model) {
         showToast(
-          "No local model connected. Run `cloudgraph deploy llm` to set one up.",
+          "No LLM provider connected. Configure one on the Settings page to set one up.",
           "error",
         );
         return;

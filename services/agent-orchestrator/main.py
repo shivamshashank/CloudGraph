@@ -12,6 +12,83 @@ INVESTIGATION_ENGINE_URL = os.getenv(
 ).rstrip("/")
 
 
+_CHAT_COMPLETIONS_CONFIG = {
+    "openai": (
+        "https://api.openai.com/v1/chat/completions",
+        "gpt-4o-mini",
+    ),
+    "gemini": (
+        "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+        "gemini-1.5-flash",
+    ),
+}
+
+# Generous but not local-CPU-inference-generous — a hosted API replying in
+# over a minute is itself a real failure worth surfacing, not something to
+# wait out silently.
+_LLM_REQUEST_TIMEOUT = 60
+
+
+def _call_chat_completions_provider(provider: str, headers: dict, req: dict) -> dict:
+    """OpenAI/Gemini both expose an OpenAI-compatible /chat/completions
+    surface, so they share this one request/response shape. `req` carries
+    prompt/system_prompt/model/temperature."""
+    url, default_model = _CHAT_COMPLETIONS_CONFIG[provider]
+    payload = {
+        "model": req["model"] or os.getenv("LLM_MODEL", default_model),
+        "messages": [
+            {"role": "system", "content": req["system_prompt"]},
+            {"role": "user", "content": req["prompt"]},
+        ],
+        "response_format": {"type": "json_object"},
+        "temperature": req["temperature"],
+    }
+    res = requests.post(
+        url, headers=headers, json=payload, timeout=_LLM_REQUEST_TIMEOUT
+    )
+    res.raise_for_status()
+    content = res.json()["choices"][0]["message"]["content"]
+    return json.loads(content)
+
+
+def _call_meta_provider(headers: dict, req: dict) -> dict:
+    """Meta uses a different, Responses-API-style surface (/v1/responses).
+    Request shape verified against a real example from the account owner
+    (api.meta.ai/v1/responses, not the chat-completions shape originally
+    assumed here). "instructions" for the system prompt and the exact
+    response-parsing shape below are inferred from that one example plus
+    the OpenAI Responses API this endpoint appears to mirror — not
+    independently confirmed against Meta's own docs, so treat a parsing
+    failure here as a signal to check the real response shape, not
+    necessarily a bug elsewhere. `req` carries prompt/system_prompt/model/
+    temperature."""
+    url = "https://api.meta.ai/v1/responses"
+    payload = {
+        "model": req["model"] or os.getenv("LLM_MODEL", "muse-spark-1.2"),
+        "instructions": req["system_prompt"],
+        "input": [
+            {
+                "role": "user",
+                "content": [{"type": "input_text", "text": req["prompt"]}],
+            }
+        ],
+        "temperature": req["temperature"],
+        "stream": False,
+    }
+    res = requests.post(
+        url, headers=headers, json=payload, timeout=_LLM_REQUEST_TIMEOUT
+    )
+    res.raise_for_status()
+    data = res.json()
+    message_item = next(
+        (item for item in data.get("output", []) if item.get("type") == "message"),
+        None,
+    )
+    if not message_item or not message_item.get("content"):
+        raise ValueError(f"Unexpected response shape from Meta API: {data!r}")
+    return json.loads(message_item["content"][0]["text"])
+
+
 def call_llm(  # pylint: disable=too-many-arguments
     prompt: str,
     system_prompt: str = (
@@ -22,46 +99,40 @@ def call_llm(  # pylint: disable=too-many-arguments
     model: str = "",
     temperature: float = 0.1,
 ) -> dict:
-    """Make a direct HTTP request to the local Ollama server and return
-    parsed JSON. CloudGraph runs entirely on local models via Ollama — no
-    cloud LLM provider is supported, so there is no API key to manage, no
-    rate limit, and no quota."""
-    provider = (provider or "ollama").lower().strip()
-    if provider != "ollama":
+    """Make a direct HTTP request to the configured cloud LLM provider and
+    return parsed JSON."""
+    provider = (provider or os.getenv("LLM_PROVIDER", "openai")).lower().strip()
+    api_key = (
+        api_key
+        or os.getenv("OPENAI_API_KEY")
+        or os.getenv("GEMINI_API_KEY")
+        or os.getenv("META_API_KEY")
+    )
+    if not api_key:
         raise ValueError(
-            f"Unsupported LLM provider: {provider!r} — only 'ollama' is "
-            "supported. Run `cloudgraph deploy llm` to connect a local model."
+            f"No API key configured for provider {provider!r} — connect one "
+            "via the Settings page."
         )
-
-    model = model or os.getenv("LLM_MODEL", "llama3.1:8b")
-
-    # Local, self-hosted, OpenAI-compatible server — no external
-    # quota/rate-limit. OLLAMA_BASE_URL must point at wherever the Ollama
-    # server actually runs relative to this process (e.g. an OrbStack VM
-    # reaching the macOS host needs the host's LAN IP, since neither
-    # "localhost" nor OrbStack's gateway IP route there — verified live,
-    # not assumed).
-    base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-    url = f"{base_url.rstrip('/')}/v1/chat/completions"
-    headers = {"Content-Type": "application/json"}
-    if api_key:
-        headers["Authorization"] = f"Bearer {api_key}"
-    payload = {
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    req = {
+        "prompt": prompt,
+        "system_prompt": system_prompt,
         "model": model,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": prompt},
-        ],
-        "response_format": {"type": "json_object"},
         "temperature": temperature,
     }
-    # Local CPU/GPU inference on consumer hardware can be far slower
-    # per-call than a hosted API, especially under concurrent load from 5
-    # sequential specialist calls in a row.
-    res = requests.post(url, headers=headers, json=payload, timeout=180)
-    res.raise_for_status()
-    content = res.json()["choices"][0]["message"]["content"]
-    return json.loads(content)
+
+    if provider in _CHAT_COMPLETIONS_CONFIG:
+        return _call_chat_completions_provider(provider, headers, req)
+    if provider == "meta":
+        return _call_meta_provider(headers, req)
+
+    raise ValueError(
+        f"Unsupported LLM provider: {provider!r} — must be one of "
+        f"{sorted(list(_CHAT_COMPLETIONS_CONFIG) + ['meta'])}."
+    )
 
 
 _QUALITATIVE_CONFIDENCE = {
@@ -124,13 +195,15 @@ class ConsensusEngine:
         # Try LLM first
         try:
             provider = (
-                (llm_config.get("provider") or os.getenv("LLM_PROVIDER", "ollama"))
+                (llm_config.get("provider") or os.getenv("LLM_PROVIDER", "openai"))
                 .strip()
                 .lower()
             )
             api_key = (llm_config.get("api_key") or "").strip()
 
-            # Ollama needs no API key — only require a provider to be set.
+            # Don't require api_key here — call_llm() falls back to the
+            # provider's env-var key (OPENAI_API_KEY etc.) if this is empty,
+            # and raises a clear error itself if no key is available anywhere.
             if provider:
                 agent_findings = "\n".join(
                     [
@@ -353,14 +426,10 @@ class OrchestratorHandler(http.server.BaseHTTPRequestHandler):
                     "llm_model": payload.get("llm_model"),
                 },
                 # investigation-engine runs 5 specialists sequentially, each
-                # with its own local Ollama call (up to call_llm's own 180s
-                # timeout) — worst case 5 x 180s = 900s. This must exceed
-                # that worst case with real margin, not just approach it
-                # (a prior version of this comment claimed "headroom" at
-                # 330s, which is actually 270s *short* of 5 x 120s — that
-                # mismatch was a real, verified cause of spurious timeouts
-                # under normal local CPU load, not just a hypothetical one).
-                timeout=960,
+                # with its own cloud LLM call (up to call_llm's own 60s
+                # timeout) — worst case 5 x 60s = 300s. This must exceed
+                # that worst case with real margin, not just approach it.
+                timeout=360,
             )
 
             if engine_res.status_code == 200:

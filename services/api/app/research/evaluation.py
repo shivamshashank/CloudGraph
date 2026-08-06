@@ -338,13 +338,11 @@ def _request_agents_step(
                 "llm_model": llm_settings.get("model"),
             },
             # Must accommodate a real LLM-backed orchestrator chain (5
-            # sequential specialist calls + 1 consensus call) against a
-            # local Ollama model — must exceed the orchestrator's own wait
-            # for investigation-engine (960s) plus its own consensus call
-            # (up to 180s); see the timeout comment in
-            # agent-orchestrator/main.py. The prior 420s value was verified
-            # insufficient, the same way main.py's old 12s value was.
-            timeout=1200,
+            # sequential specialist calls + 1 consensus call) — must exceed
+            # the orchestrator's own wait for investigation-engine (360s)
+            # plus its own consensus call (up to 60s); see the timeout
+            # comment in agent-orchestrator/main.py.
+            timeout=600,
         )
     except requests.RequestException as exc:
         raise OrchestratorUnavailableError(

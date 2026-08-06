@@ -35,37 +35,95 @@ def call_llm(
     api_key: str = "",
     model: str = "",
 ) -> dict[str, Any] | list[dict[str, Any]] | None:
-    """Execute a direct LLM query against the local Ollama server.
+    """Execute direct LLM queries against OpenAI, Gemini, or Meta's API.
 
-    CloudGraph runs entirely on local models via Ollama — no cloud LLM
-    provider is supported. Returns the parsed JSON response, or None on
-    failure (unsupported provider, unreachable server, malformed response).
+    OpenAI and Gemini share an OpenAI-compatible /chat/completions shape.
+    Meta uses a different, Responses-API-style surface (/v1/responses) with
+    its own request/response shape — handled separately below.
+
+    Returns the parsed JSON response, or None on failure (missing key,
+    unsupported provider, unreachable server, malformed response).
     """
-    provider = (provider or "ollama").lower().strip()
-    if provider != "ollama":
+    provider = (provider or os.getenv("LLM_PROVIDER", "openai")).lower().strip()
+    api_key = (
+        api_key
+        or os.getenv("OPENAI_API_KEY")
+        or os.getenv("GEMINI_API_KEY")
+        or os.getenv("META_API_KEY")
+    )
+    if not api_key:
         return None
 
-    model = model or os.getenv("LLM_MODEL", "llama3.1:8b")
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    timeout = 60
 
+    chat_completions_config = {
+        "openai": (
+            "https://api.openai.com/v1/chat/completions",
+            "gpt-4o-mini",
+        ),
+        "gemini": (
+            "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+            "gemini-1.5-flash",
+        ),
+    }
     try:
-        base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-        url = f"{base_url.rstrip('/')}/v1/chat/completions"
-        headers = {"Content-Type": "application/json"}
-        if api_key:
-            headers["Authorization"] = f"Bearer {api_key}"
-        payload = {
-            "model": model,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": prompt},
-            ],
-            "temperature": 0.1,
-            "response_format": {"type": "json_object"},
-        }
-        res = requests.post(url, headers=headers, json=payload, timeout=120)
-        res.raise_for_status()
-        content = res.json()["choices"][0]["message"]["content"]
-        return json.loads(content)
+        if provider in chat_completions_config:
+            url, default_model = chat_completions_config[provider]
+            model = model or os.getenv("LLM_MODEL", default_model)
+            payload = {
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt},
+                ],
+                "temperature": 0.1,
+                "response_format": {"type": "json_object"},
+            }
+            res = requests.post(url, headers=headers, json=payload, timeout=timeout)
+            res.raise_for_status()
+            content = res.json()["choices"][0]["message"]["content"]
+            return json.loads(content)
+
+        if provider == "meta":
+            # Request shape verified against a real example from the
+            # account owner (api.meta.ai/v1/responses, not the
+            # chat-completions shape). "instructions" for the system
+            # prompt and the response-parsing shape below are inferred
+            # from that example plus the OpenAI Responses API this
+            # endpoint appears to mirror — not independently confirmed.
+            url = "https://api.meta.ai/v1/responses"
+            model = model or os.getenv("LLM_MODEL", "muse-spark-1.2")
+            payload = {
+                "model": model,
+                "instructions": system_prompt,
+                "input": [
+                    {
+                        "role": "user",
+                        "content": [{"type": "input_text", "text": prompt}],
+                    }
+                ],
+                "temperature": 0.1,
+                "stream": False,
+            }
+            res = requests.post(url, headers=headers, json=payload, timeout=timeout)
+            res.raise_for_status()
+            data = res.json()
+            message_item = next(
+                (
+                    item
+                    for item in data.get("output", [])
+                    if item.get("type") == "message"
+                ),
+                None,
+            )
+            if not message_item or not message_item.get("content"):
+                return None
+            content = message_item["content"][0]["text"]
+            return json.loads(content)
     except (
         requests.RequestException,
         AttributeError,
@@ -74,9 +132,11 @@ def call_llm(
         ValueError,
     ):
         # Contract of this function is "never raise" — any failure to reach
-        # the server or parse its response degrades to the heuristic,
+        # the provider or parse its response degrades to the heuristic,
         # non-LLM claim extraction path in the caller.
         return None
+
+    return None
 
 
 class GraphProvenanceClaimScorer:

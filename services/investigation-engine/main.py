@@ -31,37 +31,96 @@ def call_llm(
     api_key: str = "",
     model: str = "",
 ) -> dict:
-    """Make a direct HTTP request to the local Ollama server and return
-    parsed JSON. CloudGraph runs entirely on local models via Ollama — no
-    cloud LLM provider is supported, so there is no API key to manage, no
-    rate limit, and no quota."""
-    provider = (provider or "ollama").lower().strip()
-    if provider != "ollama":
+    """Make a direct HTTP request to the configured cloud LLM provider and
+    return parsed JSON. OpenAI and Gemini both expose an OpenAI-compatible
+    /chat/completions surface, so they share one request shape. Meta uses a
+    different, Responses-API-style surface (/v1/responses) with its own
+    request/response shape — handled separately below.
+    """
+    provider = (provider or os.getenv("LLM_PROVIDER", "openai")).lower().strip()
+    api_key = (
+        api_key
+        or os.getenv("OPENAI_API_KEY")
+        or os.getenv("GEMINI_API_KEY")
+        or os.getenv("META_API_KEY")
+    )
+    if not api_key:
         raise ValueError(
-            f"Unsupported LLM provider: {provider!r} — only 'ollama' is "
-            "supported. Run `cloudgraph deploy llm` to connect a local model."
+            f"No API key configured for provider {provider!r} — connect one "
+            "via the Settings page."
         )
-
-    model = model or os.getenv("LLM_MODEL", "llama3.1:8b")
-
-    base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-    url = f"{base_url.rstrip('/')}/v1/chat/completions"
-    headers = {"Content-Type": "application/json"}
-    if api_key:
-        headers["Authorization"] = f"Bearer {api_key}"
-    payload = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": prompt},
-        ],
-        "response_format": {"type": "json_object"},
-        "temperature": 0.1,
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
     }
-    res = requests.post(url, headers=headers, json=payload, timeout=180)
-    res.raise_for_status()
-    content = res.json()["choices"][0]["message"]["content"]
-    return json.loads(content)
+    timeout = 60
+
+    chat_completions_config = {
+        "openai": (
+            "https://api.openai.com/v1/chat/completions",
+            "gpt-4o-mini",
+        ),
+        "gemini": (
+            "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+            "gemini-1.5-flash",
+        ),
+    }
+    if provider in chat_completions_config:
+        url, default_model = chat_completions_config[provider]
+        model = model or os.getenv("LLM_MODEL", default_model)
+        payload = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt},
+            ],
+            "response_format": {"type": "json_object"},
+            "temperature": 0.1,
+        }
+        res = requests.post(url, headers=headers, json=payload, timeout=timeout)
+        res.raise_for_status()
+        content = res.json()["choices"][0]["message"]["content"]
+        return json.loads(content)
+
+    if provider == "meta":
+        # Request shape verified against a real example from the account
+        # owner (api.meta.ai/v1/responses, not the chat-completions shape
+        # originally assumed here). "instructions" for the system prompt
+        # and the exact response-parsing shape below are inferred from
+        # that one example plus the OpenAI Responses API this endpoint
+        # appears to mirror — not independently confirmed against Meta's
+        # own docs, so treat a parsing failure here as a signal to check
+        # the real response shape, not necessarily a bug elsewhere.
+        url = "https://api.meta.ai/v1/responses"
+        model = model or os.getenv("LLM_MODEL", "muse-spark-1.2")
+        payload = {
+            "model": model,
+            "instructions": system_prompt,
+            "input": [
+                {
+                    "role": "user",
+                    "content": [{"type": "input_text", "text": prompt}],
+                }
+            ],
+            "temperature": 0.1,
+            "stream": False,
+        }
+        res = requests.post(url, headers=headers, json=payload, timeout=timeout)
+        res.raise_for_status()
+        data = res.json()
+        message_item = next(
+            (item for item in data.get("output", []) if item.get("type") == "message"),
+            None,
+        )
+        if not message_item or not message_item.get("content"):
+            raise ValueError(f"Unexpected response shape from Meta API: {data!r}")
+        content = message_item["content"][0]["text"]
+        return json.loads(content)
+
+    raise ValueError(
+        f"Unsupported LLM provider: {provider!r} — must be one of "
+        f"{sorted(list(chat_completions_config) + ['meta'])}."
+    )
 
 
 _QUALITATIVE_CONFIDENCE = {
@@ -150,10 +209,12 @@ def _call_llm_agent(
 ) -> dict | None:
     """Helper to execute LLM calls for agents, catching exceptions."""
     try:
-        provider = (llm_provider or os.getenv("LLM_PROVIDER", "ollama")).strip().lower()
+        provider = (llm_provider or os.getenv("LLM_PROVIDER", "openai")).strip().lower()
         api_key = (llm_api_key or "").strip()
 
-        # Ollama needs no API key — only require a provider to be set.
+        # Don't require api_key here — call_llm() falls back to the
+        # provider's env-var key (OPENAI_API_KEY etc.) if this is empty,
+        # and raises a clear error itself if no key is available anywhere.
         if provider:
             return call_llm(
                 prompt=prompt,
@@ -824,9 +885,10 @@ class InvestigationHandler(http.server.BaseHTTPRequestHandler):
             "model": payload.get("llm_model"),
         }
 
-        # Execute all 5 specialized agents. No inter-agent pacing needed —
-        # Ollama is local with no external rate limit to burst past (unlike
-        # the cloud providers this project previously supported).
+        # Execute all 5 specialized agents sequentially. No inter-agent
+        # pacing added here — if a provider's rate limit becomes a real
+        # problem in practice, add backoff at that point rather than
+        # guessing at limits that vary by provider and account tier.
         monitoring_res = run_monitoring_agent(
             pod_name,
             llm_config=llm_config,

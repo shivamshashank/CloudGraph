@@ -21,9 +21,9 @@ def test_settings_endpoints(monkeypatch):
     """
     mock_records = [
         {
-            "provider": "ollama",
-            "api_key": "",
-            "model": "llama3.1:8b",
+            "provider": "openai",
+            "api_key": "sk-test-key",
+            "model": "gpt-4o-mini",
         }
     ]
     mock_execute = MagicMock(return_value=mock_records)
@@ -38,9 +38,9 @@ def test_settings_endpoints(monkeypatch):
     # 2. Test POST settings save
     mock_execute.return_value = [{"id": "llm_settings"}]
     payload = {
-        "provider": "ollama",
-        "api_key": "",
-        "model": "llama3.2:3b",
+        "provider": "gemini",
+        "api_key": "test-key",
+        "model": "gemini-1.5-flash",
     }
     response = client.post("/api/v1/settings", json=payload)
     assert response.status_code == 200
