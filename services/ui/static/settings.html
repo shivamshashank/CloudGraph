@@ -269,17 +269,16 @@
               </div>
 
               <div class="form-group">
-                <label class="form-label" for="llm-model"
-                  >Custom Model Name (Optional)</label
-                >
+                <label class="form-label" for="llm-model">Model Name</label>
                 <input
                   type="text"
                   id="llm-model"
                   class="form-input"
                   placeholder="e.g. gpt-4o-mini, gemini-1.5-flash, muse-spark-1.2"
+                  required
                 />
                 <div class="form-desc">
-                  Leave blank to use the standard default model for the selected
+                  Required — the exact model name to send to the selected
                   provider.
                 </div>
               </div>
@@ -287,8 +286,10 @@
               <div class="settings-actions">
                 <button
                   type="submit"
+                  id="btn-save-settings"
                   class="btn btn-primary"
                   style="width: auto"
+                  disabled
                 >
                   <span class="btn-icon">💾</span> Save Settings
                 </button>

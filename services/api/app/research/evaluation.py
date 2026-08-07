@@ -381,7 +381,12 @@ def _run_gpcs_step(analysis: Any) -> Optional[float]:
     """Score hallucination rate using GPCS; return unsupported-claim rate,
     or None if scoring failed (never a fabricated placeholder rate)."""
     try:
-        scorer = GraphProvenanceClaimScorer()
+        llm_settings = load_stored_llm_settings()
+        scorer = GraphProvenanceClaimScorer(
+            llm_provider=llm_settings.get("provider") or "",
+            llm_api_key=llm_settings.get("api_key") or "",
+            llm_model=llm_settings.get("model") or "",
+        )
         gpcs_res = scorer.score_claims(analysis, run_hybrid_search)
         return gpcs_res.get("unsupported_claim_rate", 0.0)
     except (RuntimeError, ValueError) as exc:

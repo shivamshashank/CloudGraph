@@ -4,6 +4,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const apiKeyInput = document.getElementById("llm-api-key");
   const modelInput = document.getElementById("llm-model");
   const resetButton = document.getElementById("btn-reset-settings");
+  const saveButton = document.getElementById("btn-save-settings");
   const alertBox = document.getElementById("settings-alert");
 
   function showAlert(msg, isError = false) {
@@ -14,6 +15,14 @@ document.addEventListener("DOMContentLoaded", () => {
       alertBox.style.display = "none";
     }, 5000);
   }
+
+  // API key and model are both required — Save stays disabled until both
+  // are filled in, so a save can never silently store a blank model.
+  function updateSaveButtonState() {
+    saveButton.disabled = !apiKeyInput.value.trim() || !modelInput.value.trim();
+  }
+  apiKeyInput.addEventListener("input", updateSaveButtonState);
+  modelInput.addEventListener("input", updateSaveButtonState);
 
   // Load existing settings
   async function loadSettings() {
@@ -28,6 +37,8 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     } catch (err) {
       console.error("Failed to load settings from database:", err);
+    } finally {
+      updateSaveButtonState();
     }
   }
   loadSettings();
@@ -43,6 +54,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (!newSettings.api_key) {
       showAlert("Please provide an API Key.", true);
+      return;
+    }
+    if (!newSettings.model) {
+      showAlert("Please provide a Model Name.", true);
       return;
     }
 
@@ -75,6 +90,7 @@ document.addEventListener("DOMContentLoaded", () => {
         providerSelect.value = "openai";
         apiKeyInput.value = "";
         modelInput.value = "";
+        updateSaveButtonState();
         showAlert("LLM credentials cleared successfully!");
       } else {
         showAlert("Failed to clear LLM settings.", true);

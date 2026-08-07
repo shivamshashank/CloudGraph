@@ -21,7 +21,8 @@ def test_extract_claims_uses_llm_when_available(monkeypatch):
         },
     ]
     monkeypatch.setattr(
-        "app.research.gpcs.call_llm", lambda prompt, system_prompt: mocked_response
+        "app.research.gpcs.call_llm",
+        lambda prompt, system_prompt, **_kwargs: mocked_response,
     )
 
     scorer = GraphProvenanceClaimScorer()
@@ -42,7 +43,7 @@ def test_extract_claims_uses_llm_when_available(monkeypatch):
 def test_extract_claims_falls_back_to_sentence_splitting(monkeypatch):
     """Verify claim extraction falls back to sentence splitting on LLM failure."""
     monkeypatch.setattr(
-        "app.research.gpcs.call_llm", lambda prompt, system_prompt: None
+        "app.research.gpcs.call_llm", lambda prompt, system_prompt, **_kwargs: None
     )
 
     scorer = GraphProvenanceClaimScorer()
@@ -88,7 +89,7 @@ def test_score_claims_returns_expected_structure(monkeypatch):
         MagicMock(retrieve=MagicMock(return_value=[])),
     )
     monkeypatch.setattr(
-        "app.research.gpcs.call_llm", lambda prompt, system_prompt: None
+        "app.research.gpcs.call_llm", lambda prompt, system_prompt, **_kwargs: None
     )
 
     scorer = GraphProvenanceClaimScorer()

@@ -877,6 +877,29 @@ func getPublicIP() string {
 	return "localhost"
 }
 
+// resolveAccessIP picks the address to show the operator for reaching the
+// cluster's Ingress. getPublicIP() (an external IP-lookup service) is
+// correct on a real cloud VM like AWS EC2 — the instance's own network
+// interface only has a private VPC address, and the public IP is what's
+// actually reachable from outside. But on a local hypervisor VM (OrbStack,
+// and similar setups), the "public IP" an external lookup returns is the
+// *host machine's* internet-facing address, not the VM's — actively wrong,
+// since the operator's browser reaches the VM directly via its own LAN
+// address instead. There's no fully general way to distinguish these from
+// inside the cluster alone, so this uses a pragmatic, explicitly-scoped
+// heuristic: if the node's own InternalIP falls in the 192.168.0.0/16
+// range (OrbStack's and most home-router/hypervisor defaults, but
+// deliberately not AWS's default 172.31.0.0/16 VPC range), prefer it over
+// the external lookup. Verified live against a real OrbStack deployment,
+// where this was concretely wrong before (showed the Mac's home-network
+// public IP instead of the VM's own reachable address).
+func resolveAccessIP() string {
+	if hostIP := detectClusterHostIP(); hostIP != "" && strings.HasPrefix(hostIP, "192.168.") {
+		return hostIP
+	}
+	return getPublicIP()
+}
+
 func runStatus() {
 	printHeader("CloudGraph Status Dashboard")
 
@@ -899,7 +922,7 @@ func runStatus() {
 
 	fmt.Println("")
 	printHeader("Access Information")
-	publicIP := getPublicIP()
+	publicIP := resolveAccessIP()
 	hosts := getIngressHostsFunc(namespace)
 	if len(hosts) > 0 {
 		for _, host := range hosts {
@@ -991,7 +1014,7 @@ func runDeploy() {
 		printWarning("Qdrant did not report collections yet; check 'cloudgraph status' after the services are up")
 	}
 
-	publicIP := getPublicIP()
+	publicIP := resolveAccessIP()
 	printHeader("Setup Completed Successfully!")
 	fmt.Println("You can check your pods with:")
 	fmt.Println("  kubectl get pods -n cloudgraph-system")

@@ -34,6 +34,10 @@ class _FakeScorer:  # pylint: disable=too-few-public-methods
     (that's covered in test_gpcs.py / test_self_consistency.py). Only needs
     the one method report_runner actually calls."""
 
+    def __init__(self, **_kwargs):
+        """Accept and ignore the real constructor's llm_provider/
+        llm_api_key/llm_model kwargs — this stand-in doesn't call an LLM."""
+
     def score_claims(self, _analysis, _search_func):
         """Fixed-agreement stand-in for GraphProvenanceClaimScorer.score_claims."""
         return {

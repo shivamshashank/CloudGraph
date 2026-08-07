@@ -1,5 +1,8 @@
 gpcs_unsupported,True,True
 self_consistency_unsupported,False,True
 claim_type,,
-general,0,5
-state,1,0
+causal,5,7
+entity_relationship,0,2
+general,14,25
+state,11,6
+temporal,3,3

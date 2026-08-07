@@ -24,6 +24,7 @@ from app.database.neo4j_client import neo4j_client, NEO4J_CONNECTION_ERRORS
 from app.database.qdrant import qdrant_client
 from app.research.gcp import GraphConfidencePropagator
 from app.research.gpcs import GraphProvenanceClaimScorer
+from app.research.llm_settings import load_stored_llm_settings
 from app.retrieval.graph_traversal import graph_traversal_retriever
 from app.retrieval.hybrid_ranker import hybrid_ranker
 from app.dependencies import semantic_store
@@ -347,9 +348,11 @@ def _investigate_pod(
         pass
 
     try:
-        claim_scoring = GraphProvenanceClaimScorer().score_claims(
-            analysis, graphrag_search
-        )
+        claim_scoring = GraphProvenanceClaimScorer(
+            llm_provider=llm_provider or "",
+            llm_api_key=llm_api_key or "",
+            llm_model=llm_model or "",
+        ).score_claims(analysis, graphrag_search)
     except (ValueError, KeyError, TypeError, RuntimeError, HTTPException):
         claim_scoring = {"unsupported_claim_rate": 0.0, "claim_count": 0, "claims": []}
 
@@ -541,9 +544,12 @@ def context_comparison(payload: GraphRAGSearchPayload):
             namespace=payload.namespace,
         )
         analysis = build_investigation_analysis(query, "Unknown", [])
-        claim_scoring = GraphProvenanceClaimScorer().score_claims(
-            analysis, graphrag_search
-        )
+        llm_settings = load_stored_llm_settings()
+        claim_scoring = GraphProvenanceClaimScorer(
+            llm_provider=llm_settings.get("provider") or "",
+            llm_api_key=llm_settings.get("api_key") or "",
+            llm_model=llm_settings.get("model") or "",
+        ).score_claims(analysis, graphrag_search)
 
         comparisons.append(
             {

@@ -21,7 +21,7 @@ document.addEventListener("DOMContentLoaded", () => {
       console.error("Failed to fetch settings:", err);
     }
 
-    if (!settings.provider || !settings.model) {
+    if (!settings.provider) {
       if (typeof window.CloudGraph.showToast === "function") {
         window.CloudGraph.showToast(
           "No LLM provider connected. Configure one on the Settings page to set one up.",

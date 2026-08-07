@@ -125,10 +125,21 @@ listed below.
 has the full detail per day):
 
 - Raw-context control + neuro-symbolic ablation (cheap, reuses existing code).
-- Statistical rigor: paired bootstrap CIs, Wilcoxon signed-rank.
-- Lightweight GCP/GPCS calibration analysis (Brier score, reliability
-  diagrams) — the specific gap `OXBRIDGE_READINESS.md` flags as most likely
-  to be probed by uncertainty-quantification-adjacent groups.
+- Statistical rigor: paired bootstrap CIs, Wilcoxon signed-rank, and the
+  matched-compute control — kept in scope; cheap, and close a predictable
+  reviewer objection to any comparative or multi-agent claim.
+- GCP/GPCS calibration analysis (Brier score, reliability diagrams) —
+  **deferred, not in scope for the workshop paper.** Per
+  `OXBRIDGE_READINESS.md`'s own framing, this is specifically for
+  Oxford/Cambridge uncertainty-quantification-adjacent PhD groups
+  ("otherwise this can be deferred to the PhD itself as a first-year
+  project seed"); `PUBLICATION_STRATEGY.md` confirms the workshop paper only
+  needs the GPCS-vs-self-consistency result, not calibration. Revisit if
+  targeting that specific application angle.
+- Day 5 figures trimmed to the 3 that Days 1-4's kept results actually need
+  (no calibration plots, since no calibration work is done); the full
+  latency/cost table, `run_all.sh`, and `requirements-lock.txt`
+  reproducibility pass also deferred.
 - Repo/docs accuracy pass, minimal API auth fix.
 - Consolidate into a citable draft write-up.
 

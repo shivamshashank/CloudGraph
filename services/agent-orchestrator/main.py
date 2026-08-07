@@ -29,6 +29,21 @@ _CHAT_COMPLETIONS_CONFIG = {
 _LLM_REQUEST_TIMEOUT = 60
 
 
+def _log_llm_request(provider: str, url: str, payload: dict) -> None:
+    """Log the outgoing LLM call — safe to dump the payload verbatim since
+    the API key lives in the headers, not here."""
+    print(
+        f"[LLM REQUEST] provider={provider} url={url}\n{json.dumps(payload, indent=2)}"
+    )
+
+
+def _log_llm_response(provider: str, status_code: int, raw_text: str) -> None:
+    """Log the raw response body before any parsing — logged even on a
+    non-2xx status, since seeing the actual error body is exactly what's
+    needed to debug a bad request."""
+    print(f"[LLM RESPONSE] provider={provider} status={status_code}\n{raw_text}")
+
+
 def _call_chat_completions_provider(provider: str, headers: dict, req: dict) -> dict:
     """OpenAI/Gemini both expose an OpenAI-compatible /chat/completions
     surface, so they share this one request/response shape. `req` carries
@@ -43,9 +58,11 @@ def _call_chat_completions_provider(provider: str, headers: dict, req: dict) -> 
         "response_format": {"type": "json_object"},
         "temperature": req["temperature"],
     }
+    _log_llm_request(provider, url, payload)
     res = requests.post(
         url, headers=headers, json=payload, timeout=_LLM_REQUEST_TIMEOUT
     )
+    _log_llm_response(provider, res.status_code, res.text)
     res.raise_for_status()
     content = res.json()["choices"][0]["message"]["content"]
     return json.loads(content)
@@ -75,9 +92,11 @@ def _call_meta_provider(headers: dict, req: dict) -> dict:
         "temperature": req["temperature"],
         "stream": False,
     }
+    _log_llm_request("meta", url, payload)
     res = requests.post(
         url, headers=headers, json=payload, timeout=_LLM_REQUEST_TIMEOUT
     )
+    _log_llm_response("meta", res.status_code, res.text)
     res.raise_for_status()
     data = res.json()
     message_item = next(
@@ -523,9 +542,18 @@ OrchestratorHandler.do_POST = OrchestratorHandler.do_post
 
 
 def run_server(port: int):
-    """Run the HTTP server on the specified port."""
-    socketserver.TCPServer.allow_reuse_address = True
-    with socketserver.TCPServer(("", port), OrchestratorHandler) as httpd:
+    """Run the HTTP server on the specified port.
+
+    Threaded, not a plain TCPServer — a single-threaded server can't answer
+    the /health liveness probe while a long-running /orchestrate request
+    (up to several minutes, waiting on investigation-engine's 5 sequential
+    LLM calls) is in flight, which starves the probe and gets the container
+    SIGKILLed by kubelet mid-request. Verified live: this was a real,
+    currently-active CrashLoopBackOff, not a hypothetical race.
+    """
+    socketserver.ThreadingTCPServer.allow_reuse_address = True
+    socketserver.ThreadingTCPServer.daemon_threads = True
+    with socketserver.ThreadingTCPServer(("", port), OrchestratorHandler) as httpd:
         print(
             f"Serving real agent orchestrator on port {port} "
             f"pointing to {INVESTIGATION_ENGINE_URL}"

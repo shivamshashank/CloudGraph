@@ -324,7 +324,7 @@ def _score_claim_recurrence(
     return scored_claims, unsupported
 
 
-def generate_and_score(  # pylint: disable=too-many-arguments
+def generate_and_score(  # pylint: disable=too-many-arguments,too-many-locals
     scenario: Dict[str, Any],
     n_samples: int = DEFAULT_N_SAMPLES,
     temperature: float = DEFAULT_TEMPERATURE,
@@ -358,7 +358,12 @@ def generate_and_score(  # pylint: disable=too-many-arguments
     orch_addr = orch_addr or os.getenv(
         "AGENT_ORCHESTRATOR_URL", "http://localhost:8082"
     )
-    scorer = GraphProvenanceClaimScorer()
+    llm_settings = load_stored_llm_settings()
+    scorer = GraphProvenanceClaimScorer(
+        llm_provider=llm_settings.get("provider") or "",
+        llm_api_key=llm_settings.get("api_key") or "",
+        llm_model=llm_settings.get("model") or "",
+    )
     embedder = SentenceTransformerEmbedder()
 
     generations = _generate_samples(

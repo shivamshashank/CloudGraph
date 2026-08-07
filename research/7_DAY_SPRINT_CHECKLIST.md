@@ -1,16 +1,19 @@
 # 7-Day Publication & Oxbridge Readiness Sprint
 
 **Goal:** by end of Day 7, CloudGraph has real (not simulated) results, an
-honest calibration/statistics story, a clean public repo, and a citable
-draft — everything `research/OXBRIDGE_READINESS.md` lists as blocking an
-application, closed. Day 8 onward is dissertation writing; this sprint does
-not touch chapter prose, only the evidence the chapters will cite.
+honest statistics story, a clean public repo, and a citable draft targeting
+a workshop submission — the minimum needed for that, not everything
+`research/OXBRIDGE_READINESS.md` lists as blocking a PhD application. Day 8
+onward is dissertation writing; this sprint does not touch chapter prose,
+only the evidence the chapters will cite.
 
 **Scope discipline:** this compresses `IMPLEMENTATION_ROADMAP.md` Phases 1–2
-plus a lightweight slice of Phase 4 (calibration) into 7 days. Dataset
+into 7 days. Phase 4 (calibration) is explicitly deferred, not
+in scope — it's specifically for uncertainty-quantification-adjacent PhD
+groups, not required for the workshop paper (see Day 4's note). Dataset
 scaling to 100+ scenarios, full GCP weight-fitting, and multi-agent
-cross-critique are explicitly **not** in scope — see "Out of scope" at the
-bottom. Do not let any day expand into these.
+cross-critique are also explicitly **not** in scope — see "Out of scope" at
+the bottom. Do not let any day expand into these.
 
 **Non-negotiable guardrails (apply every day):**
 
@@ -241,13 +244,25 @@ failure-mode table — both drop directly into a results/discussion chapter.
 
 ---
 
-## Day 4 — Statistics + a lightweight calibration/uncertainty story
+## Day 4 — Statistics + matched-compute control (calibration deferred)
 
-**Objective.** This is where "more ML/AI concepts" gets concrete: statistical
-rigor is expected of any empirical ML paper, and calibration is the single
-gap `OXBRIDGE_READINESS.md` flags as something Oxford/Cambridge
-uncertainty-quantification-adjacent groups will specifically probe. Both are
-achievable in a day at this dataset size if scoped honestly.
+**Objective.** Statistical rigor is expected of any empirical ML paper — the
+significance testing and matched-compute control below are close to
+mandatory for a credible comparative result, and both are cheap. **Full
+calibration analysis (Brier score, reliability diagrams) is scoped out of
+this pass** — per `OXBRIDGE_READINESS.md`'s own framing, that work is
+specifically for Oxford/Cambridge uncertainty-quantification-adjacent PhD
+groups, not a workshop-paper requirement:
+
+> "Complete Phase 4's GCP calibration work if targeting
+> uncertainty-quantification-adjacent groups; otherwise this can be
+> deferred to the PhD itself as a first-year project seed."
+
+`PUBLICATION_STRATEGY.md` confirms the workshop paper only needs "Phase 2"
+(the GPCS-vs-self-consistency result itself, Days 1-3) — calibration isn't
+on that critical path. Deferred to a later, PhD-application-specific pass
+if/when targeting those groups specifically — see
+`research/DEFERRED_CALIBRATION_WORK.md` (create when picked back up).
 
 - [ ] `scripts/paired_bootstrap.py` — paired bootstrap CI:
 
@@ -266,24 +281,6 @@ achievable in a day at this dataset size if scoped honestly.
 - [ ] Report explicitly: n=25 gives wide CIs — do not overclaim
       significance. This honesty is expected and rewarded in review
       (guardrail #3).
-- [ ] **Lightweight calibration analysis** (scoped-down version of
-      `IMPLEMENTATION_ROADMAP.md` Phase 4 — not full weight-fitting, just
-      *measuring* current calibration, which is still a real and citable
-      contribution):
-  - [ ] For GCP: collect `(confidence_score, was_correct)` pairs across all
-        25 scenarios from Day 1's real GCP-wired runs.
-  - [ ] For GPCS: collect `(trust_score, claim_was_actually_supported)`
-        pairs from Day 2's hand-labeled disagreement review.
-  - [ ] Compute Brier score for both.
-  - [ ] Plot a reliability diagram (predicted confidence bucket vs observed
-        accuracy) for each — `matplotlib`, save to
-        `experiments/figures/day4_calibration_gcp.png` and
-        `_gpcs.png`.
-  - [ ] State the finding honestly: at n=25 this is a *first look*, not a
-        validated calibration (that needs Phase 3's 100+ scenario, held-out
-        split — cite this explicitly as the natural next step, which is
-        exactly the "PhD extends this" framing `OXBRIDGE_READINESS.md`
-        recommends).
 - [ ] **Matched-compute control (cheap slice of Contribution 5).** Run
       Day 2's self-consistency generator at `n_samples=5` (matching the
       5-specialist-agent call count) as a single-LLM baseline, compare its
@@ -294,39 +291,43 @@ achievable in a day at this dataset size if scoped honestly.
       `experiments/results/day4_matched_compute.md`. If the agents don't
       beat matched-compute self-consistency, report that honestly — it's a
       valid, publishable negative result per Contribution 5's own framing.
+- [ ] Alongside the matched-compute result, record each condition's LLM
+      call count (not a full latency/cost table — just enough to show the
+      compute was actually matched, since that's the whole point of the
+      control and a reviewer will ask).
 
-**Deliverable:** bootstrap CIs + Wilcoxon results, two calibration plots +
-Brier scores with an honest "first look, not validated" caveat, and the
-matched-compute control result.
+**Deliverable:** bootstrap CIs + Wilcoxon results, and the matched-compute
+control result with its call-count comparison. **Not** in this pass:
+calibration plots/Brier scores — deferred, see above.
 
 ---
 
-## Day 5 — Figures, cost/latency table, reproducibility pass
+## Day 5 — Necessary figures only (trimmed)
 
-**Objective.** Package everything from Days 1–4 into a reviewer-ready,
-one-command-reproducible form.
+**Objective.** Produce the minimum figures the Day 1-4 results actually need
+to be reviewable — not the full reproducibility/polish pass. Trimmed
+specifically because calibration (Day 4) is deferred, so its two reliability
+diagrams don't exist yet either.
 
 - [ ] `scripts/make_figures.py` (script-generated, not hand-edited):
   1. Bar chart: retrieval F1 by method with bootstrap CI error bars.
   2. Grouped bar chart: unsupported-claim-rate — GPCS vs self-consistency vs
      raw-context, by claim type.
   3. Heatmap: the Day 2 agreement/disagreement cross-tab.
-  4. The two Day 4 reliability diagrams (already produced, just consolidate).
-- [ ] **Latency/cost table.** Report LLM call count and wall-clock latency
-      per condition (Keyword / Vector / Hybrid / +Agents / +GCP / +GPCS /
-      self-consistency / raw-context / matched-compute). Required so the
-      raw-context and matched-compute comparisons aren't confounded by
-      "just used more compute for free."
-- [ ] Fix all random seeds used across the week's scripts.
-- [ ] `pip freeze > requirements-lock.txt`.
-- [ ] Write `run_all.sh` at repo root that regenerates every number/figure
-      produced this week from `experiments/configs/*.yaml` + the raw JSON/
-      CSV logs already saved.
-- [ ] Actually re-run `run_all.sh` once from a clean checkout/branch to
-      confirm it reproduces (guardrail #4). Fix anything that doesn't.
+- [ ] Fix all random seeds used across the week's scripts (cheap, and
+      undermines every other result here if skipped).
 
-**Deliverable:** `experiments/figures/*.png`, a latency/cost table, and a
-verified one-command reproduction script.
+**Explicitly deferred, not required for the workshop submission:** the two
+Day 4 calibration reliability diagrams (no calibration work done to plot),
+the full latency/cost table across all 9 conditions (the matched-compute
+call-count note above covers what's actually load-bearing), pinning
+`requirements-lock.txt`, and the `run_all.sh` one-command-reproduction
+script. Revisit these if reviewer feedback asks for them, or before the
+second (journal/applied-venue) submission where reproducibility scrutiny is
+higher.
+
+**Deliverable:** `experiments/figures/*.png` (3 figures, not the original
+4) — nothing else from the original Day 5 scope.
 
 ---
 
@@ -361,8 +362,9 @@ anyone at Imperial or a reviewer opens the repo.
       what's now actually true after this week (they currently disagree with
       each other and with the code — reconcile all three into one accurate
       status).
-- [ ] Commit and push everything from Days 1–6: code fixes,
-      `experiments/`, `run_all.sh`, `requirements-lock.txt`, doc fixes.
+- [ ] Commit and push everything from Days 1–6: code fixes, `experiments/`,
+      doc fixes. (`run_all.sh`/`requirements-lock.txt` were deferred out of
+      Day 5's trimmed scope — nothing to push there yet.)
 
 **Deliverable:** a public repo where every doc claim is checkable against the
 code, and no unauthenticated credential-storage endpoint.
@@ -381,8 +383,10 @@ dissertation writing starting Day 8.
       consistency baseline procedure, experimental setup (25 scenarios,
       explicitly stated as a small-scale pilot), results (Days 1–4), and a
       limitations section covering: small n, single domain (Kubernetes),
-      hand-set (not learned) GPCS/GCP weights — flagged as future work
-      pointing at Phase 3/4 of `IMPLEMENTATION_ROADMAP.md`, no comparison yet
+      hand-set (not learned) GPCS/GCP weights, **no calibration analysis
+      performed** (Brier score/reliability diagrams deferred — out of scope
+      for this submission, see Day 4) — flagged as future work pointing at
+      Phase 3/4 of `IMPLEMENTATION_ROADMAP.md`, no comparison yet
       to MetaRCA/Cui et al. (Phase 5, also future work). This is not a
       polished submission — it's the citable artifact `OXBRIDGE_READINESS.md`
       says is worth more than a promise of future work.
@@ -416,13 +420,15 @@ substance that wasn't in the codebase before:
   not just aggregate metrics — Day 3.
 - **Paired bootstrap confidence intervals + Wilcoxon signed-rank testing** —
   Day 4.
-- **Calibration analysis** (Brier score, reliability diagrams) for both GCP
-  and GPCS confidence outputs — Day 4. This is the single item
-  `OXBRIDGE_READINESS.md` names as most likely to be probed by
-  uncertainty-quantification-adjacent groups, and it did not exist in any
-  form before this sprint.
 - **Matched-compute control** isolating whether multi-agent gains come from
   genuine interaction/specialization or just more LLM calls — Day 4.
+- **Calibration analysis** (Brier score, reliability diagrams) for both GCP
+  and GPCS confidence outputs — **deferred, not in this sprint's scope**.
+  This is the single item `OXBRIDGE_READINESS.md` names as most likely to be
+  probed by uncertainty-quantification-adjacent groups specifically, but per
+  that same doc it's conditional on targeting those groups — not required
+  for the workshop paper this sprint targets. Revisit if/when pursuing that
+  specific application angle.
 - **Claim-type-stratified analysis** (temporal/causal/entity_relationship/
   state) instead of a single aggregate hallucination number — Day 2.
 
@@ -431,8 +437,10 @@ substance that wasn't in the codebase before:
 - Dataset scaling to 100+ scenarios (`IMPLEMENTATION_ROADMAP.md` Phase 3) —
   the 25-scenario dataset is sufficient for a pilot/workshop-scale draft if
   every number is real and n is honestly reported.
-- Full GCP edge-weight fitting/training-based calibration (Phase 4 proper) —
-  Day 4 only *measures* current calibration, it does not fit new weights.
+- Any calibration analysis at all, lightweight or full (Phase 4) — deferred
+  out of this sprint entirely, not just the full weight-fitting version.
+  Specifically relevant only for uncertainty-quantification-adjacent PhD
+  applications, not the workshop paper this sprint targets — see Day 4.
 - Multi-agent cross-critique orchestration mode (Phase 4) — the matched-
   compute control (Day 4) is the cheap substitute this week; the full
   critique round is a Phase 4 item for after dissertation submission.
@@ -452,8 +460,8 @@ plan, section 6:
 |---|---|
 | Methodology (real evaluation protocol) | Day 1 note, Day 2–4 scripts |
 | Evaluation | `experiments/results/*.csv`, Day 5 figures |
-| Discussion (calibration, negative results) | Day 4 calibration + matched-compute findings |
-| Threats to Validity / Limitations | n=25 caveats, hand-set weights, single-domain scope — stated throughout the week, not written fresh |
+| Discussion (negative results) | Day 4 matched-compute findings |
+| Threats to Validity / Limitations | n=25 caveats, hand-set weights, no calibration analysis performed, single-domain scope — stated throughout the week, not written fresh |
 | Design Evolution subsection | Day 6 `docs/design-evolution.md` |
 | Future Work | The "Out of scope" list above, verbatim |
 

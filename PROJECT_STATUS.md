@@ -173,9 +173,14 @@ Propagation (GCP) and Graph-Provenance Claim Scoring (GPCS).
   is limited to local kubeconfig; no AWS EKS/GCP GKE/Azure AKS SDK
   integration or multi-cluster federation.
 - **Statistical rigor on the benchmark**: paired bootstrap CIs, Wilcoxon
-  signed-rank testing, and calibration analysis (Brier score, reliability
-  diagrams for GCP/GPCS confidence) are not yet implemented — scoped as
-  Day 4 of `research/7_DAY_SPRINT_CHECKLIST.md`.
+  signed-rank testing, and the matched-compute control are not yet
+  implemented — scoped as Day 4 of `research/7_DAY_SPRINT_CHECKLIST.md`.
+  Calibration analysis (Brier score, reliability diagrams for GCP/GPCS
+  confidence) was also scoped there originally but is now **deliberately
+  deferred**, not just "not yet done" — it's specifically for
+  uncertainty-quantification-adjacent PhD applications, not required for
+  the workshop paper this project targets first (see Day 4's note in the
+  checklist for the reasoning).
 - **Raw-context control & neuro-symbolic ablation write-up** — scoped as
   Day 3 of the same checklist, not started.
 - **Human evaluation** — no user study on RCA usefulness/trust exists yet.
@@ -199,7 +204,8 @@ Propagation (GCP) and Graph-Provenance Claim Scoring (GPCS).
 3. **Frontend framework claims**: corrected in this pass — see
    "Documentation accuracy" above.
 4. **Where to look next**: `research/7_DAY_SPRINT_CHECKLIST.md` Days 2
-   (re-run, now unblocked) through 7 (statistics, calibration, figures,
-   write-up) is the concrete path from here to a citable result;
+   (re-run, now unblocked) through 7 (statistics + matched-compute control,
+   trimmed figures, write-up — calibration deliberately deferred, see
+   Day 4) is the concrete path from here to a citable result;
    `research/OXBRIDGE_READINESS.md` is the readiness assessment against
    that goal.

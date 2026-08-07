@@ -1,6 +1,7 @@
 """Tests for LLM agent reasoning, providers, and rule-based fallbacks."""
 
 import importlib.util
+import json
 import os
 import sys
 import pytest
@@ -39,6 +40,7 @@ class MockResponse:
     def __init__(self, json_data, status_code=200):
         self.json_data = json_data
         self.status_code = status_code
+        self.text = json.dumps(json_data)
 
     def json(self):
         """Return JSON data."""
@@ -54,6 +56,7 @@ def test_call_llm_providers(monkeypatch):
     """Test call_llm support for OpenAI, Gemini, and Meta's API."""
 
     # 1. Test OpenAI
+    # pylint: disable-next=redefined-outer-name
     def mock_post_openai(url, headers, json, timeout=60):
         assert "api.openai.com" in url
         assert headers["Authorization"] == "Bearer sk-test-openai"
@@ -73,6 +76,7 @@ def test_call_llm_providers(monkeypatch):
     assert res["confidence"] == 0.9
 
     # 2. Test Gemini
+    # pylint: disable-next=redefined-outer-name
     def mock_post_gemini(url, headers, json, timeout=60):
         assert "generativelanguage.googleapis.com" in url
         assert headers["Authorization"] == "Bearer gemini-test-token"
@@ -92,6 +96,7 @@ def test_call_llm_providers(monkeypatch):
     assert res["confidence"] == 0.8
 
     # 3. Test Meta API (Responses-API-style shape, not chat-completions)
+    # pylint: disable-next=redefined-outer-name
     def mock_post_meta(url, headers, json, timeout=60):
         assert "api.meta.ai/v1/responses" in url
         assert headers["Authorization"] == "Bearer meta-test-token"

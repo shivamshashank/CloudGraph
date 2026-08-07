@@ -1,7 +1,0 @@
-scenario_id,claim_id,claim_text,claim_type,gpcs_trust_score,gpcs_unsupported,self_consistency_recurrence_rate,self_consistency_unsupported,agreement
-scenario-01,claim-1,"Payment Service Pod Error Pod 'payment-service-pod-7f' status is 'Failed', impacting service availability",state,0.0,True,1.0,False,False
-scenario-01,claim-2,"Based on the available telemetry, it appears that multiple agents have reported issues with accessing critical resources or data",general,0.0,True,0.0,True,True
-scenario-01,claim-3,"The Monitoring Agent reports unavailable metrics (Conf: 0.5), while the Logs Agent has identified logs related to the failure but does not attribute a specific category (Conf: 0.7)",general,0.0,True,0.0,True,True
-scenario-01,claim-4,"The Deployments Agent indicates an inability to access Git commits log (Conf: 0.5) which is critical for deployment history and rollbacks, suggesting there might be issues with communication or database connectivity within the CI/CD pipeline",general,0.0,True,0.0,True,True
-scenario-01,claim-5,"The Topology Agent cannot assess downstream routing nodes due to an unreachable status (Conf: 0.5), potentially indicating network connectivity issues between components",general,0.0,True,0.0,True,True
-scenario-01,claim-6,"Lastly, the Security Agent reports unassessed RBAC cluster authorization (Conf: 0.5) which could be a significant security concern",general,0.0,True,0.0,True,True

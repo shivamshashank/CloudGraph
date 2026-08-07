@@ -44,6 +44,7 @@ from app.research.evaluation import (
     run_raw_context_search,
 )
 from app.research.gpcs import GraphProvenanceClaimScorer
+from app.research.llm_settings import load_stored_llm_settings
 from app.research.self_consistency import (
     SelfConsistencyUnavailableError,
     generate_and_score,
@@ -332,7 +333,12 @@ def generate_report(scenario_limit: int | None) -> dict[str, Any]:
     3) — this is real compute, not a free ablation, and takes proportionally
     longer.
     """
-    scorer = GraphProvenanceClaimScorer()
+    llm_settings = load_stored_llm_settings()
+    scorer = GraphProvenanceClaimScorer(
+        llm_provider=llm_settings.get("provider") or "",
+        llm_api_key=llm_settings.get("api_key") or "",
+        llm_model=llm_settings.get("model") or "",
+    )
     scenarios = BENCHMARK_GROUND_TRUTH_SCENARIOS
     if scenario_limit:
         scenarios = scenarios[:scenario_limit]

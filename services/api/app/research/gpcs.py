@@ -28,6 +28,21 @@ SOURCE_RELIABILITY = {
 }
 
 
+def _log_llm_request(provider: str, url: str, payload: dict) -> None:
+    """Log the outgoing LLM call — safe to dump the payload verbatim since
+    the API key lives in the headers, not here."""
+    print(
+        f"[LLM REQUEST] provider={provider} url={url}\n{json.dumps(payload, indent=2)}"
+    )
+
+
+def _log_llm_response(provider: str, status_code: int, raw_text: str) -> None:
+    """Log the raw response body before any parsing — logged even on a
+    non-2xx status, since seeing the actual error body is exactly what's
+    needed to debug a bad request."""
+    print(f"[LLM RESPONSE] provider={provider} status={status_code}\n{raw_text}")
+
+
 def call_llm(
     prompt: str,
     system_prompt: str = "You are an expert AIOps assistant. Output valid JSON.",
@@ -83,7 +98,9 @@ def call_llm(
                 "temperature": 0.1,
                 "response_format": {"type": "json_object"},
             }
+            _log_llm_request(provider, url, payload)
             res = requests.post(url, headers=headers, json=payload, timeout=timeout)
+            _log_llm_response(provider, res.status_code, res.text)
             res.raise_for_status()
             content = res.json()["choices"][0]["message"]["content"]
             return json.loads(content)
@@ -109,7 +126,9 @@ def call_llm(
                 "temperature": 0.1,
                 "stream": False,
             }
+            _log_llm_request("meta", url, payload)
             res = requests.post(url, headers=headers, json=payload, timeout=timeout)
+            _log_llm_response("meta", res.status_code, res.text)
             res.raise_for_status()
             data = res.json()
             message_item = next(
@@ -142,10 +161,13 @@ def call_llm(
 class GraphProvenanceClaimScorer:
     """Implementation of Graph-Provenance Claim Scoring."""
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         weights: dict[str, float] | None = None,
         threshold: float = 0.50,
+        llm_provider: str = "",
+        llm_api_key: str = "",
+        llm_model: str = "",
     ):
         weights = weights or {}
         self.semantic_weight = weights.get("semantic", 0.45)
@@ -153,6 +175,16 @@ class GraphProvenanceClaimScorer:
         self.reliability_weight = weights.get("reliability", 0.25)
         self.penalty_weight = weights.get("penalty", 0.15)
         self.threshold = threshold
+        # Without these, _extract_claims_with_llm's call_llm() has no
+        # credentials to use (the pod carries none as env vars — the real
+        # key lives in Neo4j) and always falls back to the heuristic
+        # sentence-splitter, silently, every time. Verified live: this was
+        # happening on every report run, not just as an occasional fallback.
+        self.llm_settings = {
+            "provider": llm_provider,
+            "api_key": llm_api_key,
+            "model": llm_model,
+        }
 
     def score_claims(
         self,
@@ -235,7 +267,13 @@ class GraphProvenanceClaimScorer:
             "You are an expert claim extractor for AIOps incident reports. "
             "Output only a JSON array."
         )
-        llm_res = call_llm(prompt, system_prompt)
+        llm_res = call_llm(
+            prompt,
+            system_prompt,
+            provider=self.llm_settings["provider"],
+            api_key=self.llm_settings["api_key"],
+            model=self.llm_settings["model"],
+        )
         if isinstance(llm_res, list):
             claims = []
             for item in llm_res:
