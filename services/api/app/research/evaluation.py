@@ -14,6 +14,7 @@ from app.retrieval.hybrid_ranker import hybrid_ranker
 from app.research.gcp import GraphConfidencePropagator
 from app.research.gpcs import GraphProvenanceClaimScorer
 from app.research.llm_settings import load_stored_llm_settings
+from app.services.graphrag_search import graphrag_search
 
 logger = logging.getLogger(__name__)
 
@@ -246,7 +247,7 @@ def extract_text_from_results(results: List[Dict[str, Any]], method_key: str) ->
     return " ".join(parts)
 
 
-def _calculate_fp(
+def calculate_fp(
     results: List[Dict[str, Any]], method_key: str, expected_tags: List[str]
 ) -> int:
     """Count false-positive results not matching any expected tag."""
@@ -380,14 +381,20 @@ def _run_gcp_step(target_entity: str) -> float:
 def _run_gpcs_step(analysis: Any) -> Optional[float]:
     """Score hallucination rate using GPCS; return unsupported-claim rate,
     or None if scoring failed (never a fabricated placeholder rate)."""
+    # score_claims' search_func contract is (GraphRAGSearchPayload, method) ->
+    # {"results": [...]} (see gpcs.ClaimSearchFunc) — run_hybrid_search takes
+    # a bare str and returns a list, so passing it here silently raised
+    # TypeError on every call (caught by _retrieve_supporting_evidence's
+    # broad except), the same dead-search-function bug fixed in
+    # report_runner.py — graphrag_search (imported at module scope, from
+    # app.services.graphrag_search) is the function that actually matches
+    # the contract.
     try:
         llm_settings = load_stored_llm_settings()
         scorer = GraphProvenanceClaimScorer(
-            llm_provider=llm_settings.get("provider") or "",
-            llm_api_key=llm_settings.get("api_key") or "",
-            llm_model=llm_settings.get("model") or "",
+            llm_settings=llm_settings,
         )
-        gpcs_res = scorer.score_claims(analysis, run_hybrid_search)
+        gpcs_res = scorer.score_claims(analysis, graphrag_search)
         return gpcs_res.get("unsupported_claim_rate", 0.0)
     except (RuntimeError, ValueError) as exc:
         logger.warning("GPCS claim scoring failed: %s", exc)
@@ -423,7 +430,7 @@ def evaluate_scenario(
         1 for tag in scenario["expected_tags"] if tag.lower() in retrieved_text.lower()
     )
     fn = len(scenario["expected_tags"]) - tp
-    fp = _calculate_fp(results, method_key, scenario["expected_tags"])
+    fp = calculate_fp(results, method_key, scenario["expected_tags"])
     correct = 1 if tp >= max(1, len(scenario["expected_tags"]) // 2) else 0
 
     analysis = None

@@ -27,6 +27,17 @@ SOURCE_RELIABILITY = {
     "node": 0.75,
 }
 
+# graphrag_search's "hybrid" ranking (vector similarity + graph proximity +
+# recency decay, see hybrid_ranker.HybridRanker.FORMULA) never returns an
+# empty result list for a live Qdrant collection — nearest-neighbor search
+# always returns its top-k regardless of true relevance, so an unfiltered
+# score check can't tell "closest available match" apart from "no real
+# match." Verified live against the real deployed store: genuinely vague/
+# generic claims ("Monitoring data is inconclusive") top out around
+# 0.16-0.30, while claims with a real semantic match in the graph score
+# 0.33-0.87. 0.30 sits just above that noise ceiling.
+MIN_SEMANTIC_EVIDENCE_SCORE = 0.30
+
 
 def _log_llm_request(provider: str, url: str, payload: dict) -> None:
     """Log the outgoing LLM call — safe to dump the payload verbatim since
@@ -43,25 +54,108 @@ def _log_llm_response(provider: str, status_code: int, raw_text: str) -> None:
     print(f"[LLM RESPONSE] provider={provider} status={status_code}\n{raw_text}")
 
 
+_CHAT_COMPLETIONS_CONFIG = {
+    "openai": (
+        "https://api.openai.com/v1/chat/completions",
+        "gpt-4o-mini",
+    ),
+    "gemini": (
+        "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+        "gemini-1.5-flash",
+    ),
+}
+
+
+def _call_chat_completions_provider(
+    provider: str, default_model: str, req: dict[str, Any]
+) -> dict[str, Any] | list[dict[str, Any]] | None:
+    """OpenAI and Gemini share this /chat/completions shape."""
+    url, _ = _CHAT_COMPLETIONS_CONFIG[provider]
+    model = req["model"] or os.getenv("LLM_MODEL", default_model)
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": req["system_prompt"]},
+            {"role": "user", "content": req["prompt"]},
+        ],
+        "temperature": req["temperature"],
+        "response_format": {"type": "json_object"},
+    }
+    _log_llm_request(provider, url, payload)
+    res = requests.post(
+        url, headers=req["headers"], json=payload, timeout=req["timeout"]
+    )
+    _log_llm_response(provider, res.status_code, res.text)
+    res.raise_for_status()
+    content = res.json()["choices"][0]["message"]["content"]
+    return json.loads(content)
+
+
+def _call_meta_provider(
+    req: dict[str, Any],
+) -> dict[str, Any] | list[dict[str, Any]] | None:
+    """Meta uses a different, Responses-API-style surface (/v1/responses),
+    not the chat-completions shape OpenAI/Gemini share.
+
+    Request shape verified against a real example from the account owner
+    (api.meta.ai/v1/responses). "instructions" for the system prompt and
+    the response-parsing shape below are inferred from that example plus
+    the OpenAI Responses API this endpoint appears to mirror — not
+    independently confirmed.
+    """
+    url = "https://api.meta.ai/v1/responses"
+    model = req["model"] or os.getenv("LLM_MODEL", "muse-spark-1.2")
+    payload = {
+        "model": model,
+        "instructions": req["system_prompt"],
+        "input": [
+            {"role": "user", "content": [{"type": "input_text", "text": req["prompt"]}]}
+        ],
+        "temperature": req["temperature"],
+        "stream": False,
+    }
+    _log_llm_request("meta", url, payload)
+    res = requests.post(
+        url, headers=req["headers"], json=payload, timeout=req["timeout"]
+    )
+    _log_llm_response("meta", res.status_code, res.text)
+    res.raise_for_status()
+    data = res.json()
+    message_item = next(
+        (item for item in data.get("output", []) if item.get("type") == "message"),
+        None,
+    )
+    if not message_item or not message_item.get("content"):
+        return None
+    content = message_item["content"][0]["text"]
+    return json.loads(content)
+
+
 def call_llm(
     prompt: str,
     system_prompt: str = "You are an expert AIOps assistant. Output valid JSON.",
-    provider: str = "",
-    api_key: str = "",
-    model: str = "",
+    llm_settings: dict[str, str] | None = None,
+    temperature: float = 0.1,
 ) -> dict[str, Any] | list[dict[str, Any]] | None:
     """Execute direct LLM queries against OpenAI, Gemini, or Meta's API.
 
-    OpenAI and Gemini share an OpenAI-compatible /chat/completions shape.
-    Meta uses a different, Responses-API-style surface (/v1/responses) with
-    its own request/response shape — handled separately below.
+    llm_settings holds the three connection fields together (provider,
+    api_key, model) rather than as separate parameters — the same
+    consolidation GraphProvenanceClaimScorer.__init__ already uses for the
+    same reason (keeps caller sites reading as "these three travel
+    together," not an arbitrary parameter list).
 
     Returns the parsed JSON response, or None on failure (missing key,
     unsupported provider, unreachable server, malformed response).
     """
-    provider = (provider or os.getenv("LLM_PROVIDER", "openai")).lower().strip()
+    llm_settings = llm_settings or {}
+    provider = (
+        (llm_settings.get("provider") or os.getenv("LLM_PROVIDER", "openai"))
+        .lower()
+        .strip()
+    )
     api_key = (
-        api_key
+        llm_settings.get("api_key")
         or os.getenv("OPENAI_API_KEY")
         or os.getenv("GEMINI_API_KEY")
         or os.getenv("META_API_KEY")
@@ -69,80 +163,24 @@ def call_llm(
     if not api_key:
         return None
 
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
+    req = {
+        "prompt": prompt,
+        "system_prompt": system_prompt,
+        "model": llm_settings.get("model") or "",
+        "temperature": temperature,
+        "headers": {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        "timeout": 60,
     }
-    timeout = 60
 
-    chat_completions_config = {
-        "openai": (
-            "https://api.openai.com/v1/chat/completions",
-            "gpt-4o-mini",
-        ),
-        "gemini": (
-            "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-            "gemini-1.5-flash",
-        ),
-    }
     try:
-        if provider in chat_completions_config:
-            url, default_model = chat_completions_config[provider]
-            model = model or os.getenv("LLM_MODEL", default_model)
-            payload = {
-                "model": model,
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt},
-                ],
-                "temperature": 0.1,
-                "response_format": {"type": "json_object"},
-            }
-            _log_llm_request(provider, url, payload)
-            res = requests.post(url, headers=headers, json=payload, timeout=timeout)
-            _log_llm_response(provider, res.status_code, res.text)
-            res.raise_for_status()
-            content = res.json()["choices"][0]["message"]["content"]
-            return json.loads(content)
-
+        if provider in _CHAT_COMPLETIONS_CONFIG:
+            _, default_model = _CHAT_COMPLETIONS_CONFIG[provider]
+            return _call_chat_completions_provider(provider, default_model, req)
         if provider == "meta":
-            # Request shape verified against a real example from the
-            # account owner (api.meta.ai/v1/responses, not the
-            # chat-completions shape). "instructions" for the system
-            # prompt and the response-parsing shape below are inferred
-            # from that example plus the OpenAI Responses API this
-            # endpoint appears to mirror — not independently confirmed.
-            url = "https://api.meta.ai/v1/responses"
-            model = model or os.getenv("LLM_MODEL", "muse-spark-1.2")
-            payload = {
-                "model": model,
-                "instructions": system_prompt,
-                "input": [
-                    {
-                        "role": "user",
-                        "content": [{"type": "input_text", "text": prompt}],
-                    }
-                ],
-                "temperature": 0.1,
-                "stream": False,
-            }
-            _log_llm_request("meta", url, payload)
-            res = requests.post(url, headers=headers, json=payload, timeout=timeout)
-            _log_llm_response("meta", res.status_code, res.text)
-            res.raise_for_status()
-            data = res.json()
-            message_item = next(
-                (
-                    item
-                    for item in data.get("output", [])
-                    if item.get("type") == "message"
-                ),
-                None,
-            )
-            if not message_item or not message_item.get("content"):
-                return None
-            content = message_item["content"][0]["text"]
-            return json.loads(content)
+            return _call_meta_provider(req)
     except (
         requests.RequestException,
         AttributeError,
@@ -161,13 +199,11 @@ def call_llm(
 class GraphProvenanceClaimScorer:
     """Implementation of Graph-Provenance Claim Scoring."""
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         weights: dict[str, float] | None = None,
         threshold: float = 0.50,
-        llm_provider: str = "",
-        llm_api_key: str = "",
-        llm_model: str = "",
+        llm_settings: dict[str, str] | None = None,
     ):
         weights = weights or {}
         self.semantic_weight = weights.get("semantic", 0.45)
@@ -180,10 +216,11 @@ class GraphProvenanceClaimScorer:
         # key lives in Neo4j) and always falls back to the heuristic
         # sentence-splitter, silently, every time. Verified live: this was
         # happening on every report run, not just as an occasional fallback.
+        llm_settings = llm_settings or {}
         self.llm_settings = {
-            "provider": llm_provider,
-            "api_key": llm_api_key,
-            "model": llm_model,
+            "provider": llm_settings.get("provider", ""),
+            "api_key": llm_settings.get("api_key", ""),
+            "model": llm_settings.get("model", ""),
         }
 
     def score_claims(
@@ -267,13 +304,7 @@ class GraphProvenanceClaimScorer:
             "You are an expert claim extractor for AIOps incident reports. "
             "Output only a JSON array."
         )
-        llm_res = call_llm(
-            prompt,
-            system_prompt,
-            provider=self.llm_settings["provider"],
-            api_key=self.llm_settings["api_key"],
-            model=self.llm_settings["model"],
-        )
+        llm_res = call_llm(prompt, system_prompt, llm_settings=self.llm_settings)
         if isinstance(llm_res, list):
             claims = []
             for item in llm_res:
@@ -307,15 +338,41 @@ class GraphProvenanceClaimScorer:
             return "causal"
         return "general"
 
-    def _extract_entities(self, claim: str) -> list[str]:
-        names = re.findall(r"([A-Za-z0-9_-]+(?:service|deployment|pod))", claim)
+    _ENTITY_KEYWORDS = ("service", "deployment", "pod", "node")
+
+    def extract_entities(self, claim: str) -> list[str]:
+        """Return the resource identifiers (pod/service/deployment/node
+        names) mentioned in a claim, for evidence retrieval."""
+        # Must capture the FULL identifier (e.g. "payment-service-pod-7f"),
+        # not just up through "pod" — graph_traversal_retriever.retrieve()
+        # matches seed.name by exact equality, so a truncated search term
+        # (dropping the "-7f"/"-deploy" suffix real k8s resource names
+        # always have) silently finds zero evidence for almost every
+        # claim. Verified live: this was the actual root cause of GPCS's
+        # trust_score being hard-zero for ~98% of claims in a real 25-
+        # scenario run, not a hypothetical edge case.
+        #
+        # The leading group must allow zero chars, not just one-or-more:
+        # a Node identifier like "node-worker-01" starts with the keyword
+        # itself, so a "must have a prefix char" leading class never
+        # matches it — this silently dropped every claim about a worker
+        # node (noisy-neighbor, node-level contention, topology) from
+        # ever attempting evidence retrieval at all.
+        names = re.findall(
+            r"([A-Za-z0-9_-]*(?:"
+            + "|".join(self._ENTITY_KEYWORDS)
+            + r")[A-Za-z0-9_-]*)",
+            claim,
+            re.IGNORECASE,
+        )
+        names = [n for n in names if n and n.lower() not in self._ENTITY_KEYWORDS]
         if names:
             return list(dict.fromkeys(names))
         tokens = re.findall(r"[A-Za-z0-9_-]+", claim)
         return [
             t
             for t in dict.fromkeys(tokens)
-            if t.lower().endswith(("service", "deployment", "pod"))
+            if any(kw in t.lower() for kw in self._ENTITY_KEYWORDS)
         ]
 
     def _retrieve_supporting_evidence(
@@ -327,11 +384,15 @@ class GraphProvenanceClaimScorer:
         try:
             payload = GraphRAGSearchPayload(query=claim, depth=2, method="hybrid")
             search_res = search_func(payload, method="hybrid")
-            evidence_candidates.extend(search_res.get("results", []) or [])
+            evidence_candidates.extend(
+                item
+                for item in (search_res.get("results", []) or [])
+                if float(item.get("score", 0.0)) > MIN_SEMANTIC_EVIDENCE_SCORE
+            )
         except (ValueError, KeyError, TypeError, RuntimeError):
             pass
 
-        entities = self._extract_entities(claim)
+        entities = self.extract_entities(claim)
         for entity in entities[:3]:
             try:
                 traversal = graph_traversal_retriever.retrieve(entity, depth=2, limit=8)

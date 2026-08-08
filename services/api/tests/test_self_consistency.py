@@ -1,5 +1,7 @@
 """Unit tests for the self-consistency hallucination baseline."""
 
+import types
+
 import pytest
 import requests
 
@@ -24,17 +26,10 @@ def mock_neo4j_queries(monkeypatch):
     monkeypatch.setattr(neo4j_client, "execute_query", lambda *args, **kwargs: [])
 
 
-class _FakeResponse:  # pylint: disable=too-few-public-methods
+def _fake_response(payload, status_code=200):
     """Stand-in for requests.Response, exposing only the .json() this
     module's HTTP calls actually use."""
-
-    def __init__(self, payload, status_code=200):
-        self._payload = payload
-        self.status_code = status_code
-
-    def json(self):
-        """Return the mocked response payload."""
-        return self._payload
+    return types.SimpleNamespace(status_code=status_code, json=lambda: payload)
 
 
 def _llm_consensus(summary: str, cause: str) -> dict:
@@ -84,7 +79,7 @@ def test_generate_and_score_distinguishes_recurring_from_novel_claims(monkeypatc
     def _fake_post(*_args, **_kwargs):
         payload = responses[call_count["n"]]
         call_count["n"] += 1
-        return _FakeResponse(payload)
+        return _fake_response(payload)
 
     monkeypatch.setattr("app.research.self_consistency.requests.post", _fake_post)
 
@@ -110,7 +105,7 @@ def test_generate_and_score_rejects_rule_based_fallback(monkeypatch):
     measurement of anything."""
 
     def _fake_post(*_args, **_kwargs):
-        return _FakeResponse(
+        return _fake_response(
             {
                 "status": "success",
                 "consensus": {

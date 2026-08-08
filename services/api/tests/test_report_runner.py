@@ -2,6 +2,8 @@
 comparison across all three context conditions (none/raw/hybrid), plus the
 neuro-symbolic retrieval detail export, behind `cloudgraph report`."""
 
+import types
+
 import pytest
 
 from app.demo.benchmark_dataset import BENCHMARK_GROUND_TRUTH_SCENARIOS
@@ -28,23 +30,21 @@ def _fake_sc_result(tag: str) -> dict:
     }
 
 
-class _FakeScorer:  # pylint: disable=too-few-public-methods
+def _fake_score_claims(_analysis, _search_func) -> dict:
+    """Fixed-agreement stand-in for GraphProvenanceClaimScorer.score_claims."""
+    return {
+        "claims": [{"claim_id": "claim-1", "trust_score": 0.9, "unsupported": False}]
+    }
+
+
+def _fake_claim_scorer(**_kwargs):
     """Stands in for GraphProvenanceClaimScorer — agreement is fixed True
     since these tests are about the ablation plumbing, not scoring math
-    (that's covered in test_gpcs.py / test_self_consistency.py). Only needs
-    the one method report_runner actually calls."""
-
-    def __init__(self, **_kwargs):
-        """Accept and ignore the real constructor's llm_provider/
-        llm_api_key/llm_model kwargs — this stand-in doesn't call an LLM."""
-
-    def score_claims(self, _analysis, _search_func):
-        """Fixed-agreement stand-in for GraphProvenanceClaimScorer.score_claims."""
-        return {
-            "claims": [
-                {"claim_id": "claim-1", "trust_score": 0.9, "unsupported": False}
-            ]
-        }
+    (that's covered in test_gpcs.py / test_self_consistency.py). A plain
+    factory function rather than a class, since the real constructor's
+    llm_provider/llm_api_key/llm_model kwargs are ignored (this stand-in
+    doesn't call an LLM) and there's only the one method to stand in for."""
+    return types.SimpleNamespace(score_claims=_fake_score_claims)
 
 
 def _fake_retrieval_detail(scenario: dict, method: str) -> dict:
@@ -70,7 +70,7 @@ def no_real_io(monkeypatch):
     focused on what's actually new."""
     monkeypatch.setattr(report_runner, "seed_scenario_data", lambda scenario: None)
     monkeypatch.setattr(report_runner, "teardown_benchmark_data", lambda: None)
-    monkeypatch.setattr(report_runner, "GraphProvenanceClaimScorer", _FakeScorer)
+    monkeypatch.setattr(report_runner, "GraphProvenanceClaimScorer", _fake_claim_scorer)
     monkeypatch.setattr(
         report_runner, "run_hybrid_search", lambda query: [{"id": "hybrid-hit"}]
     )
@@ -88,13 +88,12 @@ def test_generate_report_runs_all_three_context_conditions(monkeypatch):
     the original Day-2 no-context condition."""
     seen_retrieval_args = []
 
-    # Real call site binds n_samples/temperature/request_logger by keyword
-    # (see report_runner._run_condition) — these names can't be
-    # underscore-prefixed without breaking that binding, so disable rather
-    # than rename.
-    def fake_generate_and_score(  # pylint: disable=unused-argument
-        scenario, n_samples, temperature, request_logger, retrieval_results
-    ):
+    # Real call site (report_runner._run_condition) binds n_samples/
+    # temperature/call_options by keyword — only call_options is read here,
+    # so n_samples/temperature are absorbed into **_kwargs instead of named
+    # (and therefore unused-argument-flagged) parameters.
+    def fake_generate_and_score(_scenario, **_kwargs):
+        retrieval_results = _kwargs["call_options"]["retrieval_results"]
         seen_retrieval_args.append(retrieval_results)
         return _fake_sc_result(str(retrieval_results))
 
@@ -119,9 +118,8 @@ def test_generate_report_excludes_per_condition_independently(monkeypatch):
     other two conditions from being attempted and scored — these are
     independent runs sharing only the same seeded scenario data."""
 
-    def fake_generate_and_score(  # pylint: disable=unused-argument
-        scenario, n_samples, temperature, request_logger, retrieval_results
-    ):
+    def fake_generate_and_score(_scenario, **_kwargs):
+        retrieval_results = _kwargs["call_options"]["retrieval_results"]
         if retrieval_results is None:
             raise SelfConsistencyUnavailableError("no-context condition excluded")
         return _fake_sc_result("ok")

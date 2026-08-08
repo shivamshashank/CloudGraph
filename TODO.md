@@ -34,23 +34,29 @@ common way dissertation time budgets fail.
       `routers/benchmark.py`) with **real pipeline invocations** — done;
       `routers/benchmark.py` now calls the real `evaluate_scenario()`
       (`app/research/evaluation.py`) for all 6 baselines, no fabricated
-      offsets remain. See `experiments/results/day1_real_benchmark.json`.
+      offsets remain.
 - [x] Expand the benchmark dataset to **25 scenarios** (done — see
       `app/demo/benchmark_dataset.py`; the 25–30 target's low end is met).
 - [ ] Implement a **train/held-out split** (e.g. 70/30, matching the split
       already documented in `docs/week-2` evidence but not yet applied to actual
-      threshold calibration).
-- [ ] Add **statistical significance testing**:
-  - [ ] Paired t-test or Wilcoxon signed-rank test between baseline pairs (e.g.
-        GraphRAG vs Vector RAG; GraphRAG+Agents+GCP+GPCS vs GraphRAG alone).
-  - [ ] Report p-values and effect sizes (Cohen's d) alongside raw metric
-        deltas.
-  - [ ] Add **bootstrap or normal-approximation confidence intervals** on
-        headline accuracy/F1/hallucination-rate numbers.
+      threshold calibration). Still not done — GPCS's semantic-evidence
+      threshold (`MIN_SEMANTIC_EVIDENCE_SCORE = 0.30` in `gpcs.py`) was
+      calibrated ad hoc against real live query examples, not a formal
+      held-out split methodology.
+- [x] Add **statistical significance testing** — `scripts/paired_bootstrap.py`:
+  - [x] Wilcoxon signed-rank test between paired conditions (GPCS vs.
+        self-consistency, hybrid vs. raw-context, hybrid vs. keyword
+        recall, real 5-agent vs. matched-compute single-LLM).
+  - [x] Report p-values alongside raw deltas — see
+        `experiments/results/significance_tests.md`. (Effect sizes/Cohen's
+        d specifically not added — the paired bootstrap CI serves the same
+        role of showing magnitude + uncertainty together.)
+  - [x] Bootstrap confidence intervals (10000 resamples, seeded) on every
+        headline delta.
 - [x] Implement the **GPCS self-consistency baseline** (explicitly marked "not
       optional" in `HALLUCINATION_SCORING_DESIGN.md`) — code complete in
-      `app/research/self_consistency.py` and `scripts/run_day2_self_consistency.py`,
-      unit-tested (`tests/test_self_consistency.py`):
+      `app/research/self_consistency.py`, unit-tested
+      (`tests/test_self_consistency.py`):
   - [x] Generate N RCA outputs per incident at higher temperature
         (`generate_and_score(scenario, n_samples, temperature)`).
   - [x] Extract claims from each generation using the existing
@@ -58,24 +64,24 @@ common way dissertation time budgets fail.
         uses, so the comparison is fair by construction).
   - [x] Flag claims as unsupported if they don't recur consistently across
         generations (cosine similarity ≥ 0.8 recurrence check).
-  - [ ] **Produce the actual comparison table with real data** — the code
-        above has never successfully run to completion: every prior attempt
-        excluded all 25 scenarios because a cloud provider's free-tier quota
-        was exhausted before real LLM samples could be collected (see
-        `experiments/results/day2_excluded_scenarios.json`). A paid/upgraded
-        tier API key removes the quota wall; the remaining risk is per-minute
-        rate limits during a 25-scenario x 3-sample run, which
-        `INTER_SAMPLE_DELAY_SECONDS` in `self_consistency.py` is meant to
-        absorb. **Re-running `scripts/run_day2_self_consistency.py` with a
-        connected paid-tier provider is the next concrete step**, before
-        anything else in this file.
-- [ ] Calibrate the GPCS `threshold` value (currently hardcoded at 0.50 in
-      `GraphProvenanceClaimScorer.__init__`) on the held-out split rather than
-      leaving it as an unvalidated constant.
-- [ ] Report hallucination rate **broken down by claim type and incident
-      category**, not just as a single aggregate number (per-category breakdown
-      was named as a required output in the GPCS design doc but is not yet
-      produced by `score_claims`).
+  - [x] **Produce the actual comparison table with real data** — done. Run
+        via `cloudgraph report` (batched, `--limit`/`--offset`, merged with
+        `scripts/merge_reports.py`) against Meta's Llama API — the old
+        `scripts/run_day2_self_consistency.py` reference above no longer
+        exists; `scripts/generate_research_report.py` (local-checkout path,
+        wrapped by `testing/report/run_report_batched.sh`) or `cloudgraph
+        report` (primary, no-checkout path) are the current entry points.
+        **Result: 1777 claims across 25 scenarios, 64.0% GPCS/self-
+        consistency agreement** — see `experiments/README.md`. Getting a
+        valid run required fixing four real bugs in GPCS's evidence
+        retrieval along the way (see that doc).
+- [ ] Calibrate the GPCS `threshold` value on the held-out split — not done,
+      see the train/held-out split item above (the same gap).
+- [x] Report hallucination rate **broken down by claim type** —
+      `agreement_crosstab.csv` and
+      `experiments/figures/unsupported_rate_by_claim_type.png`. (Breakdown
+      by incident *category* specifically, as opposed to claim type, not
+      separately produced.)
 
 ## 2. Minimal Human Evaluation (High Impact, Low Effort)
 
@@ -99,15 +105,17 @@ common way dissertation time budgets fail.
         (`services/ui/static/*`) — done in `README.md` and
         `deep-research-report.md`; the topology graph is hand-built SVG DOM
         manipulation, no D3/charting library is actually used anywhere.
-  - [ ] Reframe AWS EKS/IAM/S3 references as historical/superseded, consistent
-        with the annotations already present in
-        `docs/week-1/architecture-design.md` and
-        `docs/week-1/data-collection-strategy.md`.
-- [ ] Add a **"Design Evolution / Deviations from Initial Design"** section to
-      the dissertation itself (Methodology or Discussion chapter) explicitly
-      explaining: AWS → Helm/kubeadm, LangGraph → custom orchestrator, planned
-      SPA → static UI. Frame these as engineering decisions with reasons, not
-      omissions.
+  - [x] Reframe AWS EKS/IAM/S3 references as historical/superseded — README's
+        architecture section already notes current deployment uses
+        Helm+kubeadm, not AWS-specific; `docs/design-evolution.md` (new)
+        covers the full reasoning.
+- [x] Add a **"Design Evolution / Deviations from Initial Design"** doc —
+      `docs/design-evolution.md`, covering all three deviations: AWS →
+      Helm/kubeadm, LangGraph → custom orchestrator, planned SPA → static
+      UI, each framed as an engineering decision with a reason. Written as
+      a standalone doc rather than inline in the dissertation chapters
+      (which don't exist yet — Section 6 below) — ready to drop into a
+      Methodology/Discussion subsection once that writing starts.
 - [ ] Reconcile `ROADMAP.md` checkboxes fully — some items already correctly
       marked `[~]` (partial); ensure Week 7 statistical analysis checkboxes
       reflect actual completion once Section 1 above is done.

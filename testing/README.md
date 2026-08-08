@@ -1,56 +1,77 @@
 # Testing
 
-**Full OrbStack-VM-to-report walkthrough, every command, exact paths:**
+**Full Linux-server-to-report walkthrough, every command, exact paths:**
 [`END_TO_END_RUNBOOK.md`](./END_TO_END_RUNBOOK.md).
 
-Two kinds of testing this project needs, kept separate because they answer
-different questions and run on different timescales:
+Three kinds of testing this project needs, kept separate because they
+answer different questions and run on different timescales:
 
 - **`intensive/`** — manual/exploratory testing against a live cluster.
-  `apply_demo_incidents.sh` deploys real broken pods (5 distinct failure
-  modes — ImagePullBackOff, CrashLoopBackOff, OOMKilled,
-  CreateContainerConfigError, a failing liveness probe) so there's
-  something genuine for "Run AI Diagnosis" in the UI, or the discovery
-  pipeline, to actually investigate. Replaces the old
-  `scripts/apply_demo_incident.sh`, which only had one incident.
+  Numbered scripts, each doing one thing:
+  - `00_check_prereqs.sh` — cluster reachable, API healthy, LLM provider
+    connected. Run this first; everything else assumes it passed.
+  - `01_apply_incidents.sh` — deploys real broken pods (5 distinct failure
+    modes — ImagePullBackOff, CrashLoopBackOff, OOMKilled,
+    CreateContainerConfigError, a failing liveness probe) so there's
+    something genuine for "Run AI Diagnosis" or the discovery pipeline to
+    actually investigate.
+  - `02_verify_incidents.sh` — confirms the incidents are actually visible
+    to CloudGraph (triggers discovery, checks the graph), not just that
+    `kubectl apply` succeeded, then prints exactly what to click in the UI.
+  - `03_teardown_incidents.sh` — deletes them.
 
 - **`report/`** — generating CloudGraph's core research report: the
-  GPCS-vs-self-consistency comparison
-  (`research/7_DAY_SPRINT_CHECKLIST.md` Day 2,
-  `research/NOVEL_CONTRIBUTIONS.md` Contribution 2), the actual result this
-  is all for — the dissertation/publication evidence, not a dev checklist
-  item. Two ways to run it, same underlying logic either way:
-  - **`cloudgraph report`** — the primary way. Works from any machine that
-    can reach the CloudGraph API, including an `install.sh`-only install
-    with no local source checkout — it drives the API's background-job
-    endpoints over HTTP and saves the result to `~/.cloudgraph/reports/`.
-  - **`run_report_full.sh`** — for local dev against a full source
-    checkout, wraps `services/api/scripts/generate_research_report.py`
-    directly (no HTTP round-trip). Same pre-flight checks (stack reachable,
-    an LLM provider actually connected) and end-of-run summary either way.
+  GPCS-vs-self-consistency comparison, context-condition ablation, and
+  neuro-symbolic retrieval detail
+  (`research/7_DAY_SPRINT_CHECKLIST.md` Days 2-3,
+  `research/NOVEL_CONTRIBUTIONS.md` Contributions 2-3) — the actual result
+  this is all for, now real data in `experiments/`. Two ways to run it,
+  same underlying logic either way:
+  - **`cloudgraph report`** — works from any machine that can reach the
+    CloudGraph API, including an `install.sh`-only install with no local
+    source checkout. Drives the API's background-job endpoints over HTTP,
+    saves each run to `~/.cloudgraph/reports/report-<timestamp>/`.
+  - **`report/run_report_batched.sh`** — for local dev against a full
+    source checkout, wraps `services/api/scripts/generate_research_report.py`
+    directly (no HTTP round-trip). Runs in batches by default (`--full` for
+    the old single-shot behavior) and merges automatically with
+    `scripts/merge_reports.py` — batching exists because the report job's
+    state is in-memory only (`app/research/report_runner.py`'s own
+    docstring): a crash mid-run loses everything since the last saved
+    batch, not just the current scenario. This already happened once in
+    real operation, at real cost.
 
-Both `intensive/` and the local-checkout `report/` path expect the full
-stack (Neo4j, Qdrant, investigation-engine, agent-orchestrator, api)
-already running and reachable — neither script starts it for you.
+- **`verify/`** — confirms the *analysis* layer over already-collected
+  data is reproducible, not just that it ran once:
+  - `run_verification.sh` — re-runs the research module test suite,
+    `scripts/paired_bootstrap.py`, and `scripts/make_figures.py` against
+    the current `experiments/results/`, and reports whether everything
+    regenerates cleanly. This is guardrail #4 from
+    `research/7_DAY_SPRINT_CHECKLIST.md` ("every figure/table must be
+    regenerable by re-running a script") made concrete and checkable.
+
+`intensive/`, the local-checkout `report/` path, and `verify/` all expect
+the full stack (Neo4j, Qdrant, investigation-engine, agent-orchestrator,
+api) already running and reachable — none of them starts it for you.
 
 ## Quick reference
 
 ```bash
-# See available demo incidents
-testing/intensive/apply_demo_incidents.sh --list
+# --- intensive/ ---
+testing/intensive/00_check_prereqs.sh                  # cluster + API + LLM provider reachable
+testing/intensive/01_apply_incidents.sh --list          # see available demo incidents
+testing/intensive/01_apply_incidents.sh                 # apply all of them (or one by name, e.g. crashloop)
+testing/intensive/02_verify_incidents.sh                # confirm visible to CloudGraph, print UI instructions
+testing/intensive/03_teardown_incidents.sh              # tear them down
 
-# Apply all of them (or one by name, e.g. crashloop)
-testing/intensive/apply_demo_incidents.sh
-
-# Tear them down
-testing/intensive/apply_demo_incidents.sh --teardown
-
-# Generate the report — primary path, works anywhere the API is reachable
+# --- report/ ---
 cloudgraph report --limit 3          # pilot, verifies the pipeline works
-cloudgraph report                    # full 25-scenario run
-# results saved to ~/.cloudgraph/reports/report-<timestamp>/
+cloudgraph report --limit 5 --offset 0   # batch 1 of 5, primary path (no local checkout needed)
+# results saved to ~/.cloudgraph/reports/report-<timestamp>/ per run
 
-# Generate the report — local full-checkout alternative
-REPORT_SCENARIO_LIMIT=3 NEO4J_PASSWORD=<password> testing/report/run_report_full.sh
-NEO4J_PASSWORD=<password> testing/report/run_report_full.sh
+NEO4J_PASSWORD=<password> testing/report/run_report_batched.sh   # local-checkout, batched (recommended)
+testing/report/run_report_batched.sh --full                       # local-checkout, old single-shot behavior
+
+# --- verify/ ---
+testing/verify/run_verification.sh   # tests pass + significance tests/figures regenerate cleanly
 ```

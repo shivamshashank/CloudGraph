@@ -1,5 +1,7 @@
 """Unit tests for the ground-truth dataset and dynamic benchmark evaluation engine."""
 
+import types
+
 import pytest
 import requests
 from fastapi.testclient import TestClient
@@ -12,21 +14,16 @@ from app.research.evaluation import evaluate_scenario
 client = TestClient(app)
 
 
-class _FakeOrchestratorResponse:  # pylint: disable=too-few-public-methods
+def _fake_orchestrator_response(payload, status_code=200):
     """Stand-in for requests.Response, used to mock the agent-orchestrator
-    HTTP boundary only — evaluate_scenario's own logic runs unmodified."""
-
-    def __init__(self, payload, status_code=200):
-        self._payload = payload
-        self.status_code = status_code
-
-    def json(self):
-        """Return the mocked orchestrator payload."""
-        return self._payload
+    HTTP boundary only — evaluate_scenario's own logic runs unmodified. A
+    plain factory function rather than a class, since only .status_code and
+    .json() are ever read off the result."""
+    return types.SimpleNamespace(status_code=status_code, json=lambda: payload)
 
 
 def _fake_orchestrator_post(*_args, **_kwargs):
-    return _FakeOrchestratorResponse(
+    return _fake_orchestrator_response(
         {
             "status": "success",
             "consensus": {
@@ -132,7 +129,7 @@ def test_evaluate_scenario_excludes_on_non_200_orchestrator_response(monkeypatch
     than silently substitute fabricated data."""
     monkeypatch.setattr(
         "app.research.evaluation.requests.post",
-        lambda *a, **k: _FakeOrchestratorResponse({}, status_code=500),
+        lambda *a, **k: _fake_orchestrator_response({}, status_code=500),
     )
 
     scenario = BENCHMARK_GROUND_TRUTH_SCENARIOS[0]

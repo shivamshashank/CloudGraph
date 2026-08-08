@@ -93,7 +93,7 @@ This script is structured to show the transition from "raw data" to "intelligenc
 - **Action:** Run the incident injection script:
 
   ```bash
-  ./testing/intensive/apply_demo_incidents.sh
+  ./testing/intensive/01_apply_incidents.sh
   ```
 
   Then run `kubectl -n cloudgraph-system get pods` to show the crashing pod.

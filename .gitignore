@@ -17,6 +17,10 @@ Thumbs.db
 crash.log
 crash.*.log
 
+# Research run LLM logs (real request/response dumps, can reach tens of MB —
+# see experiments/README.md; the CSVs/summary/README stay tracked)
+experiments/results/logs/
+
 # =============================================================================
 # Go test artifacts
 # =============================================================================

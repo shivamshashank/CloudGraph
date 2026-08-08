@@ -1,0 +1,8 @@
+gpcs_unsupported,False,False,True,True
+self_consistency_unsupported,False,True,False,True
+claim_type,,,,
+causal,183,105,55,108
+entity_relationship,88,24,33,11
+general,25,74,27,129
+state,269,162,120,246
+temporal,15,4,2,5
