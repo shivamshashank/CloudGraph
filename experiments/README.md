@@ -7,7 +7,7 @@ Claim Scoring) agree with self-consistency on which claims in an LLM-
 generated root-cause analysis are actually grounded, and does structured
 GraphRAG retrieval earn its complexity over dumping unranked context or
 using none at all? `results/` holds the full 25-scenario run answering
-both questions — Day 2 and Day 3 of `research/7_DAY_SPRINT_CHECKLIST.md`,
+both questions — Day 2 and Day 3 of `internal/planning/7_DAY_SPRINT_CHECKLIST.md`,
 produced together in one pass since `report_runner.py` generates both
 sections from the same underlying scenario runs rather than as separate
 scripts.
@@ -140,7 +140,7 @@ itself.
 - **n=25 scenarios** — a small sample; treat every number above as having
   wide confidence intervals, not as a precise point estimate. Day 4's
   paired bootstrap CI / Wilcoxon work
-  (`research/7_DAY_SPRINT_CHECKLIST.md`) is the planned way to make this
+  (`internal/planning/7_DAY_SPRINT_CHECKLIST.md`) is the planned way to make this
   rigorous.
 - **5.2% of claims lack a GPCS score.** `GraphProvenanceClaimScorer.
   extract_claims()` is called independently by both `self_consistency.py`

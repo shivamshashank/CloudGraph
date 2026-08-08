@@ -20,7 +20,7 @@ Instead, it acts as an **AI investigation layer** that sits on top of your exist
 
 CloudGraph can be installed on any Kubernetes environment.
 
-**Current tested deployment:** Helm + kubeadm/Rancher (documented in `INSTALLATION.md` and `QUICKSTART.md`).
+**Current tested deployment:** Helm + kubeadm/Rancher (documented in `../guides/INSTALLATION.md` and `../guides/QUICKSTART.md`).
 
 **Supported Kubernetes distributions** (Helm is distribution-agnostic):
 

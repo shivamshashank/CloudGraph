@@ -23,7 +23,7 @@ answer different questions and run on different timescales:
 - **`report/`** — generating CloudGraph's core research report: the
   GPCS-vs-self-consistency comparison, context-condition ablation, and
   neuro-symbolic retrieval detail
-  (`research/7_DAY_SPRINT_CHECKLIST.md` Days 2-3,
+  (`internal/planning/7_DAY_SPRINT_CHECKLIST.md` Days 2-3,
   `research/NOVEL_CONTRIBUTIONS.md` Contributions 2-3) — the actual result
   this is all for, now real data in `experiments/`. Two ways to run it,
   same underlying logic either way:
@@ -47,7 +47,7 @@ answer different questions and run on different timescales:
     `scripts/paired_bootstrap.py`, and `scripts/make_figures.py` against
     the current `experiments/results/`, and reports whether everything
     regenerates cleanly. This is guardrail #4 from
-    `research/7_DAY_SPRINT_CHECKLIST.md` ("every figure/table must be
+    `internal/planning/7_DAY_SPRINT_CHECKLIST.md` ("every figure/table must be
     regenerable by re-running a script") made concrete and checkable.
 
 `intensive/`, the local-checkout `report/` path, and `verify/` all expect

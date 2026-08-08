@@ -1,5 +1,5 @@
 """Matched-compute control (research/NOVEL_CONTRIBUTIONS.md Contribution 5,
-research/7_DAY_SPRINT_CHECKLIST.md Day 4).
+internal/planning/7_DAY_SPRINT_CHECKLIST.md Day 4).
 
 Compares the real 5-specialist-agent consensus system against a single LLM
 sampled DEFAULT_MATCHED_COMPUTE_SAMPLES times and self-consistency-scored

@@ -1,8 +1,8 @@
 # CloudGraph Project Status
 
 This document is the single source of truth for the current implementation
-status of **CloudGraph**. `TODO.md` is the forward-looking dissertation/PhD
-roadmap (what to do next); `audit.new.md` is a historical audit snapshot,
+status of **CloudGraph**. `ROADMAP.md` is the forward-looking dissertation/PhD
+roadmap (what to do next); `internal/archive/audit.new.md` is a historical audit snapshot,
 now superseded by this file — see the note at the top of each.
 
 ---
@@ -242,7 +242,7 @@ Propagation (GCP) and Graph-Provenance Claim Scoring (GPCS).
   is a genuine credential-exposure risk, not a theoretical one — worth
   prioritizing before this is exposed beyond a trusted network.
 - **Dissertation chapter writing** — 0% complete; only structural outlines
-  exist in `docs/week-1/`.
+  exist in `internal/dissertation/week-1/`.
 
 ---
 
@@ -262,5 +262,5 @@ Propagation (GCP) and Graph-Provenance Claim Scoring (GPCS).
    are complete with real data — see `experiments/README.md` for the
    findings themselves. Day 6 (docs accuracy — this pass; API auth
    explicitly deferred) and Day 7 (workshop draft + venue targeting)
-   remain; `research/OXBRIDGE_READINESS.md` is the readiness assessment
+   remain; `internal/planning/OXBRIDGE_READINESS.md` is the readiness assessment
    against that goal.

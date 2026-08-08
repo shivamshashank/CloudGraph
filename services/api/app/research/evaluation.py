@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 # First-pass constant, matching GPCS's own default trust threshold
 # (see gpcs.py). Not yet calibrated on a held-out split — see
-# IMPLEMENTATION_ROADMAP.md Phase 4.
+# internal/planning/IMPLEMENTATION_ROADMAP.md Phase 4.
 GCP_CORRECTNESS_THRESHOLD = 0.50
 
 
@@ -75,7 +75,7 @@ def run_vector_search(query: str) -> List[Dict[str, Any]]:
 
 
 def run_raw_context_search(query: str) -> List[Dict[str, Any]]:
-    """Raw-context control (research/7_DAY_SPRINT_CHECKLIST.md Day 3): pull
+    """Raw-context control (internal/planning/7_DAY_SPRINT_CHECKLIST.md Day 3): pull
     *all* evidence seeded for the current scenario, unranked and
     unfiltered — no graph traversal, no hop-limit, no top-k cutoff. Answers
     "does structured retrieval earn its complexity, or is dumping
@@ -473,7 +473,7 @@ def evaluate_scenario(
     return tp, fp, fn, correct, unsupported_claims_count
 
 
-# Neuro-symbolic ablation (research/7_DAY_SPRINT_CHECKLIST.md Day 3,
+# Neuro-symbolic ablation (internal/planning/7_DAY_SPRINT_CHECKLIST.md Day 3,
 # NOVEL_CONTRIBUTIONS.md Contribution 3): keyword = near-pure
 # symbolic/lexical, vector = near-pure neural/semantic, hybrid =
 # neuro-symbolic. This mapping is data, not logic — it's how the three

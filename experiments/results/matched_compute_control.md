@@ -49,7 +49,7 @@ significant, not sampling noise. See
 **On this benchmark, the 5-specialist-agent architecture does not earn its
 complexity over a matched-compute single-LLM baseline — it is measurably
 *more* hallucination-prone, not less.** Per guardrail #5
-(`research/7_DAY_SPRINT_CHECKLIST.md`), this is reported as measured, not
+(`internal/planning/7_DAY_SPRINT_CHECKLIST.md`), this is reported as measured, not
 adjusted to flatter the multi-agent system. This is consistent with
 `NOVEL_CONTRIBUTIONS.md` Contribution 5's own framing: *"if independent
 ensembling or matched-compute self-consistency perform equally well, the

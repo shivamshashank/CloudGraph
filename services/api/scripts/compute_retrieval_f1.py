@@ -1,5 +1,5 @@
 """Computes real per-scenario retrieval F1 for keyword/vector/hybrid
-(research/7_DAY_SPRINT_CHECKLIST.md Day 5, figure 1).
+(internal/planning/7_DAY_SPRINT_CHECKLIST.md Day 5, figure 1).
 
 experiments/results/neurosymbolic_retrieval_detail.csv (from the main
 report run) only tracks hit/missed expected tags — enough for the recall

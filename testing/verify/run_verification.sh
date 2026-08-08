@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Confirms the research pipeline's results are actually reproducible — the
 # reproducibility check a reviewer would run, and the concrete meaning of
-# guardrail #4 in research/7_DAY_SPRINT_CHECKLIST.md: "every figure/table
+# guardrail #4 in internal/planning/7_DAY_SPRINT_CHECKLIST.md: "every figure/table
 # must be regenerable by re-running a script, not hand-edited after the
 # fact."
 #

@@ -2,7 +2,7 @@
 
 CloudGraph's implementation diverged from its original design in three
 places. Each is documented here as an engineering decision with a reason,
-not an omission — per `research/OXBRIDGE_READINESS.md`'s own framing,
+not an omission — per `internal/planning/OXBRIDGE_READINESS.md`'s own framing,
 undocumented drift between what a repo claims and what it does is a
 credibility liability for a reviewer or examiner, not a cosmetic detail.
 
@@ -80,6 +80,6 @@ None of these three deviations weaken the research contributions
 comparison, and the neuro-symbolic retrieval ablation are all independent
 of which cloud provider, orchestration framework, or frontend stack
 implements the surrounding system. They're recorded here so a reviewer
-comparing this repo against earlier design docs (`docs/week-1/`,
-`research/REPOSITORY_REVIEW.md`) sees engineering decisions with reasons,
+comparing this repo against earlier design docs (`internal/dissertation/week-1/`,
+`internal/planning/REPOSITORY_REVIEW.md`) sees engineering decisions with reasons,
 not unexplained drift.

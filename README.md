@@ -59,7 +59,7 @@ CloudGraph is designed to collect this data from open-source observability and
 cloud-native tools such as OpenTelemetry, Prometheus, Grafana Loki,
 kube-state-metrics, node_exporter, Alertmanager, Argo CD, Falco, and
 GitHub/GitLab webhooks. The full Week 1 data strategy is documented in
-`docs/week-1/data-collection-strategy.md`.
+`internal/dissertation/week-1/data-collection-strategy.md`.
 
 ---
 
@@ -591,18 +591,30 @@ Transforms raw observability data into actionable operational knowledge.
 ```text
 cloudgraph/
 
-├── cmd/
+├── cmd/                       # cloudgraph CLI (Go)
 ├── deployments/
 │   ├── kubernetes/
 │   └── helm/
 ├── docs/
-├── graph/
+│   ├── guides/                # INSTALLATION.md, QUICKSTART.md
+│   ├── architecture/          # System design docs + diagrams
+│   ├── design/                # GPCS_DESIGN.md, GCP_DESIGN.md (algorithm design)
+│   ├── images/                # Architecture diagrams (png/svg)
+│   ├── STATUS.md              # Current implementation status
+│   └── ROADMAP.md             # Forward-looking roadmap
+├── research/                  # Research questions, contributions, methods
+├── experiments/                # Reproducible evaluation: results, figures, scripts
+├── testing/                    # Incident-injection + reproduction scripts
+├── internal/                   # Process notes, not part of the research artifact
+│   ├── archive/                # Superseded/historical docs
+│   ├── dissertation/           # University coursework evidence
+│   └── planning/               # Sprint/self-management notes
 ├── services/
-│   ├── api/                  # Python backend API
-│   ├── ui/                   # Web frontend
-│   ├── agent-orchestrator/   # Python Agent Orchestrator
-│   └── investigation-engine/ # Python Investigation Engine
-├── tests/
+│   ├── api/                    # Python backend API
+│   ├── ui/                     # Web frontend
+│   ├── agent-orchestrator/     # Python Agent Orchestrator
+│   └── investigation-engine/   # Python Investigation Engine
+├── embedded.go                 # Embeds deployments/helm for the CLI binary
 ├── README.md
 └── LICENSE
 ```

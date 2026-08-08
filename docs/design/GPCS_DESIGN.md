@@ -190,7 +190,7 @@ Given time constraints, be deliberate about depth vs. breadth here too:
 ## 5. Where this shows up in the dissertation
 
 - **Methodology chapter:** the GPCS formula, its justification (mirror the
-  existing style of `docs/week-4/README.md`'s hybrid ranking documentation
+  existing style of `internal/dissertation/week-4/README.md`'s hybrid ranking documentation
   — you already have a good template for explaining a scoring formula
   rigorously).
 - **Evaluation chapter:** unsupported-claim rate per baseline (keyword /

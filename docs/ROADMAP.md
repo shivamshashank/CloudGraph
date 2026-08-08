@@ -5,7 +5,7 @@ toward journal publication and PhD positioning (v2 / v3).
 
 This file is the forward-looking plan. For current implementation status
 (what's actually done vs. not, verified against the code), see
-`PROJECT_STATUS.md` — that file, not this one, is the source of truth for
+`STATUS.md` — that file, not this one, is the source of truth for
 "is X built yet."
 
 ---
@@ -38,7 +38,7 @@ common way dissertation time budgets fail.
 - [x] Expand the benchmark dataset to **25 scenarios** (done — see
       `app/demo/benchmark_dataset.py`; the 25–30 target's low end is met).
 - [ ] Implement a **train/held-out split** (e.g. 70/30, matching the split
-      already documented in `docs/week-2` evidence but not yet applied to actual
+      already documented in `internal/dissertation/week-2` evidence but not yet applied to actual
       threshold calibration). Still not done — GPCS's semantic-evidence
       threshold (`MIN_SEMANTIC_EVIDENCE_SCORE = 0.30` in `gpcs.py`) was
       calibrated ad hoc against real live query examples, not a formal
@@ -54,7 +54,7 @@ common way dissertation time budgets fail.
   - [x] Bootstrap confidence intervals (10000 resamples, seeded) on every
         headline delta.
 - [x] Implement the **GPCS self-consistency baseline** (explicitly marked "not
-      optional" in `HALLUCINATION_SCORING_DESIGN.md`) — code complete in
+      optional" in `docs/design/GPCS_DESIGN.md`) — code complete in
       `app/research/self_consistency.py`, unit-tested
       (`tests/test_self_consistency.py`):
   - [x] Generate N RCA outputs per incident at higher temperature
@@ -103,7 +103,7 @@ common way dissertation time budgets fail.
   - [x] Replace "React / Vue / Svelte + D3.js" frontend claims with accurate
         description of the static HTML/CSS/vanilla-JS UI
         (`services/ui/static/*`) — done in `README.md` and
-        `deep-research-report.md`; the topology graph is hand-built SVG DOM
+        `internal/archive/deep-research-report.md`; the topology graph is hand-built SVG DOM
         manipulation, no D3/charting library is actually used anywhere.
   - [x] Reframe AWS EKS/IAM/S3 references as historical/superseded — README's
         architecture section already notes current deployment uses
@@ -152,10 +152,10 @@ common way dissertation time budgets fail.
 ## 6. Dissertation Writing (Currently 0% Complete — Largest Remaining Time Cost)
 
 - [ ] **Introduction** — problem motivation, RQ1–RQ4, H1–H4 (source material
-      already exists in `docs/week-1/research-methodology.md`).
-- [ ] **Literature Review** — expand `docs/week-1/literature-review.md` into
+      already exists in `internal/dissertation/week-1/research-methodology.md`).
+- [ ] **Literature Review** — expand `internal/dissertation/week-1/literature-review.md` into
       full academic prose with citations in required format (reference list
-      already compiled in `docs/week-1/references.md`).
+      already compiled in `internal/dissertation/week-1/references.md`).
 - [ ] **Methodology** — adapt from `research-methodology.md`; update with the
       real (not heuristic) evaluation protocol once Section 1 is complete.
 - [ ] **System Design / Implementation** — adapt from `architecture-design.md`
@@ -194,7 +194,7 @@ research artifact suitable for a peer-reviewed AIOps/MLSys/systems venue.
 ## Evaluation Depth
 
 - [ ] Scale the incident benchmark dataset to 100+ scenarios (the original
-      target stated in `README.md` and `docs/week-1/data-collection-strategy.md`
+      target stated in `README.md` and `internal/dissertation/week-1/data-collection-strategy.md`
       but never reached).
 - [ ] Replace synthetic/scripted incidents with a mix of real production-style
       traces — consider public incident datasets or partnering with an org
@@ -226,7 +226,7 @@ research artifact suitable for a peer-reviewed AIOps/MLSys/systems venue.
       versioned artifact (e.g., a `benchmark/` release with a DOI via Zenodo).
 - [ ] Add prompt/version pinning — currently no prompt-versioning system exists
       in source control (flagged as an open item in
-      `docs/GPCS_UI_Benchmark_Roadmap.md`).
+      `internal/planning/GPCS_UI_Benchmark_Roadmap.md`).
 - [ ] Containerize the full evaluation harness so reviewers can reproduce
       numbers without manual environment setup.
 - [ ] Add a `CITATION.cff` and clear artifact-availability statement.

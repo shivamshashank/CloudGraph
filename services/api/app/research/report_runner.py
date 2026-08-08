@@ -4,7 +4,7 @@ machine without needing a local source checkout.
 
 Three sections make up "the report":
 
-1. GPCS vs. self-consistency (research/7_DAY_SPRINT_CHECKLIST.md Day 2,
+1. GPCS vs. self-consistency (internal/planning/7_DAY_SPRINT_CHECKLIST.md Day 2,
    NOVEL_CONTRIBUTIONS.md Contribution 2) — the flagship comparison.
 2. Context-condition ablation (Day 3) — the same generation+scoring
    pipeline run under three conditions per scenario: no retrieved context
