@@ -1,5 +1,5 @@
 """Computes real per-scenario retrieval F1 for keyword/vector/hybrid
-(internal/planning/7_DAY_SPRINT_CHECKLIST.md Day 5, figure 1).
+(see dissertation/PROGRESS.md Week 8, figure 1).
 
 experiments/results/neurosymbolic_retrieval_detail.csv (from the main
 report run) only tracks hit/missed expected tags — enough for the recall
@@ -29,7 +29,7 @@ from typing import Any
 
 import _bootstrap
 
-from app.demo.benchmark_dataset import BENCHMARK_GROUND_TRUTH_SCENARIOS
+from app.demo.datasets import load_scenarios
 from app.demo.seeding import seed_scenario_data, teardown_benchmark_data
 from app.research.evaluation import (
     calculate_fp,
@@ -85,7 +85,7 @@ def main() -> None:
     parser.add_argument("--results-dir", type=Path, default=DEFAULT_RESULTS_DIR)
     args = parser.parse_args()
 
-    scenarios = BENCHMARK_GROUND_TRUTH_SCENARIOS
+    scenarios = load_scenarios()
     if args.limit:
         scenarios = scenarios[: args.limit]
 

@@ -1,5 +1,10 @@
 # CloudGraph Status Update & Demo Talk Track (Week 4)
 
+> **HISTORICAL — Week 4 snapshot, retained as a dissertation record.**
+> The implementation status and results described below were accurate in
+> July 2026 and are not now. For current status see `docs/STATUS.md`; for
+> the week-by-week narrative see `dissertation/PROGRESS.md`.
+
 This document provides a breakdown of what has been implemented so far, what remains on the roadmap, and a complete script for tomorrow's demo.
 
 ---

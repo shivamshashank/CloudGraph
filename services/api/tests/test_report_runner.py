@@ -6,11 +6,11 @@ import types
 
 import pytest
 
-from app.demo.benchmark_dataset import BENCHMARK_GROUND_TRUTH_SCENARIOS
+from app.demo.datasets import load_scenarios
 from app.research import report_runner
 from app.research.self_consistency import SelfConsistencyUnavailableError
 
-SCENARIO = BENCHMARK_GROUND_TRUTH_SCENARIOS[0]
+SCENARIO = load_scenarios()[0]
 
 _METHOD_CLASS = {"keyword": "symbolic", "vector": "neural", "hybrid": "neuro-symbolic"}
 
@@ -72,7 +72,12 @@ def no_real_io(monkeypatch):
     monkeypatch.setattr(report_runner, "teardown_benchmark_data", lambda: None)
     monkeypatch.setattr(report_runner, "GraphProvenanceClaimScorer", _fake_claim_scorer)
     monkeypatch.setattr(
-        report_runner, "run_hybrid_search", lambda query: [{"id": "hybrid-hit"}]
+        report_runner,
+        "run_hybrid_search",
+        # **_kwargs absorbs reference_time, which the real call passes so
+        # the ranker's recency term has a meaningful "now" to measure age
+        # against (see evaluation.run_hybrid_search).
+        lambda query, **_kwargs: [{"id": "hybrid-hit"}],
     )
     monkeypatch.setattr(
         report_runner, "run_raw_context_search", lambda query: [{"id": "raw-hit"}]

@@ -2,9 +2,9 @@
 
 CloudGraph's implementation diverged from its original design in three
 places. Each is documented here as an engineering decision with a reason,
-not an omission — per `internal/planning/OXBRIDGE_READINESS.md`'s own framing,
-undocumented drift between what a repo claims and what it does is a
-credibility liability for a reviewer or examiner, not a cosmetic detail.
+not an omission — undocumented drift between what a repo claims and what
+it does is a credibility liability for a reviewer or examiner, not a
+cosmetic detail.
 
 ## 1. Cloud provider: AWS → Helm/kubeadm
 
@@ -48,11 +48,14 @@ auditability (`_log_llm_request`/`_log_llm_response` in `gpcs.py` and both
 services' `call_llm`). Doing this against a framework abstraction would
 have added a layer to work around rather than through. This decision is
 also directly testable by the research itself: the matched-compute
-control (`experiments/results/matched_compute_control.md`) found the real
-5-specialist architecture does *not* outperform a matched-compute
-single-LLM baseline on this benchmark — a finding about whether the
-multi-agent structure earns its complexity at all, independent of which
-orchestration framework implements it.
+control (`scripts/run_matched_compute_control.py`) asks whether the
+5-specialist architecture outperforms a compute-matched single-LLM
+baseline at all — a question about whether the multi-agent structure
+earns its complexity, independent of which orchestration framework
+implements it. An earlier run suggested it does not, but that result
+came from a pipeline since found to leak ground truth into its own
+inputs (`dissertation/PROGRESS.md`, Week 9) and has been withdrawn
+pending a re-run.
 
 ## 3. Frontend: planned SPA (React/Vue/Svelte) → static HTML/vanilla JS
 
@@ -80,6 +83,5 @@ None of these three deviations weaken the research contributions
 comparison, and the neuro-symbolic retrieval ablation are all independent
 of which cloud provider, orchestration framework, or frontend stack
 implements the surrounding system. They're recorded here so a reviewer
-comparing this repo against earlier design docs (`internal/dissertation/week-1/`,
-`internal/planning/REPOSITORY_REVIEW.md`) sees engineering decisions with reasons,
-not unexplained drift.
+comparing this repo against earlier design docs (`dissertation/week-1/`)
+sees engineering decisions with reasons, not unexplained drift.

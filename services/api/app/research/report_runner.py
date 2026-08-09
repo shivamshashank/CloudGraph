@@ -4,7 +4,7 @@ machine without needing a local source checkout.
 
 Three sections make up "the report":
 
-1. GPCS vs. self-consistency (internal/planning/7_DAY_SPRINT_CHECKLIST.md Day 2,
+1. GPCS vs. self-consistency (see dissertation/PROGRESS.md Week 8,
    NOVEL_CONTRIBUTIONS.md Contribution 2) — the flagship comparison.
 2. Context-condition ablation (Day 3) — the same generation+scoring
    pipeline run under three conditions per scenario: no retrieved context
@@ -37,7 +37,7 @@ from typing import Any
 
 import pandas as pd
 
-from app.demo.benchmark_dataset import BENCHMARK_GROUND_TRUTH_SCENARIOS
+from app.demo.datasets import load_scenarios, scenario_incident_time
 from app.demo.seeding import seed_scenario_data, teardown_benchmark_data
 from app.research.evaluation import (
     retrieval_detail_for_scenario,
@@ -153,7 +153,9 @@ def _retrieval_results_for_condition(
         return None
     if condition == "raw":
         return run_raw_context_search(scenario["query"])
-    return run_hybrid_search(scenario["query"])
+    return run_hybrid_search(
+        scenario["query"], reference_time=scenario_incident_time(scenario)
+    )
 
 
 def _neurosymbolic_row(scenario: dict[str, Any], method_key: str) -> dict[str, Any]:
@@ -370,7 +372,7 @@ def generate_report(
     scorer = GraphProvenanceClaimScorer(
         llm_settings=llm_settings,
     )
-    scenarios = BENCHMARK_GROUND_TRUTH_SCENARIOS[scenario_offset:]
+    scenarios = load_scenarios()[scenario_offset:]
     if scenario_limit:
         scenarios = scenarios[:scenario_limit]
 

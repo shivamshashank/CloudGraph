@@ -1,5 +1,5 @@
-"""Matched-compute control (research/NOVEL_CONTRIBUTIONS.md Contribution 5,
-internal/planning/7_DAY_SPRINT_CHECKLIST.md Day 4).
+"""Matched-compute control (research/NOVEL_CONTRIBUTIONS.md Contribution 5;
+see dissertation/PROGRESS.md Week 8).
 
 Compares the real 5-specialist-agent consensus system against a single LLM
 sampled DEFAULT_MATCHED_COMPUTE_SAMPLES times and self-consistency-scored
@@ -42,7 +42,7 @@ from typing import Any
 
 import _bootstrap
 
-from app.demo.benchmark_dataset import BENCHMARK_GROUND_TRUTH_SCENARIOS
+from app.demo.datasets import load_scenarios, scenario_incident_time
 from app.demo.seeding import seed_scenario_data, teardown_benchmark_data
 from app.research.evaluation import (
     evaluate_scenario,
@@ -85,9 +85,16 @@ def run_one_scenario(scenario: dict[str, Any], request_logger) -> dict[str, Any]
     excluded, never fabricated."""
     seed_scenario_data(scenario)
     try:
-        hybrid_results = run_hybrid_search(scenario["query"])
+        hybrid_results = run_hybrid_search(
+            scenario["query"], reference_time=scenario_incident_time(scenario)
+        )
 
-        agents_result = evaluate_scenario(scenario, "Agents")
+        # Pass the already-fetched evidence rather than letting this arm
+        # re-query: the control only isolates architecture if both arms
+        # demonstrably saw the same evidence.
+        agents_result = evaluate_scenario(
+            scenario, "Agents", retrieval_results=hybrid_results
+        )
         if agents_result is None:
             return {
                 "scenario_id": scenario["id"],
@@ -174,7 +181,7 @@ def main() -> None:
     args = _parse_args()
     results_dir = args.results_dir
 
-    scenarios = BENCHMARK_GROUND_TRUTH_SCENARIOS
+    scenarios = load_scenarios()
     if args.limit:
         scenarios = scenarios[: args.limit]
 

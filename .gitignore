@@ -21,6 +21,13 @@ crash.*.log
 # see experiments/README.md; the CSVs/summary/README stay tracked)
 experiments/results/logs/
 
+# Raw RCAEval parquet downloads (~45MB for a 25-case subset, and it is
+# third-party data with its own upstream home). Regenerate on demand with
+# scripts/build_rcaeval_dataset.py; the derived scenario JSON it produces
+# (app/demo/rcaeval_dataset_generated.json) IS tracked, so the benchmark
+# stays reproducible without vendoring the source corpus.
+experiments/rcaeval_data/
+
 # =============================================================================
 # Go test artifacts
 # =============================================================================

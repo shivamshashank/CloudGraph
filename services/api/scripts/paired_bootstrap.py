@@ -1,5 +1,5 @@
 """Paired bootstrap confidence intervals + Wilcoxon signed-rank tests for
-CloudGraph's real result deltas (internal/planning/7_DAY_SPRINT_CHECKLIST.md Day 4).
+CloudGraph's real result deltas (see dissertation/PROGRESS.md Week 8).
 
 Reads experiments/results/claims.csv,
 experiments/results/neurosymbolic_retrieval_detail.csv, and (if present)
@@ -123,7 +123,7 @@ def hybrid_vs_keyword_recall_deltas(neurosymbolic: pd.DataFrame) -> np.ndarray:
 def agents_vs_single_llm_deltas(matched_compute: pd.DataFrame) -> np.ndarray:
     """Per scenario: the real 5-agent system's GPCS-unsupported rate minus
     the matched-compute single-LLM baseline's — the matched-compute
-    control (internal/planning/7_DAY_SPRINT_CHECKLIST.md Day 4,
+    control (see dissertation/PROGRESS.md Week 8,
     NOVEL_CONTRIBUTIONS.md Contribution 5). Both arms are scored by the
     same GPCS instance on the same hybrid-retrieval evidence, so this
     isolates architecture (5 specialists + consensus) from raw compute (5

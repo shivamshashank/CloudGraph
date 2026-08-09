@@ -1,5 +1,6 @@
-"""Generates the 3 figures internal/planning/7_DAY_SPRINT_CHECKLIST.md Day 5 calls
-for, script-generated (not hand-edited) from the already-saved real result
+"""Generates the 3 figures this project's results section needs (see
+dissertation/PROGRESS.md Week 8), script-generated (not hand-edited) from
+the already-saved real result
 data under experiments/results/ — makes no LLM calls, no live cluster
 access needed.
 

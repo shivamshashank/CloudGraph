@@ -22,9 +22,9 @@ answer different questions and run on different timescales:
 
 - **`report/`** — generating CloudGraph's core research report: the
   GPCS-vs-self-consistency comparison, context-condition ablation, and
-  neuro-symbolic retrieval detail
-  (`internal/planning/7_DAY_SPRINT_CHECKLIST.md` Days 2-3,
-  `research/NOVEL_CONTRIBUTIONS.md` Contributions 2-3) — the actual result
+  neuro-symbolic retrieval detail (`research/NOVEL_CONTRIBUTIONS.md`
+  Contributions 2-3; see `dissertation/PROGRESS.md` Week 8 for the
+  narrative account) — the actual result
   this is all for, now real data in `experiments/`. Two ways to run it,
   same underlying logic either way:
   - **`cloudgraph report`** — works from any machine that can reach the
@@ -46,9 +46,9 @@ answer different questions and run on different timescales:
   - `run_verification.sh` — re-runs the research module test suite,
     `scripts/paired_bootstrap.py`, and `scripts/make_figures.py` against
     the current `experiments/results/`, and reports whether everything
-    regenerates cleanly. This is guardrail #4 from
-    `internal/planning/7_DAY_SPRINT_CHECKLIST.md` ("every figure/table must be
-    regenerable by re-running a script") made concrete and checkable.
+    regenerates cleanly — the project's honesty guardrail that every
+    figure/table must be regenerable by re-running a script, made concrete
+    and checkable.
 
 `intensive/`, the local-checkout `report/` path, and `verify/` all expect
 the full stack (Neo4j, Qdrant, investigation-engine, agent-orchestrator,

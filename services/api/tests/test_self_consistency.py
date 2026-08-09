@@ -8,12 +8,17 @@ import requests
 from app.database.neo4j_client import neo4j_client
 from app.research.self_consistency import (
     SelfConsistencyUnavailableError,
+    _build_single_llm_prompt,
     generate_and_score,
 )
 
 SCENARIO = {
     "id": "scenario-01",
     "target_entity": "payment-service-pod-7f",
+    "observed_symptoms": [
+        "kubectl describe pod payment-service-pod-7f: Last State: "
+        "Terminated, Reason: OOMKilled, Exit Code: 137"
+    ],
     "ground_truth_claims": ["Pod payment-service failed due to OOMKilled"],
 }
 
@@ -142,3 +147,19 @@ def test_generate_and_score_requires_at_least_two_samples():
     """Self-consistency is undefined with fewer than 2 samples to compare."""
     with pytest.raises(ValueError):
         generate_and_score(SCENARIO, n_samples=1, temperature=0.8)
+
+
+def test_matched_compute_prompt_uses_observed_symptoms_not_ground_truth():
+    """Regression guard for the exact leakage bug this pipeline had: the
+    matched-compute control's single-LLM prompt must be built from
+    observed_symptoms, never from ground_truth_claims — the latter is the
+    held-out answer key and must never reach a generation call."""
+    scenario = {
+        "target_entity": "payment-service-pod-7f",
+        "observed_symptoms": ["kubectl describe pod: Reason: OOMKilled"],
+        "ground_truth_claims": ["Pod payment-service failed due to OOMKilled"],
+    }
+    prompt, _system_prompt = _build_single_llm_prompt(scenario, retrieval_text="")
+
+    assert "OOMKilled" in prompt  # the observed symptom itself is expected
+    assert scenario["ground_truth_claims"][0] not in prompt

@@ -59,7 +59,7 @@ CloudGraph is designed to collect this data from open-source observability and
 cloud-native tools such as OpenTelemetry, Prometheus, Grafana Loki,
 kube-state-metrics, node_exporter, Alertmanager, Argo CD, Falco, and
 GitHub/GitLab webhooks. The full Week 1 data strategy is documented in
-`internal/dissertation/week-1/data-collection-strategy.md`.
+`dissertation/week-1/data-collection-strategy.md`.
 
 ---
 
@@ -605,10 +605,7 @@ cloudgraph/
 ├── research/                  # Research questions, contributions, methods
 ├── experiments/                # Reproducible evaluation: results, figures, scripts
 ├── testing/                    # Incident-injection + reproduction scripts
-├── internal/                   # Process notes, not part of the research artifact
-│   ├── archive/                # Superseded/historical docs
-│   ├── dissertation/           # University coursework evidence
-│   └── planning/               # Sprint/self-management notes
+├── dissertation/                # Weekly progress log, literature review, references
 ├── services/
 │   ├── api/                    # Python backend API
 │   ├── ui/                     # Web frontend

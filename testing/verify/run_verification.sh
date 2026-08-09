@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 # Confirms the research pipeline's results are actually reproducible — the
 # reproducibility check a reviewer would run, and the concrete meaning of
-# guardrail #4 in internal/planning/7_DAY_SPRINT_CHECKLIST.md: "every figure/table
-# must be regenerable by re-running a script, not hand-edited after the
-# fact."
+# this project's own honesty guardrail: every figure/table must be
+# regenerable by re-running a script, not hand-edited after the fact.
 #
 # Three checks, in order, each cheap and making no LLM calls:
 #   1. The Python test suite for the research modules

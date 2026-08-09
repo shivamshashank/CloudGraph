@@ -2,8 +2,8 @@
 
 This document is the single source of truth for the current implementation
 status of **CloudGraph**. `ROADMAP.md` is the forward-looking dissertation/PhD
-roadmap (what to do next); `internal/archive/audit.new.md` is a historical audit snapshot,
-now superseded by this file — see the note at the top of each.
+roadmap (what to do next); `dissertation/PROGRESS.md` is the week-by-week
+narrative of how the project got here.
 
 ---
 
@@ -18,6 +18,12 @@ system comprising 5 domain-specific specialist agents and a central
 consensus engine. The platform is deployed cluster-agnostically via a custom
 Go CLI and Helm charts, and contains mathematical layers for Graph Confidence
 Propagation (GCP) and Graph-Provenance Claim Scoring (GPCS).
+
+> **No experimental results exist right now.** The previous run was
+> invalidated by a ground-truth leak and its outputs were removed; the
+> re-run on the corrected pipeline has not been executed. The
+> *machinery* below is built and tested — the *numbers* are pending.
+> See `experiments/README.md` and `dissertation/PROGRESS.md` (Week 9).
 
 ---
 
@@ -55,82 +61,42 @@ Propagation (GCP) and Graph-Provenance Claim Scoring (GPCS).
   decay) and Graph-Provenance Claim Scoring (`gpcs.py`, claim extraction +
   evidence retrieval + trust scoring) are both implemented and wired into
   `_investigate_pod`.
-- **Real (non-heuristic) benchmark evaluation**: `routers/benchmark.py` and
-  `POST /api/v1/benchmark/run` call the real `evaluate_scenario()` function
-  (`app/research/evaluation.py`) — the old `_calc_kw`/`_calc_vector`/etc.
-  fabricated-offset heuristics have been fully removed. All 6 baselines
-  (Keyword, Vector, GraphRAG, +Agents, +GCP, +GPCS) run real retrieval/
-  orchestration/scoring against the 25-scenario ground-truth dataset
-  (`app/demo/benchmark_dataset.py`). Note: no standalone saved JSON for
-  this 6-baseline sweep exists yet (an earlier draft of this doc referenced
-  `experiments/results/day1_real_benchmark.json`, which was never actually
-  produced) — the real Agents-baseline arm of the code path is exercised
-  and its output saved via the matched-compute control below.
-- **GPCS-vs-self-consistency baseline — real data collected, all 25
-  scenarios (`experiments/results/`)**:
-  `services/api/app/research/self_consistency.py` generates N samples via
-  the real orchestrator, extracts claims with the same
-  `GraphProvenanceClaimScorer.extract_claims` GPCS uses (so the comparison
-  is fair by construction), and flags claims unsupported if they don't
-  recur across samples. It refuses to score the deterministic rule-based
-  fallback (`SelfConsistencyUnavailableError`) rather than fabricate a
-  measurement. Run via `cloudgraph report` (batched, `--limit`/`--offset`,
-  merged with `scripts/merge_reports.py` — see `experiments/README.md` for
-  why batching exists and the exact workflow) against Meta's Llama API.
-  **Result: 1777 claims, 64.0% GPCS/self-consistency agreement.** Getting
-  a valid run required fixing four real bugs in GPCS's evidence retrieval
-  (truncated entity extraction, an excluded `Deployment` graph label, a
-  dead semantic-search callback, an unthresholded vector-search floor) —
-  see `experiments/README.md` for the full list and the findings
-  themselves. The underlying comparison logic lives in
-  `app/research/report_runner.py`, callable directly, via a background HTTP
-  job (`POST`/`GET /api/v1/research/report`, driven by the CLI), or via the
-  standalone script (`scripts/generate_research_report.py`) — same logic,
-  three entry points.
-- **Context-condition ablation (Day 3) — real data collected**: the same
-  generation+scoring pipeline runs three conditions per scenario — `none`
-  (the original Day-2 condition: no retrieved evidence at all, agents
-  reason from error_logs alone), `raw` (all scenario-seeded evidence via
-  `run_raw_context_search`, unranked/unfiltered), and `hybrid` (the
-  existing ranked GraphRAG retrieval). **Result: hybrid retrieval beats
-  both `none` and `raw` on every measured column** (agreement rate, GPCS
-  unsupported rate, self-consistency unsupported rate) — see
-  `experiments/results/raw_context_control.md`. The hybrid-vs-raw
-  agreement delta itself isn't statistically significant at n=25
-  (p=0.15, `experiments/results/significance_tests.md`) — reported
-  honestly rather than oversold.
-- **Neuro-symbolic retrieval detail + qualitative read (Day 3,
-  Contribution 3) — done**: `evaluation.retrieval_detail_for_scenario`
-  captures per-scenario, per-method (keyword=symbolic, vector=neural,
-  hybrid=neuro-symbolic) retrieved evidence and tag hit/miss detail,
-  exported as `experiments/results/neurosymbolic_retrieval_detail.csv`.
-  The qualitative failure-mode read is in
-  `experiments/results/neurosymbolic_failure_modes.md` — honest finding:
-  hybrid does *not* clearly beat keyword or vector on this dataset (vector
-  actually scored 100% vs. hybrid's 96% on the tag-hit metric), reported
-  as-is per the sprint's own guardrail against flattering results.
-- **Statistical significance testing (Day 4) — done**:
-  `scripts/paired_bootstrap.py` computes paired bootstrap CIs (10000
-  resamples) and Wilcoxon signed-rank tests for four key deltas — see
-  `experiments/results/significance_tests.md`.
-- **Matched-compute control (Day 4, Contribution 5) — done, real negative
-  result**: `scripts/run_matched_compute_control.py` compares the real
-  5-specialist-agent consensus system against a single LLM sampled 5 times
-  (self-consistency-checked, same GPCS scorer, same retrieved evidence —
-  only architecture differs), across all 25 scenarios.
-  **Result: the 5-agent system does *not* earn its complexity — it
-  hallucinates *more* than the matched-compute single-LLM baseline** (44.2%
-  vs. 31.5% mean unsupported rate, single-LLM won 19/25 scenarios, paired
-  delta p=0.0018 — significant). See
-  `experiments/results/matched_compute_control.md`.
-- **Figures (Day 5) — done**: `scripts/make_figures.py` generates
-  `experiments/figures/retrieval_recall.png`,
-  `unsupported_rate_by_claim_type.png`, and `agreement_heatmap.png` from
-  the saved result data, no LLM calls. Random-seed audit: the only local
-  Python-side randomness across the week's scripts is
-  `paired_bootstrap.py`'s bootstrap resampling, already seeded (`seed=42`)
-  — everything else's variability is the LLM provider's own sampling
-  temperature, not locally seedable.
+- **Real (non-heuristic) benchmark evaluation**: `routers/benchmark.py`
+  and `POST /api/v1/benchmark/run` call the real `evaluate_scenario()`
+  (`app/research/evaluation.py`) — the old `_calc_kw`/`_calc_vector`
+  fabricated-offset heuristics are gone. All 6 baselines (Keyword,
+  Vector, GraphRAG, +Agents, +GCP, +GPCS) run real retrieval /
+  orchestration / scoring.
+- **Real-telemetry benchmark (36 scenarios)**: scenarios are derived
+  from chaos-injected failures in RCAEval RE2 — real faults in real
+  running Kubernetes systems — via `scripts/build_rcaeval_dataset.py`,
+  balanced 2 per (system × fault-type) cell. Provenance, licence,
+  citation and per-case table in `experiments/DATA_PROVENANCE.md`. The
+  earlier hand-authored benchmark has been removed; its incidents were
+  written rather than observed.
+- **Evaluation machinery, all implemented and tested**: GPCS-vs-
+  self-consistency comparison (`app/research/self_consistency.py`,
+  `report_runner.py`), the 3-condition context ablation
+  (none/raw/hybrid), the neuro-symbolic retrieval ablation, paired
+  bootstrap CIs + Wilcoxon tests (`scripts/paired_bootstrap.py`,
+  seeded), the matched-compute control
+  (`scripts/run_matched_compute_control.py`), and figure generation
+  (`scripts/make_figures.py`). Three entry points to the same logic:
+  direct call, background HTTP job (`POST`/`GET
+  /api/v1/research/report`, driven by `cloudgraph report`), or
+  `scripts/generate_research_report.py`.
+- **Evaluation-integrity fixes (Week 9)** — four defects found and
+  fixed, each pinned by regression tests
+  (`tests/test_evaluation_integrity.py`, `tests/test_rcaeval_dataset.py`):
+  ground-truth claims leaking into the system's own input; an inert
+  recency term (all seeded timestamps identical, collapsing a
+  three-signal hybrid score to two); GCP returning a confident-looking
+  0.80 in three places where it had computed nothing (above the 0.50
+  correctness threshold, so an unreachable database scored as
+  *correct*); and the matched-compute arms using separate retrieval
+  fetches despite claiming to share one. Full account in
+  `dissertation/PROGRESS.md`, Week 9.
+
 - **Hybrid Retrieval & GraphRAG**: multi-hop Cypher traversal
   (`graph_traversal.py`) and a hybrid ranker (`hybrid_ranker.py`) combining
   semantic similarity, hop distance, node importance, and recency decay.
@@ -171,7 +137,8 @@ Propagation (GCP) and Graph-Provenance Claim Scoring (GPCS).
   mid-run crash previously cost 19/25 scenarios of real progress.
   `testing/verify/run_verification.sh` re-runs the test suite plus
   `paired_bootstrap.py`/`make_figures.py` against the current
-  `experiments/results/`, confirming reproducibility (guardrail #4).
+  `experiments/results/` once a run has produced them, confirming
+  every figure and statistic regenerates from saved data.
 - **`cloudgraph report [--limit N] [--offset N]`**: generates the research
   report via the API's background-job endpoints
   (`POST`/`GET /api/v1/research/report`, `app/research/report_runner.py`)
@@ -242,7 +209,7 @@ Propagation (GCP) and Graph-Provenance Claim Scoring (GPCS).
   is a genuine credential-exposure risk, not a theoretical one — worth
   prioritizing before this is exposed beyond a trusted network.
 - **Dissertation chapter writing** — 0% complete; only structural outlines
-  exist in `internal/dissertation/week-1/`.
+  exist in `dissertation/week-1/`.
 
 ---
 
@@ -255,12 +222,10 @@ Propagation (GCP) and Graph-Provenance Claim Scoring (GPCS).
 2. **Redis**: fully removed from chart dependencies, configs, and docs.
 3. **Frontend framework claims**: corrected — README's frontend section
    accurately describes the static HTML/CSS/vanilla-JS stack, no
-   React/Vue/Svelte claim remains. See `docs/design-evolution.md` for this
-   and the other two documented design deviations (AWS→Helm/kubeadm,
-   LangGraph→custom orchestrator).
-4. **Where to look next**: `research/7_DAY_SPRINT_CHECKLIST.md` Days 1-5
-   are complete with real data — see `experiments/README.md` for the
-   findings themselves. Day 6 (docs accuracy — this pass; API auth
-   explicitly deferred) and Day 7 (workshop draft + venue targeting)
-   remain; `internal/planning/OXBRIDGE_READINESS.md` is the readiness assessment
-   against that goal.
+   React/Vue/Svelte claim remains. See `docs/architecture/design-evolution.md`
+   for this and the other two documented design deviations
+   (AWS→Helm/kubeadm, LangGraph→custom orchestrator).
+4. **Where to look next**: see `dissertation/PROGRESS.md` for the full
+   week-by-week account of how this project reached its current state,
+   including the real evaluation results and where the workshop paper
+   draft (`research/paper/DRAFT.md`) currently stands.

@@ -2,6 +2,7 @@
 
 from contextlib import asynccontextmanager
 import asyncio
+import logging
 import os
 import time
 import traceback
@@ -59,6 +60,8 @@ async def lifespan(_app: FastAPI):
     qdrant_client.close()
     neo4j_client.close()
 
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="CloudGraph Ingestion Engine", version="1.0.0", lifespan=lifespan)
 
@@ -237,6 +240,22 @@ def get_graph_data():
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+def _propagate_confidence(pod_name: str) -> dict[str, float]:
+    """Run GCP for a pod, or report zero confidence if it cannot run.
+
+    Zeros rather than a confident-looking default: when propagation can't
+    run (no reachable graph, or no topology around the pod), the honest
+    report is "no confidence was computed". This previously defaulted to
+    0.80, which an operator would reasonably read as a real, high-
+    confidence score.
+    """
+    try:
+        return GraphConfidencePropagator().run_propagation(pod_name)
+    except RuntimeError as exc:
+        logger.warning("Confidence propagation unavailable: %s", exc)
+        return {"root_cause": 0.0, "recommendation": 0.0}
+
+
 def _investigate_pod(
     pod: dict[str, Any],
     namespace: str,
@@ -338,12 +357,8 @@ def _investigate_pod(
             f"Retrieval context: {retrieval_context['summary']}"
         )
 
-    gcp_res = {"root_cause": 0.80, "recommendation": 0.75}
+    gcp_res = _propagate_confidence(pod["name"])
     claim_scoring = {"unsupported_claim_rate": 0.0, "claim_count": 0, "claims": []}
-    try:
-        gcp_res = GraphConfidencePropagator().run_propagation(pod["name"])
-    except RuntimeError:
-        pass
 
     try:
         claim_scoring = GraphProvenanceClaimScorer(

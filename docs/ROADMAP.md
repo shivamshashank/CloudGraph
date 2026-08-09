@@ -35,10 +35,12 @@ common way dissertation time budgets fail.
       `routers/benchmark.py` now calls the real `evaluate_scenario()`
       (`app/research/evaluation.py`) for all 6 baselines, no fabricated
       offsets remain.
-- [x] Expand the benchmark dataset to **25 scenarios** (done — see
-      `app/demo/benchmark_dataset.py`; the 25–30 target's low end is met).
+- [x] Benchmark dataset — **superseded and improved**: the hand-authored
+      set was retired in favour of 36 scenarios derived from real
+      chaos-injected failures in RCAEval RE2
+      (`app/demo/rcaeval_dataset.py`, `experiments/DATA_PROVENANCE.md`).
 - [ ] Implement a **train/held-out split** (e.g. 70/30, matching the split
-      already documented in `internal/dissertation/week-2` evidence but not yet applied to actual
+      already documented in `dissertation/week-2` evidence but not yet applied to actual
       threshold calibration). Still not done — GPCS's semantic-evidence
       threshold (`MIN_SEMANTIC_EVIDENCE_SCORE = 0.30` in `gpcs.py`) was
       calibrated ad hoc against real live query examples, not a formal
@@ -47,10 +49,11 @@ common way dissertation time budgets fail.
   - [x] Wilcoxon signed-rank test between paired conditions (GPCS vs.
         self-consistency, hybrid vs. raw-context, hybrid vs. keyword
         recall, real 5-agent vs. matched-compute single-LLM).
-  - [x] Report p-values alongside raw deltas — see
-        `experiments/results/significance_tests.md`. (Effect sizes/Cohen's
-        d specifically not added — the paired bootstrap CI serves the same
-        role of showing magnitude + uncertainty together.)
+  - [x] Report p-values alongside raw deltas — implemented in
+        `scripts/paired_bootstrap.py`; output pending the re-run.
+        (Effect sizes/Cohen's d specifically not added — the paired
+        bootstrap CI serves the same role of showing magnitude +
+        uncertainty together.)
   - [x] Bootstrap confidence intervals (10000 resamples, seeded) on every
         headline delta.
 - [x] Implement the **GPCS self-consistency baseline** (explicitly marked "not
@@ -71,16 +74,15 @@ common way dissertation time budgets fail.
         exists; `scripts/generate_research_report.py` (local-checkout path,
         wrapped by `testing/report/run_report_batched.sh`) or `cloudgraph
         report` (primary, no-checkout path) are the current entry points.
-        **Result: 1777 claims across 25 scenarios, 64.0% GPCS/self-
-        consistency agreement** — see `experiments/README.md`. Getting a
-        valid run required fixing four real bugs in GPCS's evidence
-        retrieval along the way (see that doc).
+        An initial run produced real data but was invalidated by a
+        ground-truth leak (`dissertation/PROGRESS.md`, Week 9); the
+        comparison table is pending a re-run on the corrected pipeline.
 - [ ] Calibrate the GPCS `threshold` value on the held-out split — not done,
       see the train/held-out split item above (the same gap).
 - [x] Report hallucination rate **broken down by claim type** —
-      `agreement_crosstab.csv` and
-      `experiments/figures/unsupported_rate_by_claim_type.png`. (Breakdown
-      by incident *category* specifically, as opposed to claim type, not
+      implemented in `report_runner.py` (agreement cross-tab) and
+      `scripts/make_figures.py`; output pending the re-run. (Breakdown by
+      incident *category* specifically, as opposed to claim type, not
       separately produced.)
 
 ## 2. Minimal Human Evaluation (High Impact, Low Effort)
@@ -102,9 +104,9 @@ common way dissertation time budgets fail.
         (`agent-orchestrator/main.py`, `investigation-engine/main.py`).
   - [x] Replace "React / Vue / Svelte + D3.js" frontend claims with accurate
         description of the static HTML/CSS/vanilla-JS UI
-        (`services/ui/static/*`) — done in `README.md` and
-        `internal/archive/deep-research-report.md`; the topology graph is hand-built SVG DOM
-        manipulation, no D3/charting library is actually used anywhere.
+        (`services/ui/static/*`) — done in `README.md`; the topology graph
+        is hand-built SVG DOM manipulation, no D3/charting library is
+        actually used anywhere.
   - [x] Reframe AWS EKS/IAM/S3 references as historical/superseded — README's
         architecture section already notes current deployment uses
         Helm+kubeadm, not AWS-specific; `docs/design-evolution.md` (new)
@@ -123,9 +125,13 @@ common way dissertation time budgets fail.
 ## 4. Threats to Validity / Limitations Section
 
 - [ ] Write an explicit Threats to Validity section covering:
-  - [ ] Small dataset size (10–30 synthetic scenarios vs. production-scale
-        incidents).
-  - [ ] Synthetic vs. real-world incident realism.
+  - [ ] Small dataset size (36 scenarios vs. production-scale incident
+        volumes).
+  - [ ] Fault-type coverage: RCAEval RE2 spans only resource and network
+        faults, so claims scope to those and not to config, security, or
+        deployment incidents.
+  - [ ] Chaos-injected faults in benchmark systems vs. organically
+        occurring production incidents.
   - [ ] LLM output non-determinism (temperature effects on RCA repeatability).
   - [ ] Rule-based fallback bias — when no LLM API key is configured, agents
         silently fall back to deterministic rules; state whether/how this
@@ -152,10 +158,10 @@ common way dissertation time budgets fail.
 ## 6. Dissertation Writing (Currently 0% Complete — Largest Remaining Time Cost)
 
 - [ ] **Introduction** — problem motivation, RQ1–RQ4, H1–H4 (source material
-      already exists in `internal/dissertation/week-1/research-methodology.md`).
-- [ ] **Literature Review** — expand `internal/dissertation/week-1/literature-review.md` into
+      already exists in `dissertation/week-1/research-methodology.md`).
+- [ ] **Literature Review** — expand `dissertation/week-1/literature-review.md` into
       full academic prose with citations in required format (reference list
-      already compiled in `internal/dissertation/week-1/references.md`).
+      already compiled in `dissertation/week-1/references.md`).
 - [ ] **Methodology** — adapt from `research-methodology.md`; update with the
       real (not heuristic) evaluation protocol once Section 1 is complete.
 - [ ] **System Design / Implementation** — adapt from `architecture-design.md`
@@ -194,7 +200,7 @@ research artifact suitable for a peer-reviewed AIOps/MLSys/systems venue.
 ## Evaluation Depth
 
 - [ ] Scale the incident benchmark dataset to 100+ scenarios (the original
-      target stated in `README.md` and `internal/dissertation/week-1/data-collection-strategy.md`
+      target stated in `README.md` and `dissertation/week-1/data-collection-strategy.md`
       but never reached).
 - [ ] Replace synthetic/scripted incidents with a mix of real production-style
       traces — consider public incident datasets or partnering with an org
@@ -224,9 +230,8 @@ research artifact suitable for a peer-reviewed AIOps/MLSys/systems venue.
 
 - [ ] Publish the benchmark dataset, prompts, and evaluation scripts as a
       versioned artifact (e.g., a `benchmark/` release with a DOI via Zenodo).
-- [ ] Add prompt/version pinning — currently no prompt-versioning system exists
-      in source control (flagged as an open item in
-      `internal/planning/GPCS_UI_Benchmark_Roadmap.md`).
+- [ ] Add prompt/version pinning — currently no prompt-versioning system
+      exists in source control.
 - [ ] Containerize the full evaluation harness so reviewers can reproduce
       numbers without manual environment setup.
 - [ ] Add a `CITATION.cff` and clear artifact-availability statement.

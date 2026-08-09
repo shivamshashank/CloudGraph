@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import requests
 
 from app.database.neo4j_client import neo4j_client
+from app.demo.datasets import DEFAULT_INCIDENT_TIME, scenario_incident_time
 from app.dependencies import semantic_store
 from app.retrieval.graph_traversal import graph_traversal_retriever
 from app.retrieval.hybrid_ranker import hybrid_ranker
@@ -20,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 # First-pass constant, matching GPCS's own default trust threshold
 # (see gpcs.py). Not yet calibrated on a held-out split — see
-# internal/planning/IMPLEMENTATION_ROADMAP.md Phase 4.
+# docs/ROADMAP.md's held-out-split calibration item.
 GCP_CORRECTNESS_THRESHOLD = 0.50
 
 
@@ -75,7 +76,7 @@ def run_vector_search(query: str) -> List[Dict[str, Any]]:
 
 
 def run_raw_context_search(query: str) -> List[Dict[str, Any]]:
-    """Raw-context control (internal/planning/7_DAY_SPRINT_CHECKLIST.md Day 3): pull
+    """Raw-context control (see dissertation/PROGRESS.md Week 8): pull
     *all* evidence seeded for the current scenario, unranked and
     unfiltered — no graph traversal, no hop-limit, no top-k cutoff. Answers
     "does structured retrieval earn its complexity, or is dumping
@@ -139,8 +140,21 @@ def run_raw_context_search(query: str) -> List[Dict[str, Any]]:
     return raw_results
 
 
-def run_hybrid_search(query: str) -> List[Dict[str, Any]]:
-    """Execute real GraphRAG hybrid retrieval."""
+def run_hybrid_search(
+    query: str, reference_time: int | float | None = None
+) -> List[Dict[str, Any]]:
+    """Execute real GraphRAG hybrid retrieval.
+
+    `reference_time` is the "now" the ranker measures evidence age
+    against, and callers should pass the scenario's incident time
+    (`scenario_incident_time`). It matters more than it looks: the
+    recency term is `exp(-ln2 * (reference - timestamp) / half_life)`, so
+    a reference equal to every seeded timestamp makes recency a constant
+    (three-signal score collapses to two), while a wall-clock reference
+    against seeded timestamps drives it to zero for everything. Either
+    way the term stops discriminating, which would quietly hollow out a
+    retrieval ablation.
+    """
     raw_results = run_keyword_search(query)
     graph_hits = []
     for record in raw_results:
@@ -203,7 +217,12 @@ def run_hybrid_search(query: str) -> List[Dict[str, Any]]:
     # straight through instead of re-inventing its shape.
     try:
         ranked = hybrid_ranker.rank(
-            semantic_hits, graph_hits, reference_time=1600000000, limit=5
+            semantic_hits,
+            graph_hits,
+            reference_time=(
+                reference_time if reference_time is not None else DEFAULT_INCIDENT_TIME
+            ),
+            limit=5,
         )
         return ranked
     except (RuntimeError, ValueError) as exc:
@@ -331,7 +350,7 @@ def _request_agents_step(
                 "pod_name": scenario["target_entity"],
                 "pod_status": "Failed",
                 "namespace": "cloudgraph-system",
-                "error_logs": scenario["ground_truth_claims"],
+                "error_logs": scenario["observed_symptoms"],
                 "evidence_context": [],
                 "retrieval_context": {"results": results},
                 "llm_provider": llm_settings.get("provider"),
@@ -365,10 +384,16 @@ def _request_agents_step(
     return rdata["consensus"]
 
 
-def _run_gcp_step(target_entity: str) -> float:
+def run_gcp_step(target_entity: str) -> float:
     """Run graph confidence propagation (GCP) and return the real
     root-cause confidence score. Returns 0.0 (not a fabricated confident
-    value) if propagation cannot run at all."""
+    value) if propagation cannot run at all.
+
+    GraphUnavailableError is caught here via RuntimeError. That case used
+    to yield 0.80 — above GCP_CORRECTNESS_THRESHOLD — so an unreachable
+    Neo4j scored as a correct result. 0.0 is the honest value for "no
+    confidence was computed."
+    """
     try:
         propagator = GraphConfidencePropagator()
         result = propagator.run_propagation(target_entity)
@@ -402,7 +427,9 @@ def _run_gpcs_step(analysis: Any) -> Optional[float]:
 
 
 def evaluate_scenario(
-    scenario: Dict[str, Any], baseline_name: str
+    scenario: Dict[str, Any],
+    baseline_name: str,
+    retrieval_results: Optional[List[Dict[str, Any]]] = None,
 ) -> Optional[Tuple[int, int, int, int, Optional[float]]]:
     """Evaluate a single baseline against a ground-truth scenario using only
     real pipeline calls.
@@ -414,6 +441,14 @@ def evaluate_scenario(
     The fifth element of the returned tuple (unsupported claim count) is
     None for baselines that generate no text to score (pure retrieval),
     since hallucination rate is undefined for them, not merely unmeasured.
+
+    `retrieval_results` lets a caller supply evidence already fetched for
+    this scenario instead of having this function fetch its own. The
+    matched-compute control needs it: that experiment's whole claim is
+    that both arms saw identical evidence and differ only in generation
+    architecture, which is not true if each arm independently re-queries
+    the store. Only applies to the hybrid path — the keyword and vector
+    baselines are defined by their own retrieval mode and must run it.
     """
     if baseline_name == "Keyword Search":
         method_key = "keyword"
@@ -423,7 +458,13 @@ def evaluate_scenario(
         results = run_vector_search(scenario["query"])
     else:
         method_key = "hybrid"
-        results = run_hybrid_search(scenario["query"])
+        results = (
+            retrieval_results
+            if retrieval_results is not None
+            else run_hybrid_search(
+                scenario["query"], reference_time=scenario_incident_time(scenario)
+            )
+        )
 
     retrieved_text = extract_text_from_results(results, method_key)
     tp = sum(
@@ -447,7 +488,7 @@ def evaluate_scenario(
             return None
 
     if "GCP" in baseline_name:
-        gcp_confidence = _run_gcp_step(scenario["target_entity"])
+        gcp_confidence = run_gcp_step(scenario["target_entity"])
         # GCP-tier baselines must also clear a confidence bar to count as
         # correct, not just pass the tag-overlap check — otherwise this
         # tier is indistinguishable from "Agents" alone.
@@ -473,7 +514,7 @@ def evaluate_scenario(
     return tp, fp, fn, correct, unsupported_claims_count
 
 
-# Neuro-symbolic ablation (internal/planning/7_DAY_SPRINT_CHECKLIST.md Day 3,
+# Neuro-symbolic ablation (see dissertation/PROGRESS.md Week 8,
 # NOVEL_CONTRIBUTIONS.md Contribution 3): keyword = near-pure
 # symbolic/lexical, vector = near-pure neural/semantic, hybrid =
 # neuro-symbolic. This mapping is data, not logic — it's how the three
@@ -501,7 +542,9 @@ def retrieval_detail_for_scenario(
     elif method_key == "vector":
         results = run_vector_search(scenario["query"])
     else:
-        results = run_hybrid_search(scenario["query"])
+        results = run_hybrid_search(
+            scenario["query"], reference_time=scenario_incident_time(scenario)
+        )
 
     retrieved_text = extract_text_from_results(results, method_key)
     retrieved_text_lower = retrieved_text.lower()

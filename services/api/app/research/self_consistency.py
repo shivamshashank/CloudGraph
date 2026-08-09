@@ -117,7 +117,7 @@ def _request_one_sample(
         "pod_name": scenario["target_entity"],
         "pod_status": "Failed",
         "namespace": "cloudgraph-system",
-        "error_logs": scenario["ground_truth_claims"],
+        "error_logs": scenario["observed_symptoms"],
         "evidence_context": [],
         "retrieval_context": {"results": retrieval_results or []},
         "llm_temperature": temperature,
@@ -428,8 +428,8 @@ def _build_single_llm_prompt(
     prompt = (
         f"You are investigating an incident affecting pod "
         f"'{scenario['target_entity']}' (status: Failed).\n\n"
-        f"Error logs / ground-truth signals:\n"
-        f"{scenario['ground_truth_claims']}"
+        f"Observed symptoms:\n"
+        f"{scenario['observed_symptoms']}"
         f"{evidence_section}\n\n"
         f"Determine the root cause. Your response MUST be a JSON object "
         f"with fields:\n"
