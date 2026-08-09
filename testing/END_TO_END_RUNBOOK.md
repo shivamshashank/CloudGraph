@@ -1,67 +1,59 @@
-# End-to-End Runbook: OrbStack Linux VM → full research report
+# End-to-End Runbook: Linux server → full research report
 
 Every command below, in order, with the exact path it's run from. This
-assumes the flow agreed on: OrbStack Linux VM → `cloudgraph deploy` →
+assumes the flow agreed on: a Linux server → `cloudgraph deploy` →
 UI → connect an LLM provider via Settings → demo incidents → verify RCA →
-full report run.
+full report run → significance tests + figures.
+
+**Prerequisites:** SSH access to a Linux server (Ubuntu/Debian assumed —
+substitute your distro's package manager if not) with `sudo`, reachable
+from wherever you're running these commands from. Any real or virtual
+Linux machine works — bare metal, a cloud VM, or a local VM — nothing
+below is tied to a specific hypervisor or provider.
 
 **Two things that will bite you if skipped** (both already cost real time
-this session):
+this project):
 
-1. **Local uncommitted changes aren't on any remote yet.** Today's fixes
-   (the timeout-chain fix, `testing/`, the extra demo
-   incidents) exist only in this working directory. `git clone` from
-   GitHub/GitLab right now would get you the *old* code. **Don't clone —
-   copy this exact working directory to the VM** (Step 2).
+1. **Local uncommitted changes aren't on any remote yet.** If you have
+   working-tree changes, `git clone` from GitHub/GitLab right now would get
+   you the *old* code. **Don't clone — copy this exact working directory to
+   the server** (Step 1) unless you know everything you need is already
+   pushed.
 2. **The published `ghcr.io/shivamshashank/cloudgraph-*:latest` images are
-   stale** (built before today, from whatever was last pushed — not this
-   session's fixes). `cloudgraph deploy` will happily pull and run them
-   with no error. **You must build fresh images locally on the VM and load
-   them in** (Step 5) or you'll be debugging the exact bugs we already
-   fixed, again, on the VM.
+   stale** (built before today, from whatever was last pushed — not your
+   latest local fixes). `cloudgraph deploy` will happily pull and run them
+   with no error. **You must build fresh images locally on the server and
+   load them in** (Step 4) or you'll be debugging bugs you already fixed,
+   again, on the server.
 
 ---
 
-## 0. On the macOS host — nothing to run yet, just know the path
+## 0. On your local machine — nothing to run yet, just know the path
 
-Repo root on this machine: `/Users/shivam_shashank/CloudGraph`
-
----
-
-## 1. Create the OrbStack Linux VM
-
-```bash
-orb create ubuntu cloudgraph-vm
-orb -m cloudgraph-vm
-```
-
-> Verify against `orb --help` / `orb create --help` first — OrbStack's CLI
-> flags aren't something this session has directly tested, unlike
-> everything below, which has.
-
-Everything from here runs **inside the VM** unless marked otherwise.
+Repo root on this machine, e.g.: `/Users/shivam_shashank/CloudGraph`
+(substitute your actual path throughout).
 
 ---
 
-## 2. Copy the current source onto the VM
+## 1. Copy the current source onto the server
 
-From the **macOS host**, not the VM:
+From your **local machine**, not the server:
 
 ```bash
 rsync -avz --progress \
   --exclude='.venv' --exclude='node_modules' --exclude='__pycache__' \
   --exclude='.git' \
-  /Users/shivam_shashank/CloudGraph/ \
-  cloudgraph-vm:~/CloudGraph/
+  /path/to/CloudGraph/ \
+  <user>@<server>:~/CloudGraph/
 ```
 
-(OrbStack machines are reachable by name over SSH automatically — if that
-resolves differently in your setup, substitute the VM's actual
-user@host.)
+Substitute `<user>@<server>` with your actual SSH target. Everything from
+here runs **on the server** (`ssh <user>@<server>`) unless marked
+otherwise.
 
 ---
 
-## 3. Install prerequisites (inside the VM)
+## 2. Install prerequisites (on the server)
 
 ```bash
 sudo apt-get update
@@ -69,13 +61,14 @@ sudo apt-get install -y docker.io kubectl golang-go git python3 rsync
 sudo usermod -aG docker "$USER" && newgrp docker
 ```
 
-(No Python venv needed anywhere in this flow — `apply_demo_incidents.sh`
-only needs stdlib-only `python3`, and the research report goes through
-`cloudgraph report` over HTTP, not a local script.)
+(No Python venv needed for `testing/intensive/`'s scripts — they only need
+stdlib-only `python3`. A venv IS needed for `testing/report/
+run_report_batched.sh` and `testing/verify/run_verification.sh` — see
+Step 10.)
 
 ---
 
-## 4. Build the CLI from this exact source
+## 3. Build the CLI from this exact source
 
 ```bash
 cd ~/CloudGraph
@@ -88,7 +81,7 @@ release tag.
 
 ---
 
-## 5. Deploy CloudGraph, then swap in fresh images
+## 4. Deploy CloudGraph, then swap in fresh images
 
 ```bash
 cd ~/CloudGraph
@@ -124,37 +117,55 @@ kubectl rollout restart deployment \
 
 ---
 
-## 6. Verify pods healthy
+## 5. Verify pods healthy
 
 ```bash
 kubectl get pods -n cloudgraph-system -w
 # Ctrl-C once everything shows Running/Ready
 ```
 
+**If pods are stuck `Unknown`/`NotReady` and the API server refuses
+connections** (`kubectl` errors with "connection refused" on :6443): check
+whether swap is enabled — kubelet refuses to start with swap on, and some
+Linux server/VM images enable swap by default or re-enable it across a
+restart:
+
+```bash
+sudo swapoff -a
+sudo systemctl restart kubelet
+# wait ~30s, then re-check
+kubectl get nodes
+```
+
+This happened once already in real operation on a server set up this exact
+way — it's not hypothetical.
+
 ---
 
-## 7. Access the UI
+## 6. Access the UI
 
 ```bash
 kubectl port-forward -n cloudgraph-system svc/cloudgraph-ui 3000:3000
 ```
 
-Open `http://<vm-ip-or-localhost>:3000` in a browser reachable from the VM
-(or forward from your Mac too, depending on your OrbStack network setup).
+Open `http://<server-ip-or-localhost>:3000` in a browser that can reach the
+server (or forward the port again from your local machine over SSH:
+`ssh -L 3000:localhost:3000 <user>@<server>`, then browse to
+`http://localhost:3000`).
 
 ---
 
-## 8. Connect an LLM provider
+## 7. Connect an LLM provider
 
 ```bash
 cd ~/CloudGraph
 kubectl port-forward -n cloudgraph-system svc/cloudgraph-api 8080:8080 &
 ```
 
-Open `http://localhost:8080` isn't the UI — use the UI port-forward from
-Step 7, navigate to **LLM Settings**, and enter a provider (OpenAI, Gemini,
-or Meta Llama API), a valid paid/upgraded-tier API key, and optionally a
-model name. Or set it directly over the API port-forward above:
+Navigate to **LLM Settings** in the UI (Step 6's port-forward) and enter a
+provider (OpenAI, Gemini, or Meta Llama API), a valid paid/upgraded-tier
+API key, and optionally a model name. Or set it directly over the API
+port-forward above:
 
 ```bash
 curl -s -X POST http://localhost:8080/api/v1/settings \
@@ -171,91 +182,144 @@ curl -s http://localhost:8080/api/v1/settings
 
 ---
 
-## 9. Apply demo incidents
+## 8. Apply demo incidents
+
+`testing/intensive/` is split into numbered steps — each does one thing:
 
 ```bash
 cd ~/CloudGraph
-testing/intensive/apply_demo_incidents.sh --list      # see the 5 available
-testing/intensive/apply_demo_incidents.sh              # apply all 5
-kubectl get pods -n cloudgraph-system                  # watch them fail on purpose
+testing/intensive/00_check_prereqs.sh http://localhost:8080   # cluster + API + LLM provider reachable
+testing/intensive/01_apply_incidents.sh --list                # see the 5 available
+testing/intensive/01_apply_incidents.sh                        # apply all 5
+testing/intensive/02_verify_incidents.sh http://localhost:8080 http://localhost:3000
 ```
+
+`02_verify_incidents.sh` doesn't just check `kubectl get pods` — it
+triggers cluster discovery (the same step the UI does automatically) and
+confirms the broken pods actually show up as graph nodes, then prints
+exactly what to click next.
 
 ---
 
-## 10. Verify real RCA from the UI
+## 9. Verify real RCA from the UI
 
-In the browser (Step 7's UI): trigger cluster discovery, then click
-**Run AI Diagnosis**. Confirm you get real, specific findings (not the
-generic rule-based fallback text) — this is the live-path equivalent of
-what the research report (Steps 11–12) measures automatically.
+In the browser (Step 6's UI): navigate to **AI Diagnosis** and click **Run
+AI Diagnosis** on one of the pods `02_verify_incidents.sh` confirmed.
+Confirm you get real, specific findings (not generic rule-based-fallback
+text) — this is the live-path equivalent of what the research report
+(Steps 10–11) measures automatically.
 
 Teardown the incidents when done poking at them:
 
 ```bash
-testing/intensive/apply_demo_incidents.sh --teardown
+testing/intensive/03_teardown_incidents.sh
 ```
 
 ---
 
-## 11. Generate the pilot report (verify real data before the long run)
+## 10. Generate the research report (batched)
 
-No Python venv, no Neo4j password, no extra port-forwards needed here —
-`cloudgraph report` talks to the already-running, already-configured API
-over the same port-forward from Step 8:
+Two ways to run this, same underlying logic either way — see
+`testing/README.md` for when to use which. This section covers the local-
+checkout path (`testing/report/run_report_batched.sh`), which needs a
+Python venv:
+
+```bash
+cd ~/CloudGraph/services/api
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+```
+
+Then, from the repo root:
 
 ```bash
 cd ~/CloudGraph
-./cloudgraph report --limit 3 http://localhost:8080
+NEO4J_PASSWORD=<password> testing/report/run_report_batched.sh http://localhost:8080
 ```
 
-It checks an LLM provider is connected (failing fast with a clear message
-if not — same check as the UI toast), starts the run, and sits polling
-with live progress until it finishes (this ties up the terminal for the
-run's duration, by design — open a new SSH session for anything else).
+**Why batched, not one long run:** the report job's state is in-memory
+only, by design (`app/research/report_runner.py`'s own docstring) — a pod
+restart mid-run discards all progress, no resume. A real crash mid-run
+already cost 19/25 scenarios of progress once. Batching (default: 5
+batches of 5 scenarios) means a crash only costs the current batch, and
+`scripts/merge_reports.py` combines the batches into
+`experiments/results/` automatically at the end.
 
-Check the summary at the end: `Claims scored:` should be **> 0** and the
-scenarios-evaluated count should show **> 0** evaluated. If everything
-comes back excluded again, stop and diagnose before running the full 25 —
-same discipline as before.
+Pilot first, to verify the pipeline works before committing to the full
+run:
+
+```bash
+REPORT_TOTAL_SCENARIOS=1 REPORT_BATCH_SIZE=1 NEO4J_PASSWORD=<password> \
+  testing/report/run_report_batched.sh http://localhost:8080
+```
+
+Check the summary: `Claims scored:` should be **> 0**. If everything comes
+back excluded, stop and diagnose before running the full 25.
+
+Full run (default 5×5=25 scenarios) — this can take a long time (easily an
+hour or more on real LLM API calls, 25 scenarios × 3 context conditions ×
+up to 3 self-consistency samples × up to 6 sequential specialist calls
+each). Consider `tmux`/`screen` so it survives an SSH disconnect:
+
+```bash
+NEO4J_PASSWORD=<password> testing/report/run_report_batched.sh http://localhost:8080
+```
+
+Old single-shot behavior (no batching, not recommended given the crash
+risk above) is still available:
+
+```bash
+NEO4J_PASSWORD=<password> testing/report/run_report_batched.sh --full
+```
+
+Alternative — the primary, no-local-checkout path via the CLI directly
+(works from any machine that can reach the API, saves to
+`~/.cloudgraph/reports/report-<timestamp>/` per run):
+
+```bash
+./cloudgraph report --limit 5 --offset 0 http://localhost:8080
+./cloudgraph report --limit 5 --offset 5 http://localhost:8080
+# ... --offset 10, 15, 20 ...
+# then merge the 5 saved report-<timestamp>/ directories:
+cd services/api && .venv/bin/python scripts/merge_reports.py \
+  ~/.cloudgraph/reports/report-A ~/.cloudgraph/reports/report-B ... \
+  --out ../../experiments/results
+```
 
 ---
 
-## 12. Full report run (all 25 scenarios)
-
-Only after Step 11 comes back clean:
+## 11. Verify the results are reproducible + regenerate figures
 
 ```bash
 cd ~/CloudGraph
-./cloudgraph report http://localhost:8080
+testing/verify/run_verification.sh
 ```
 
-This can run for a long time (potentially hours) on CPU-only local
-inference — 25 scenarios × up to 3 samples × up to 6 sequential LLM calls
-each. Consider `tmux`/`screen` on the VM so it survives an SSH disconnect
-(the run itself lives server-side in the API pod regardless — if the CLI
-loses contact, re-running `cloudgraph report` after reconnecting will just
-tell you a run is already in progress rather than starting a duplicate;
-poll again with the same command once network is back).
+Runs the research module test suite, then re-runs
+`scripts/paired_bootstrap.py` (significance tests) and
+`scripts/make_figures.py` (the 3 figures) against whatever's now in
+`experiments/results/` — confirms every number/figure actually
+regenerates from the saved data, not just that the report ran. See
+`experiments/README.md` for what the results actually say.
 
-Results are saved locally, on whatever machine you ran the CLI from, to
-`~/.cloudgraph/reports/report-<timestamp>/`:
+**Not run by this step** (needs its own real LLM calls against a live
+cluster): the matched-compute control —
 
-- `claims.csv` — the actual per-claim comparison table
-- `agreement_crosstab.csv` — GPCS vs. self-consistency agreement by claim type
-- `excluded_scenarios.json` — should be empty or near-empty this time
-- `summary.txt` — the same summary the CLI printed, saved for later
+```bash
+cd services/api
+.venv/bin/python scripts/run_matched_compute_control.py
+```
 
 ---
 
-## 13. Cleanup (when done)
+## 12. Cleanup (when done)
 
 ```bash
 # Tear down demo incidents if still applied
-testing/intensive/apply_demo_incidents.sh --teardown
+testing/intensive/03_teardown_incidents.sh
 
 # Uninstall CloudGraph entirely
 sudo ~/CloudGraph/cloudgraph uninstall
-
-# Or just delete the whole VM from the macOS host
-orb delete cloudgraph-vm
 ```
+
+Or decommission the server itself, however you provisioned it.

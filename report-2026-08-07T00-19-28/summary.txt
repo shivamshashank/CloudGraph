@@ -1,9 +1,0 @@
-CloudGraph Research Report
-==========================
-Scenarios:           3
-Excluded attempts:   0/9 (scenario x context-condition)
-Claims scored:       76
-Agreement:           43/76 claims agree
-  context=none   8/24 claims agree (24 claims)
-  context=raw    18/27 claims agree (27 claims)
-  context=hybrid 17/25 claims agree (25 claims)

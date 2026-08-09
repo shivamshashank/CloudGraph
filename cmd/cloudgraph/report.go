@@ -53,6 +53,7 @@ func runReport(args []string) {
 	baseURL := "http://localhost:8000"
 	explicitBaseURL := false
 	limit := 0
+	offset := 0
 
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
@@ -67,6 +68,18 @@ func runReport(args []string) {
 				os.Exit(1)
 			}
 			limit = n
+			i++
+		case "--offset":
+			if i+1 >= len(args) {
+				printError("--offset requires a value")
+				os.Exit(1)
+			}
+			n, err := strconv.Atoi(args[i+1])
+			if err != nil || n < 0 {
+				printError("--offset must be a non-negative integer")
+				os.Exit(1)
+			}
+			offset = n
 			i++
 		default:
 			if args[i] != "" {
@@ -109,15 +122,23 @@ func runReport(args []string) {
 	}
 	printSuccess(fmt.Sprintf("Provider connected: %s (%s)", settings.Provider, modelDesc))
 
-	if limit > 0 {
+	switch {
+	case limit > 0 && offset > 0:
+		printInfo(fmt.Sprintf(
+			"Starting report generation (batch — scenarios %d-%d)...",
+			offset+1, offset+limit,
+		))
+	case limit > 0:
 		printInfo(fmt.Sprintf("Starting report generation (pilot — %d scenario(s))...", limit))
-	} else {
+	case offset > 0:
+		printInfo(fmt.Sprintf("Starting report generation (from scenario %d to the end)...", offset+1))
+	default:
 		printInfo("Starting report generation (full — 25 scenarios)...")
 	}
 
 	runStartTime := time.Now().UTC()
 
-	if err := startReportRun(baseURL, limit); err != nil {
+	if err := startReportRun(baseURL, limit, offset); err != nil {
 		printError(fmt.Sprintf("Failed to start report run: %v", err))
 		os.Exit(1)
 	}
@@ -284,10 +305,17 @@ func saveLLMLogs(dir string, since time.Time) error {
 	return nil
 }
 
-func startReportRun(baseURL string, limit int) error {
+func startReportRun(baseURL string, limit int, offset int) error {
 	url := baseURL + "/api/v1/research/report"
+	params := []string{}
 	if limit > 0 {
-		url = fmt.Sprintf("%s?limit=%d", url, limit)
+		params = append(params, fmt.Sprintf("limit=%d", limit))
+	}
+	if offset > 0 {
+		params = append(params, fmt.Sprintf("offset=%d", offset))
+	}
+	if len(params) > 0 {
+		url = fmt.Sprintf("%s?%s", url, strings.Join(params, "&"))
 	}
 	client := &http.Client{Timeout: 15 * time.Second}
 	resp, err := client.Post(url, "application/json", nil)

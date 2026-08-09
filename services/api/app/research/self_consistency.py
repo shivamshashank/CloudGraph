@@ -22,7 +22,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import requests
 
-from app.research.gpcs import GraphProvenanceClaimScorer
+from app.research.gpcs import GraphProvenanceClaimScorer, call_llm
 from app.research.llm_settings import load_stored_llm_settings
 from app.services.embeddings import SentenceTransformerEmbedder
 
@@ -117,7 +117,7 @@ def _request_one_sample(
         "pod_name": scenario["target_entity"],
         "pod_status": "Failed",
         "namespace": "cloudgraph-system",
-        "error_logs": scenario["ground_truth_claims"],
+        "error_logs": scenario["observed_symptoms"],
         "evidence_context": [],
         "retrieval_context": {"results": retrieval_results or []},
         "llm_temperature": temperature,
@@ -256,17 +256,21 @@ def _cosine_similarity(a: List[float], b: List[float]) -> float:
     return sum(x * y for x, y in zip(a, b))
 
 
-def _generate_samples(  # pylint: disable=too-many-arguments
+def _generate_samples(
     scenario: Dict[str, Any],
     n_samples: int,
     temperature: float,
-    orch_addr: str,
-    request_logger: Optional[RequestLogger],
-    retrieval_results: Optional[List[Dict[str, Any]]] = None,
+    call_options: Dict[str, Any],
 ) -> List[Dict[str, Any]]:
     """Generate n_samples real RCA analyses, spacing calls out rather than
     bursting all n_samples * 6 calls back to back — same token-per-minute
-    rationale as the retry backoff in _generate_one_sample."""
+    rationale as the retry backoff in _generate_one_sample.
+
+    call_options holds orch_addr/request_logger/retrieval_results
+    together — the same rarely-all-set "advanced wiring" bundling
+    generate_and_score's own call_options param uses, so this stays under
+    the argument-count threshold.
+    """
     generations = []
     for i in range(n_samples):
         if i > 0:
@@ -275,9 +279,9 @@ def _generate_samples(  # pylint: disable=too-many-arguments
             _generate_one_sample(
                 scenario,
                 temperature,
-                orch_addr,
-                request_logger=request_logger,
-                retrieval_results=retrieval_results,
+                call_options["orch_addr"],
+                request_logger=call_options.get("request_logger"),
+                retrieval_results=call_options.get("retrieval_results"),
             )
         )
     return generations
@@ -324,13 +328,11 @@ def _score_claim_recurrence(
     return scored_claims, unsupported
 
 
-def generate_and_score(  # pylint: disable=too-many-arguments,too-many-locals
+def generate_and_score(
     scenario: Dict[str, Any],
     n_samples: int = DEFAULT_N_SAMPLES,
     temperature: float = DEFAULT_TEMPERATURE,
-    orch_addr: Optional[str] = None,
-    request_logger: Optional[RequestLogger] = None,
-    retrieval_results: Optional[List[Dict[str, Any]]] = None,
+    call_options: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Generate n_samples real RCA analyses for a scenario at elevated
     temperature and score self-consistency.
@@ -346,33 +348,34 @@ def generate_and_score(  # pylint: disable=too-many-arguments,too-many-locals
     text is split into the same claims by both methods, only the
     verification mechanism differs.
 
-    retrieval_results is None by default (the original Day-2 condition —
-    no retrieved evidence injected, agents reason from error_logs alone).
-    Passing Day 3's raw-context or ranked-hybrid retrieval results here
+    call_options holds the advanced/rarely-set wiring together —
+    orch_addr (defaults to AGENT_ORCHESTRATOR_URL), request_logger, and
+    retrieval_results (None by default — the original Day-2 condition, no
+    retrieved evidence injected, agents reason from error_logs alone;
+    passing Day 3's raw-context or ranked-hybrid retrieval results here
     runs the identical generation+scoring pipeline against a different
-    context condition — see app/research/report_runner.py.
+    context condition — see app/research/report_runner.py).
     """
     if n_samples < 2:
         raise ValueError("self-consistency requires at least 2 samples")
 
-    orch_addr = orch_addr or os.getenv(
+    call_options = call_options or {}
+    orch_addr = call_options.get("orch_addr") or os.getenv(
         "AGENT_ORCHESTRATOR_URL", "http://localhost:8082"
     )
     llm_settings = load_stored_llm_settings()
-    scorer = GraphProvenanceClaimScorer(
-        llm_provider=llm_settings.get("provider") or "",
-        llm_api_key=llm_settings.get("api_key") or "",
-        llm_model=llm_settings.get("model") or "",
-    )
+    scorer = GraphProvenanceClaimScorer(llm_settings=llm_settings)
     embedder = SentenceTransformerEmbedder()
 
     generations = _generate_samples(
         scenario,
         n_samples,
         temperature,
-        orch_addr,
-        request_logger,
-        retrieval_results=retrieval_results,
+        {
+            "orch_addr": orch_addr,
+            "request_logger": call_options.get("request_logger"),
+            "retrieval_results": call_options.get("retrieval_results"),
+        },
     )
 
     claims_per_generation = [scorer.extract_claims(g) for g in generations]
@@ -394,4 +397,198 @@ def generate_and_score(  # pylint: disable=too-many-arguments,too-many-locals
         "n_samples": n_samples,
         "temperature": temperature,
         "generations": generations,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Matched-compute control (research/NOVEL_CONTRIBUTIONS.md Contribution 5,
+# 7_DAY_SPRINT_CHECKLIST.md Day 4): "self-consistency ensemble of a single
+# LLM at matched call-count" — one direct LLM call given the same evidence
+# the real orchestrator's specialists would see, with none of the 5-agent
+# specialization or consensus voting. Sampled DEFAULT_MATCHED_COMPUTE_
+# SAMPLES times (matching the real system's ~5-6 calls/scenario) and
+# self-consistency-scored the same way as generate_and_score above, so the
+# two arms are comparable except for the one variable this control isolates
+# — architecture (5 specialists + consensus) vs. raw compute (N independent
+# single-LLM samples).
+# ---------------------------------------------------------------------------
+
+DEFAULT_MATCHED_COMPUTE_SAMPLES = 5
+
+
+def _build_single_llm_prompt(
+    scenario: Dict[str, Any], retrieval_text: str
+) -> Tuple[str, str]:
+    """Same task the real ConsensusEngine performs (produce title/summary/
+    cause from telemetry), but as one direct call with no specialist
+    agents in between — this is the isolated variable for the control."""
+    evidence_section = (
+        f"\n\nRetrieved evidence:\n{retrieval_text}" if retrieval_text else ""
+    )
+    prompt = (
+        f"You are investigating an incident affecting pod "
+        f"'{scenario['target_entity']}' (status: Failed).\n\n"
+        f"Observed symptoms:\n"
+        f"{scenario['observed_symptoms']}"
+        f"{evidence_section}\n\n"
+        f"Determine the root cause. Your response MUST be a JSON object "
+        f"with fields:\n"
+        f"- 'title': A short title (e.g. 'OOM Killed on billing-service').\n"
+        f"- 'summary': A high-level description of impact.\n"
+        f"- 'cause': A detailed explanation of the root cause.\n"
+    )
+    system_prompt = (
+        "You are an expert AIOps incident investigator working alone, "
+        "with no other agents to consult. You output strictly JSON."
+    )
+    return prompt, system_prompt
+
+
+def _generate_one_llm_only_sample(
+    scenario: Dict[str, Any],
+    temperature: float,
+    llm_settings: Dict[str, Any],
+    retrieval_text: str,
+    request_logger: Optional[RequestLogger] = None,
+) -> Dict[str, Any]:
+    """One direct call_llm() invocation — no orchestrator, no specialists.
+
+    Retries transient failures the same way _generate_one_sample does
+    (call_llm's own contract is "never raise," so a None return here means
+    a real failure — missing key, unreachable provider, malformed
+    response — not a signal to fabricate a result).
+    """
+    prompt, system_prompt = _build_single_llm_prompt(scenario, retrieval_text)
+    last_error: Optional[str] = None
+    for attempt in range(1, MAX_ATTEMPTS_PER_SAMPLE + 1):
+        llm_res = call_llm(
+            prompt, system_prompt, llm_settings=llm_settings, temperature=temperature
+        )
+        if request_logger is not None:
+            request_logger(
+                {
+                    "timestamp": datetime.datetime.now(
+                        datetime.timezone.utc
+                    ).isoformat(),
+                    "scenario_id": scenario["id"],
+                    "request": {
+                        "provider": llm_settings.get("provider"),
+                        "model": llm_settings.get("model"),
+                        "temperature": temperature,
+                        "prompt": prompt,
+                    },
+                    "response": llm_res,
+                    "error": None if llm_res else "call_llm returned None",
+                }
+            )
+        if llm_res and all(k in llm_res for k in ("title", "summary", "cause")):
+            return {
+                "title": str(llm_res["title"]),
+                "summary": str(llm_res["summary"]),
+                "cause": str(llm_res["cause"]),
+                "generation_source": "llm",
+            }
+        last_error = "call_llm returned None or an incomplete response"
+        logger.warning(
+            "Single-LLM sample attempt %d/%d failed for scenario '%s': %s",
+            attempt,
+            MAX_ATTEMPTS_PER_SAMPLE,
+            scenario["id"],
+            last_error,
+        )
+        if attempt < MAX_ATTEMPTS_PER_SAMPLE:
+            time.sleep(RETRY_BACKOFF_SECONDS * attempt)
+    raise SelfConsistencyUnavailableError(
+        f"all attempts failed for scenario '{scenario['id']}': {last_error}"
+    )
+
+
+def _generate_llm_only_samples(
+    scenario: Dict[str, Any],
+    generation_config: Dict[str, Any],
+    request_logger: Optional[RequestLogger],
+) -> List[Dict[str, Any]]:
+    """Generate generation_config["n_samples"] independent direct
+    generations, spacing calls out the same way _generate_samples does for
+    the orchestrator-based path.
+
+    generation_config holds n_samples/temperature/llm_settings/
+    retrieval_text together — the same per-call-site bundling call_llm's
+    llm_settings dict uses, so this stays under the argument-count
+    threshold without losing any of the four fields each sample needs.
+    """
+    generations = []
+    for i in range(generation_config["n_samples"]):
+        if i > 0:
+            time.sleep(INTER_SAMPLE_DELAY_SECONDS)
+        generations.append(
+            _generate_one_llm_only_sample(
+                scenario,
+                generation_config["temperature"],
+                generation_config["llm_settings"],
+                generation_config["retrieval_text"],
+                request_logger=request_logger,
+            )
+        )
+    return generations
+
+
+def generate_and_score_single_llm(
+    scenario: Dict[str, Any],
+    n_samples: int = DEFAULT_MATCHED_COMPUTE_SAMPLES,
+    temperature: float = DEFAULT_TEMPERATURE,
+    request_logger: Optional[RequestLogger] = None,
+    retrieval_text: str = "",
+) -> Dict[str, Any]:
+    """The matched-compute control's "single LLM" arm: n_samples independent
+    direct generations (no specialist orchestration), self-consistency-
+    scored identically to generate_and_score so the two arms differ only in
+    architecture, not in how "unsupported" is measured.
+
+    retrieval_text should come from whatever context condition the real
+    5-agent baseline being compared against used (see
+    scripts/run_matched_compute_control.py, which formats it via
+    extract_text_from_results before calling here) — otherwise a
+    difference in input evidence, not architecture, would explain any gap.
+    """
+    if n_samples < 2:
+        raise ValueError("self-consistency requires at least 2 samples")
+
+    llm_settings = load_stored_llm_settings()
+    scorer = GraphProvenanceClaimScorer(
+        llm_settings=llm_settings,
+    )
+    embedder = SentenceTransformerEmbedder()
+
+    generations = _generate_llm_only_samples(
+        scenario,
+        {
+            "n_samples": n_samples,
+            "temperature": temperature,
+            "llm_settings": llm_settings,
+            "retrieval_text": retrieval_text,
+        },
+        request_logger,
+    )
+
+    claims_per_generation = [scorer.extract_claims(g) for g in generations]
+    primary_claims = claims_per_generation[0]
+    other_embeddings = [
+        [embedder.embed(c["text"]) for c in claims]
+        for claims in claims_per_generation[1:]
+    ]
+
+    scored_claims, unsupported = _score_claim_recurrence(
+        primary_claims, other_embeddings, embedder
+    )
+
+    total = len(scored_claims)
+    return {
+        "unsupported_claim_rate": round(unsupported / total, 3) if total else None,
+        "claim_count": total,
+        "claims": scored_claims,
+        "n_samples": n_samples,
+        "temperature": temperature,
+        "generations": generations,
+        "llm_call_count": n_samples,
     }

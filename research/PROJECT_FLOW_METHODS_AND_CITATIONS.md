@@ -1,8 +1,8 @@
 # CloudGraph — full pipeline, methods, citations, and contributions
 
 Green = your contribution. Blue = borrowed/cited technique. Amber dashed =
-not done yet. See `research/PROJECT_CONTRIBUTION_AND_ROADMAP.md` for the
-full written explanation this diagram summarizes.
+not done yet. See `research/NOVEL_CONTRIBUTIONS.md` for the full written
+explanation this diagram summarizes.
 
 ```mermaid
 flowchart TD

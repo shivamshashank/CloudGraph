@@ -80,7 +80,7 @@ This document specifies the target architecture once CloudGraph is repositioned 
 | Orchestration Mode C (single LLM, all evidence) | **New, small** | Matched-evidence control for RQ3 |
 | Orchestration Mode D (self-consistency ensemble) | **New, small** | Matched-compute control for RQ3/RQ5 — reuses `call_llm` at higher temperature, no new infra |
 | GCP + weight-fitting | Existing algorithm, **new fitting procedure** | Required for Contribution 4; fitting is a small supervised step (logistic regression or grid search over `EDGE_WEIGHTS`/`decay_factor` against labeled root causes) |
-| GPCS + self-consistency baseline | Existing algorithm, **new baseline** | Required for Contribution 2 / RQ1; the design doc (`HALLUCINATION_SCORING_DESIGN.md`) already specifies this exactly, it only needs implementing |
+| GPCS + self-consistency baseline | Existing algorithm, **new baseline** | Required for Contribution 2 / RQ1; the design doc (`docs/design/GPCS_DESIGN.md`) already specifies this exactly, it only needs implementing |
 | Evaluation Harness | **New, highest priority** | Replaces the simulated benchmark; the single blocking deliverable for every other line in this table |
 
 ## 3. Data flow for a single experimental run

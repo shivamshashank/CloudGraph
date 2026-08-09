@@ -1,0 +1,559 @@
+% !!! STALE — DO NOT COMPILE FOR SUBMISSION !!!
+% Every result number in this file was computed from a benchmark pipeline
+% confirmed to leak ground_truth_claims into error_logs
+% (self_consistency.py:120, evaluation.py:334) and into the seeded
+% Neo4j/Qdrant evidence itself (seeding.py), uniformly across all three
+% context conditions. Do not build submission.zip from this file until
+% the fix roadmap completes and every number here has been replaced from
+% a re-run on corrected data.
+\documentclass{article}
+
+% Use numeric citations (matches the plain \bibitem entries below, which
+% have no author-year optional label).
+\PassOptionsToPackage{numbers}{natbib}
+
+% Submission-time options: double-blind workshop review, no "final".
+\usepackage[dblblindworkshop]{neurips_2026}
+\workshoptitle{Who Verifies the Agents?}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{nicefrac}
+\usepackage{microtype}
+\usepackage{xcolor}
+\usepackage{graphicx}
+
+\title{Does More Agents Mean More Verification? A Matched-Compute Study of
+Multi-Agent Hallucination and Graph-Grounded Claim Verification}
+
+\author{%
+  Anonymous Author(s) \\
+  Anonymous Institution \\
+  \texttt{anonymous@example.com} \\
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Multi-agent LLM systems are increasingly deployed for real-world diagnostic
+tasks, on the implicit assumption that decomposing a problem across
+specialist agents improves both accuracy and trustworthiness. We test this
+assumption on a real (non-simulated) multi-agent root-cause-analysis (RCA)
+system built over a live Kubernetes knowledge graph, and introduce
+Graph-Provenance Claim Scoring (GPCS), an evidence-grounded verification
+mechanism that scores each atomic claim in a generated report by its
+semantic and graph-topological proximity to retrieved evidence, contrasted
+against a self-consistency baseline. Across 25 real incident scenarios we
+find: (1) GPCS and self-consistency disagree on 36\% of claims, indicating
+the two verification signals have materially different blind spots rather
+than being redundant; (2) structured, ranked retrieval measurably
+outperforms both no-context and unranked raw-context conditions; and (3),
+most importantly for verifying multi-agent systems specifically, a
+matched-compute control shows the real 5-specialist-agent architecture is
+\emph{more} hallucination-prone than a single LLM sampled the same number
+of times (44.2\% vs.\ 31.5\% unsupported-claim rate, paired 95\% CI
+$[+0.053, +0.201]$, Wilcoxon $p=0.0018$) --- a statistically significant
+negative result. We argue this demonstrates that verifying multi-agent
+systems requires scrutinizing the aggregation step itself, not just the
+individual agents, and that no single verification signal available to us
+caught this failure mode in isolation.
+\end{abstract}
+
+\section{Introduction}
+\label{sec:intro}
+
+Multi-agent LLM architectures are being deployed for increasingly
+consequential, real-world tasks --- code review, financial analysis,
+infrastructure incident response --- under the assumption, often implicit
+and rarely tested against a compute-matched control, that decomposing a
+task across specialist agents with a consensus step improves both accuracy
+and trustworthiness over a single model call. Separately, a growing body
+of work asks how such systems should be \emph{verified}: current
+evaluation practice largely tests isolated models rather than interactive,
+multi-agent settings, and even the auditing mechanisms proposed for
+agentic systems can themselves be corrupted or miscalibrated, since they
+are frequently themselves LLM-based agents subject to the same failure
+modes they are meant to detect~\citep{aigi2026,anthropic2026}.
+
+This paper reports on a real, deployed multi-agent system --- which we
+refer to as the \emph{RCA system} throughout to preserve anonymity --- a
+GraphRAG-powered root-cause-analysis platform for Kubernetes incidents,
+built and evaluated not as a simulation but against live infrastructure
+telemetry, a real knowledge graph, and real LLM calls throughout. We use
+it as a testbed for two questions directly relevant to verifying agentic
+systems:
+
+\textbf{RQ1 (verifying claims).} Given a generated diagnostic report, does
+an evidence-grounded verification signal (GPCS) agree with a purely
+behavioral one (self-consistency across resampled generations), or do
+they catch different failures? If they diverge substantially, relying on
+either one alone under-verifies the system.
+
+\textbf{RQ2 (verifying architecture).} Does a real multi-agent
+architecture (five specialist agents plus a consensus step) actually
+reduce hallucination relative to a matched-compute single-LLM baseline, or
+does the added structure introduce new, unverified failure surface ---
+specifically, an unaudited aggregation step where a single weak
+specialist's error can be woven into the final consensus without
+correction?
+
+We report both as measured, including where the results are unflattering
+to the system we built: the real 5-agent architecture is significantly
+worse than its own matched-compute single-LLM baseline on this benchmark.
+We believe this negative result is itself the paper's main contribution to
+the ``who verifies the agents'' question --- it is direct empirical
+evidence that adding agents is not verification-neutral, and that the
+aggregation step of a multi-agent system needs to be an explicit object of
+verification, not an assumed-safe glue layer.
+
+\textbf{Contributions.}
+\begin{enumerate}
+    \item GPCS, an evidence-grounded claim-verification mechanism for
+    graph-backed RAG systems, contrasted head-to-head against a
+    self-consistency baseline on the same 1{,}685 scored claims
+    (Sections~\ref{sec:system},~\ref{sec:results-rq1}).
+    \item A controlled, three-condition retrieval ablation (no context /
+    unranked raw context / ranked GraphRAG context) isolating whether
+    structured retrieval earns its complexity for claim grounding
+    (Section~\ref{sec:results-retrieval}).
+    \item A matched-compute control isolating whether a real multi-agent
+    architecture's benefit (if any) comes from genuine multi-agent
+    structure or is confounded with simply making more LLM calls --- with
+    a negative result reported as measured
+    (Section~\ref{sec:results-matched-compute}).
+    \item All results are from a real, non-simulated system: real
+    Kubernetes telemetry, a real Neo4j/Qdrant-backed knowledge graph, and
+    real LLM API calls logged end-to-end, not a synthetic or
+    offline-replay benchmark.
+\end{enumerate}
+
+\section{Related Work}
+\label{sec:related}
+
+\textbf{GraphRAG and structured retrieval.} GraphRAG~\citep{edge2024} and
+follow-on work typically assume a static, once-built graph over a fixed
+document corpus. Our setting differs in that the graph is continuously
+mutating operational telemetry, and retrieval already incorporates a
+temporal-window constraint and recency-decay term not present in the
+canonical formulation. We do not centre this distinction in the present
+paper --- it is out of scope for a verification-focused workshop --- but
+note it as context for why our retrieval ablation
+(Section~\ref{sec:results-retrieval}) is a live-system comparison, not a
+replay over a fixed corpus.
+
+\textbf{Hallucination detection.} The dominant self-consistency
+family~\citep{wang2023}, sample repeatedly and flag claims that do not
+recur, is model-internal and domain-agnostic. GPCS is evidence-grounded
+rather than model-internal, and specific to settings --- like ours ---
+where a structured evidence graph already exists as a byproduct of the
+system rather than as an added verification cost. We are not aware of
+prior work directly comparing an evidence-grounded and a
+self-consistency-based verifier head-to-head on the same claim set with
+paired statistical testing, which is the comparison
+Section~\ref{sec:results-rq1} provides.
+
+\textbf{Multi-agent LLM systems and matched-compute controls.} Surveys of
+multi-agent LLM systems~\citep{guo2024} note that few papers claiming a
+multi-agent benefit control for the ``more LLM calls = better'' confound.
+Application papers claiming multi-agent benefits in operational domains in
+particular rarely compare against a matched-compute single-agent or
+ensemble baseline. Our matched-compute control
+(Section~\ref{sec:results-matched-compute}) is a direct, real-system
+instance of this missing comparison.
+
+\textbf{Verifying agentic systems.} Current evaluation practice for
+agentic systems is reported to concentrate on isolated-model benchmarks,
+with interactive multi-agent evaluation ``underdeveloped''~\citep{aigi2026}.
+Separately, recent work on agentic misalignment has surfaced a specific
+failure mode directly relevant to this paper: an auditing agent can
+itself produce a corrupted evaluation, e.g.\ by sharing the objection of
+the agent it is meant to be auditing and declining to flag
+it~\citep{anthropic2026}. Our matched-compute result is an instance of the
+same underlying concern from a different angle --- not an auditor being
+corrupted, but a \emph{consensus} step compounding rather than correcting
+specialist error, which is invisible unless a matched-compute control is
+explicitly run.
+
+\section{System}
+\label{sec:system}
+
+The RCA system ingests Kubernetes telemetry (pod/deployment/node state,
+logs, metrics, events) into a Neo4j property graph, indexes evidence
+documents in Qdrant for dense retrieval, and answers incident-investigation
+queries via three retrieval modes: keyword (lexical), vector (dense
+semantic), and hybrid (vector similarity + graph hop-proximity + recency
+decay, i.e.\ GraphRAG). Investigation requests are handled by five
+LLM-backed specialist agents (monitoring, logs, deployment, topology,
+security), each producing an independent finding, combined by a
+static-weight consensus engine into a single report (title, cause,
+recommendation, severity, evidence). This multi-agent architecture and the
+claim-verification mechanisms described below are, together, the core
+method of this paper: the LLM specialists, the LLM-based claim extractor,
+and the self-consistency sampler are non-standard, original components of
+the approach, not incidental implementation choices.
+
+\subsection{Graph-Provenance Claim Scoring (GPCS)}
+\label{sec:gpcs}
+
+Given a generated report, GPCS: (A) extracts atomic factual claims via a
+structured-output LLM call, typed as \texttt{temporal}, \texttt{causal},
+\texttt{entity\_relationship}, or \texttt{state}; (B) for each claim,
+retrieves candidate supporting evidence via semantic search over the claim
+embedding and graph traversal seeded from any named entities in the
+claim; (C) scores each claim as
+\begin{multline}
+    \text{trust\_score} = w_1 \cdot \text{semantic\_alignment}
+    + w_2 \cdot \text{graph\_proximity} \\
+    + w_3 \cdot \text{source\_reliability}
+    - w_4 \cdot \text{path\_length\_penalty},
+    \label{eq:gpcs}
+\end{multline}
+where \text{semantic\_alignment} is cosine similarity to the
+best-matching evidence embedding, $\text{graph\_proximity} =
+1/(1+\text{hop\_distance})$, \text{source\_reliability} is a fixed
+per-evidence-type weight (metric/event readings weighted above free-text
+logs), and \text{path\_length\_penalty} --- the one component with no
+analogue in the system's existing retrieval-ranking formula --- discounts
+claims resting on long inferential chains even when the final hop is a
+strong match. Claims scoring below a calibrated threshold (semantic-floor
+calibrated at 0.30 against live query score distributions, distinguishing
+vague claims topping out at 0.16--0.30 from genuine matches at
+0.33--0.87) are labeled unsupported. (D) Report-level
+\texttt{unsupported\_claim\_rate} is aggregated overall and by claim type.
+
+\subsection{Self-consistency baseline}
+\label{sec:selfconsistency}
+
+For the same incident, the system generates 3 samples at elevated
+temperature, extracts claims from each identically to GPCS Step A, and
+flags a claim from the primary generation as unsupported if it does not
+recur (by semantic match) across the other samples. This is model-internal
+and requires no evidence graph, making it the natural behavioral-signal
+contrast to GPCS's evidence-grounded signal.
+
+\section{Experimental Setup}
+\label{sec:setup}
+
+\textbf{Benchmark.} 25 real incident scenarios spanning 5 categories
+(Kubernetes, networking, security, deployment, observability), each with
+ground-truth expected evidence tags, seeded into a live cluster and graph.
+
+\textbf{Conditions.} Each scenario is run under 3 retrieval-context
+conditions --- \texttt{none} (agents reason from raw error logs alone, no
+retrieval), \texttt{raw} (every seeded evidence item, concatenated,
+unranked), and \texttt{hybrid} (GraphRAG's own ranked retrieval) --- giving
+75 (scenario $\times$ condition) generation-and-scoring passes.
+
+\textbf{Matched-compute control.} For the multi-agent-vs-single-LLM
+comparison (Section~\ref{sec:results-matched-compute}), the \emph{same}
+hybrid-retrieved evidence is given to two arms per scenario: the real
+5-agent-plus-consensus system (6 LLM calls: 5 specialists + 1 consensus),
+and a single LLM given the same evidence, sampled 5 times and
+self-consistency-checked (5 LLM calls), with the primary sample's claims
+scored by the identical GPCS instance used for the agent arm --- the
+verification method is held constant, only generation architecture and
+call count vary (150 vs.\ 125 total calls across 25 scenarios --- close,
+not identical; we report this gap rather than claim exact parity).
+
+\textbf{Statistics.} All headline deltas are evaluated with paired
+bootstrap confidence intervals (10{,}000 resamples, seed=42) and the
+Wilcoxon signed-rank test, computed per-scenario (or per
+scenario$\times$condition pair) to respect the paired structure of the
+design, given the small sample ($n=25$ scenarios; $n=75$ for the pooled
+scenario$\times$condition comparison).
+
+\textbf{Provenance.} Every LLM request/response for this run is logged
+end-to-end (credentials redacted); this is a live-system run, not a replay
+over cached model outputs.
+
+\section{Results}
+\label{sec:results}
+
+\subsection{GPCS vs.\ self-consistency: divergent verification signals (RQ1)}
+\label{sec:results-rq1}
+
+Across all 75 scenario$\times$condition passes, 1{,}777 claims were
+extracted; GPCS scored 1{,}685 of them (94.8\% --- the remainder is a
+known claim-segmentation mismatch between two independent extraction
+calls, not a correctness bug, discussed in Section~\ref{sec:limitations}).
+Overall agreement between GPCS and self-consistency: \textbf{1{,}079/1{,}685
+(64.0\%)}.
+
+The two methods are not simply redundant. GPCS flags 43.7\% of claims as
+unsupported; self-consistency flags 51.5\% --- self-consistency is the
+stricter signal, with median recurrence rate of 0.0 (more than half of all
+claims never recur verbatim across 3 samples at all). GPCS is more
+lenient: any claim clearing the $\sim$0.30 semantic-relevance floor with
+reasonable graph proximity passes, regardless of whether it happens to
+recur across samples. Of the 606 cases where the two methods disagree,
+60.9\% are GPCS-supported-but-self-consistency-unsupported, and 39.1\% the
+reverse --- each method independently catches cases the other misses, in
+both directions, not just one.
+
+Paired bootstrap over all 75 groups: mean delta $-0.087$, 95\% CI
+$[-0.119, -0.055]$ (excludes zero), Wilcoxon $p\approx0.0000$ --- the
+divergence is statistically robust, not sampling noise.
+
+By claim type, agreement clusters at 63--65\% for
+causal/entity-relationship/state claims, reaches 76.9\% for temporal
+claims ($n=26$, small sample), and is lowest, 60.4\%, for \texttt{general}
+process-commentary claims (e.g.\ ``the finding is inconclusive''), which
+are inherently hardest to ground since they concern the investigation
+process itself rather than a checkable fact.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.48\linewidth]{figures/unsupported_rate_by_claim_type.png}
+    \hfill
+    \includegraphics[width=0.48\linewidth]{figures/agreement_heatmap.png}
+    \caption{Left: GPCS vs.\ self-consistency unsupported-claim rate by
+    claim type. Right: agreement/disagreement cross-tabulation. Neither
+    signal dominates the other across claim types.}
+    \label{fig:claimtype-heatmap}
+\end{figure}
+
+\textbf{Implication for verification design.} Neither signal dominates. A
+system relying on only one --- the common case in current practice ---
+will silently miss a substantial fraction, comparable in size to what it
+catches, of the failures the other signal would flag.
+
+\subsection{Structured retrieval earns its complexity for claim grounding (RQ1, supporting)}
+\label{sec:results-retrieval}
+
+\begin{table}[t]
+    \centering
+    \caption{Retrieval-context ablation. \texttt{hybrid} wins on every
+    column; \texttt{raw} is worst on every column, including agreement
+    with self-consistency (SC) --- worse than no retrieved context at all.}
+    \label{tab:context-ablation}
+    \small
+    \setlength{\tabcolsep}{4.5pt}
+    \begin{tabular}{lrrrr}
+        \toprule
+        Context condition & $n$ claims & GPCS/SC agree & GPCS unsupp. & SC unsupp. \\
+        \midrule
+        \texttt{hybrid} (ranked GraphRAG) & 578 & \textbf{66.1\%} & \textbf{42.0\%} & \textbf{47.9\%} \\
+        \texttt{none} (no context)        & 550 & 65.1\%          & 42.5\%          & 54.5\%          \\
+        \texttt{raw} (unranked dump)      & 557 & 60.9\%          & 46.5\%          & 52.2\%          \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+Table~\ref{tab:context-ablation} shows unranked evidence is not neutral,
+it is actively harmful: more raw material gives the generator more
+surface area to produce claims that sound evidence-backed without being
+tied to the actually-relevant evidence.
+
+The paired, per-scenario hybrid-vs-raw delta does not reach significance
+at $n=25$ (mean $+0.050$, 95\% CI $[-0.017, +0.114]$, Wilcoxon $p=0.15$)
+--- we report the direction as real and measured but the magnitude as not
+yet statistically settled. A separate, purely retrieval-quality metric
+(tag recall, not claim-level grounding) does reach significance: hybrid
+vs.\ keyword tag-recall delta $+0.150$, 95\% CI $[+0.060, +0.240]$,
+$p=0.0055$ (Figure~\ref{fig:recall}).
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.55\linewidth]{figures/retrieval_recall.png}
+    \caption{Tag recall by retrieval method, with 95\% bootstrap CI error
+    bars.}
+    \label{fig:recall}
+\end{figure}
+
+\subsection{Matched-compute control: a negative result for multi-agent architecture (RQ2 --- main finding)}
+\label{sec:results-matched-compute}
+
+\begin{table}[t]
+    \centering
+    \caption{Matched-compute control: real 5-agent consensus system vs.\ a
+    single LLM sampled the same evidence 5 times. The single-LLM baseline
+    is \emph{less} hallucination-prone despite fewer LLM calls.}
+    \label{tab:matched-compute}
+    \small
+    \setlength{\tabcolsep}{4.5pt}
+    \begin{tabular}{lrrr}
+        \toprule
+        Arm & LLM calls (25 scenarios) & Mean unsupp. rate & Median \\
+        \midrule
+        Real 5-agent consensus                   & 150 ($6\times25$) & \textbf{44.2\%} & 44.4\% \\
+        Single-LLM (5-sample self-consistency)    & 125 ($5\times25$) & \textbf{31.5\%} & 31.2\% \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+The single-LLM baseline had a \emph{lower} hallucination rate in
+\textbf{19 of 25 scenarios} (agents won in 6, no ties). Paired
+per-scenario delta (agents $-$ single-LLM): mean $+0.127$, 95\% CI
+$[+0.053, +0.201]$ (excludes zero), Wilcoxon $p=0.0018$ --- significant,
+not sampling noise.
+
+On this benchmark, the 5-specialist-agent architecture does not earn its
+complexity over a matched-compute single-LLM baseline --- it is measurably
+more hallucination-prone, not less. We report this as measured, per our
+own guardrail against adjusting the evaluation harness to flatter the
+system we built.
+
+A plausible, not yet confirmed, mechanism: the five specialists report
+independently and are combined by a static-weight consensus vote with no
+cross-agent critique or correction step. A single low-confidence or
+mistaken specialist finding can be woven into the final narrative without
+being caught or revised. The single-LLM baseline has no such aggregation
+step to introduce compounding error --- it reasons over the same evidence
+once, directly. This is, we argue, exactly the kind of failure mode
+``verifying the agents'' needs to target: not the individual specialist
+calls, which are individually unremarkable, but the \emph{aggregation
+step}, which is where the architecture's own untested assumption (that
+combining specialists helps) breaks down.
+
+We note two limitations on this comparison specifically (see
+Section~\ref{sec:limitations} for the full list): call counts are close
+but not identical (150 vs.\ 125, a small residual compute advantage for
+the single-LLM arm that does not plausibly explain a 12.7-point gap), and
+claim-count asymmetry between arms was not separately controlled for in
+this pass.
+
+\subsection{Neuro-symbolic retrieval ablation}
+\label{sec:results-neurosymbolic}
+
+Re-framing the three retrieval modes by symbolic/neural character
+(keyword = symbolic, vector = neural, hybrid = neuro-symbolic),
+retrieval-quality scores (does the method surface $\geq$50\% of a
+scenario's expected evidence tags) are near-ceiling for all three (vector
+25/25, keyword 24/25, hybrid 24/25) --- hybrid does not clearly beat
+either half on this metric, a result we report plainly rather than adjust
+for. The qualitative pattern is more informative than the aggregate:
+keyword's misses concentrate on paraphrased or synonym-shifted concepts
+(e.g.\ missing ``memory;killed'' when the evidence says ``OOMKilled''
+verbatim); vector generalizes past these but still struggles with
+numeric/status-code-style tags (e.g.\ \texttt{http\_429}); hybrid does not
+clearly correct keyword's specific misses, plausibly because its
+recency-decay term can suppress otherwise-relevant older evidence. With
+$n=25$ and only one scenario failing the retrieval-quality bar outright,
+this is a suggestive pattern for a larger-sample follow-up, not a settled
+finding.
+
+\section{Limitations}
+\label{sec:limitations}
+
+\begin{itemize}
+    \item \textbf{$n=25$ scenarios.} Every interval above is
+    correspondingly wide; treat point estimates (e.g.\ ``44.2\% vs.\
+    31.5\%'') as approximate even where the direction is statistically
+    significant.
+    \item \textbf{Single LLM provider} across all conditions in this run;
+    cross-provider replication is future work.
+    \item \textbf{5.2\% of claims lack a GPCS score} due to independent
+    claim segmentation between two separate extraction calls
+    (self-consistency's and GPCS's) at nonzero sampling temperature ---
+    excluded from the joined agreement count, not miscounted, but
+    shrinking the effective sample.
+    \item \textbf{Matched-compute call counts are close, not identical}
+    (150 vs.\ 125); we report the gap rather than claim exact parity.
+    \item \textbf{GPCS's own verification is intentionally narrow} --- it
+    asks whether a claim is supported by the specific evidence the system
+    retrieved, not whether it is true in any general sense. This is a
+    deliberate scope choice (Section~\ref{sec:gpcs}) but is itself a
+    limitation on how far ``verified by GPCS'' can be read as ``verified,
+    full stop'' --- directly relevant to a workshop on verifying agents,
+    since GPCS is itself an imperfect verifier with its own known blind
+    spot (Section~\ref{sec:results-rq1}'s 36\% disagreement rate with an
+    independent signal is direct evidence of this).
+\end{itemize}
+
+\section{Discussion: implications for ``who verifies the agents''}
+\label{sec:discussion}
+
+Two results in this paper speak directly to the workshop's central
+question. First, two independent, reasonable verification signals for the
+same claims disagree more than a third of the time --- verifying an
+agentic system's outputs with only one signal available today leaves a
+comparably-sized blind spot, whichever one is chosen. Second, and more
+consequentially, a real multi-agent architecture that was assumed, by its
+own designers, prior to this control, to be more trustworthy than a
+single model turned out, under a fair matched-compute comparison, to be
+significantly \emph{less} trustworthy --- and no per-agent inspection
+would have surfaced this, since each specialist's individual output is
+unremarkable; the failure is emergent in the aggregation step. We think
+this is a concrete, empirical argument that verifying multi-agent systems
+cannot stop at verifying the agents' individual outputs or even the final
+report's claims --- it has to include a matched-compute, architecture-level
+check of whether the multi-agent structure itself is earning its
+complexity, run as a standard part of evaluating any such system before
+deployment.
+
+\textbf{Broader impacts.} A more reliable, evidence-grounded verification
+layer for automated incident-response tooling has a direct positive
+application: fewer unverified, plausible-sounding but ungrounded claims
+reaching an on-call engineer who must act on them quickly. The main risk
+this work highlights is the opposite failure: over-trusting an imperfect
+verifier (Section~\ref{sec:limitations}) or an unaudited multi-agent
+consensus step in a high-stakes production setting, which is precisely
+the failure mode our matched-compute result demonstrates can happen
+silently. We see this as an argument for routinely running matched-compute
+and multi-signal verification controls before deploying agentic tooling
+in consequential settings, not a reason to avoid such tooling altogether.
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+We presented a real, deployed multi-agent RCA system, an evidence-grounded
+claim verifier (GPCS) contrasted against a self-consistency baseline, and
+--- the paper's central empirical contribution --- a matched-compute
+control showing that adding agents made this particular system measurably
+more hallucination-prone, not less. We report this as a genuine negative
+result, consistent with treating honest measurement as the actual
+deliverable of this line of work rather than a system-promotion exercise.
+We hope both the method (matched-compute controls as a standard
+verification tool for multi-agent claims) and the finding (aggregation,
+not just agent quality, needs verification) are useful to the broader
+question this workshop is organized around.
+
+\bibliographystyle{plain}
+\begin{thebibliography}{9}
+
+\bibitem{edge2024}
+Darren Edge, Ha Trinh, Newman Cheng, Joshua Bradley, Alex Chao, Apurva
+Mody, Steven Truitt, and Jonathan Larson.
+\newblock From local to global: A graph {RAG} approach to query-focused
+summarization.
+\newblock \emph{arXiv preprint arXiv:2404.16130}, 2024.
+
+\bibitem{wang2023}
+Xuezhi Wang, Jason Wei, Dale Schuurmans, Quoc Le, Ed Chi, Sharan Narang,
+Aakanksha Chowdhery, and Denny Zhou.
+\newblock Self-consistency improves chain of thought reasoning in language
+models.
+\newblock \emph{International Conference on Learning Representations
+(ICLR)}, 2023. arXiv:2203.11171.
+
+\bibitem{guo2024}
+Taicheng Guo, Xiuying Chen, Yaqi Wang, Ruidi Chang, Shichao Pei, Nitesh~V.
+Chawla, Olaf Wiest, and Xiangliang Zhang.
+\newblock Large language model based multi-agents: A survey of progress
+and challenges.
+\newblock \emph{International Joint Conference on Artificial Intelligence
+(IJCAI)}, 2024. arXiv:2402.01680.
+
+\bibitem{aigi2026}
+Oxford Martin AI Governance Institute.
+\newblock Open problems in frontier {AI} risk management.
+\newblock 2026.
+
+\bibitem{anthropic2026}
+Anthropic Alignment Science.
+\newblock Agentic misalignment in summer 2026.
+\newblock \emph{Alignment Science Blog}, 2026.
+
+\end{thebibliography}
+
+\newpage
+\input{checklist.tex}
+
+\end{document}

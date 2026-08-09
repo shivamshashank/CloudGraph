@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 from neo4j.exceptions import Neo4jError, ServiceUnavailable
 from app.database.neo4j_client import neo4j_client
-from app.demo.benchmark_dataset import BENCHMARK_GROUND_TRUTH_SCENARIOS
+from app.demo.datasets import load_scenarios
 from app.demo.seeding import seed_scenario_data, teardown_benchmark_data
 from app.research.evaluation import evaluate_scenario
 
@@ -320,7 +320,7 @@ def run_benchmark():
 
     execution_logs: List[str] = []
 
-    scenarios = BENCHMARK_GROUND_TRUTH_SCENARIOS
+    scenarios = load_scenarios()
     _log_benchmark_step(
         execution_logs, "INFO", "Initializing dynamic benchmark evaluation engine..."
     )

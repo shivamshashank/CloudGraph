@@ -68,6 +68,7 @@ repos:
     rev: v3.2.5
     hooks:
       - id: pylint
+        language_version: python3.11
         args:
           - --init-hook=import sys; sys.path.extend(['services/api', 'services/agent-orchestrator', 'services/investigation-engine'])
           - --max-line-length=88
@@ -84,6 +85,8 @@ repos:
           - sentence-transformers
           - httpx
           - pandas
+          - numpy==2.4.6
+          - matplotlib==3.11.1
 
   # ===================================================================
   # HTML, CSS, JS
@@ -125,7 +128,7 @@ repos:
     hooks:
       - id: shellcheck
         name: shellcheck
-        entry: shellcheck
+        entry: shellcheck -x
         language: system
         types: [shell]
         pass_filenames: true

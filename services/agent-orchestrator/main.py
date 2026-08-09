@@ -108,21 +108,26 @@ def _call_meta_provider(headers: dict, req: dict) -> dict:
     return json.loads(message_item["content"][0]["text"])
 
 
-def call_llm(  # pylint: disable=too-many-arguments
+def call_llm(
     prompt: str,
     system_prompt: str = (
         "You are a helpful AIOps assistant. Output strictly valid JSON."
     ),
-    provider: str = "",
-    api_key: str = "",
-    model: str = "",
+    llm_settings: dict | None = None,
     temperature: float = 0.1,
 ) -> dict:
     """Make a direct HTTP request to the configured cloud LLM provider and
-    return parsed JSON."""
-    provider = (provider or os.getenv("LLM_PROVIDER", "openai")).lower().strip()
+    return parsed JSON. llm_settings holds the three connection fields
+    together (provider, api_key, model) rather than as separate parameters —
+    they always travel together from the caller's stored settings."""
+    llm_settings = llm_settings or {}
+    provider = (
+        (llm_settings.get("provider") or os.getenv("LLM_PROVIDER", "openai"))
+        .lower()
+        .strip()
+    )
     api_key = (
-        api_key
+        llm_settings.get("api_key")
         or os.getenv("OPENAI_API_KEY")
         or os.getenv("GEMINI_API_KEY")
         or os.getenv("META_API_KEY")
@@ -139,7 +144,7 @@ def call_llm(  # pylint: disable=too-many-arguments
     req = {
         "prompt": prompt,
         "system_prompt": system_prompt,
-        "model": model,
+        "model": llm_settings.get("model") or "",
         "temperature": temperature,
     }
 
@@ -257,9 +262,11 @@ class ConsensusEngine:
                 llm_res = call_llm(
                     prompt=prompt,
                     system_prompt=system_prompt,
-                    provider=provider,
-                    api_key=api_key,
-                    model=llm_config.get("model"),
+                    llm_settings={
+                        "provider": provider,
+                        "api_key": api_key,
+                        "model": llm_config.get("model"),
+                    },
                     temperature=float(llm_config.get("temperature", 0.1)),
                 )
 

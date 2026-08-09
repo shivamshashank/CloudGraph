@@ -73,15 +73,16 @@ class SemanticVectorStore:
         except EmbeddingUnavailable:
             return self.fallback_embedder.embed(text), "hashed-file-fallback"
 
-    def _build_chunk_document(  # pylint: disable=too-many-arguments
+    def _build_chunk_document(
         self,
-        doc_id: str,
         chunk_id: str,
         chunk: str,
-        metadata: dict[str, Any],
-        evidence_type: str,
+        doc_context: dict[str, Any],
     ) -> dict[str, Any] | None:
-        """Build, embed, and return a chunk document; returns None if duplicate."""
+        """Build, embed, and return a chunk document; returns None if
+        duplicate. doc_context (doc_id/metadata/evidence_type) is constant
+        across every chunk of the same document — index_document computes
+        it once and passes it through unchanged per chunk."""
         chunk_hash = hashlib.sha256(chunk.encode("utf-8")).hexdigest()
         existing = next(
             (item for item in self.documents if item["id"] == chunk_id), None
@@ -90,9 +91,9 @@ class SemanticVectorStore:
             return existing
         embedding, backend = self._embed(chunk)
         chunk_metadata = {
-            **metadata,
-            "type": evidence_type,
-            "source_id": doc_id,
+            **doc_context["metadata"],
+            "type": doc_context["evidence_type"],
+            "source_id": doc_context["doc_id"],
             "embedding_backend": backend,
         }
         document = {
@@ -128,7 +129,13 @@ class SemanticVectorStore:
         for index, chunk in enumerate(chunks):
             chunk_id = doc_id if len(chunks) == 1 else f"{doc_id}:{index}"
             doc = self._build_chunk_document(
-                doc_id, chunk_id, chunk, metadata, evidence_type
+                chunk_id,
+                chunk,
+                {
+                    "doc_id": doc_id,
+                    "metadata": metadata,
+                    "evidence_type": evidence_type,
+                },
             )
             if doc:
                 indexed.append(doc)

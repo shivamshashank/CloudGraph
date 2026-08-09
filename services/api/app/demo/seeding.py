@@ -11,18 +11,34 @@ from qdrant_client.models import PointIdsList
 
 from app.database.neo4j_client import neo4j_client
 from app.database.qdrant import qdrant_client
+from app.demo.datasets import scenario_incident_time
 from app.dependencies import semantic_store
 
 logger = logging.getLogger(__name__)
 
+# Spacing between consecutive seeded log lines, stepping back from the
+# incident time. With the ranker's default one-hour recency half-life,
+# 60s steps give a real but not exaggerated spread in recency score
+# across a scenario's evidence.
+LOG_INTERVAL_SECONDS = 60
+
 
 def seed_scenario_data(scenario: Dict[str, Any]) -> None:
-    """Seed Neo4j graph nodes and Qdrant semantic vectors for a benchmark scenario."""
+    """Seed Neo4j graph nodes and Qdrant semantic vectors for a benchmark
+    scenario.
+
+    Seeds `observed_symptoms` (raw, low-level telemetry text) as the
+    evidence an investigation would actually retrieve — never
+    `ground_truth_claims`, which is the held-out answer key used only for
+    scoring extracted claims after the fact. Conflating the two is a
+    data-leakage bug: see `rcaeval_dataset.py`'s module docstring and
+    `dissertation/PROGRESS.md` (Week 9).
+    """
     scenario_id = scenario["id"]
     target_service = scenario["target_service"]
     target_entity = scenario["target_entity"]
-    root_cause = scenario["root_cause"]
-    claims = scenario["ground_truth_claims"]
+    symptoms = scenario["observed_symptoms"]
+    incident_time = scenario_incident_time(scenario)
 
     # 1. Seed Neo4j properties
     if neo4j_client.driver:
@@ -55,7 +71,9 @@ def seed_scenario_data(scenario: Dict[str, Any]) -> None:
                 },
             )
 
-            # Create Git Commit linked to Deployment
+            # Create Git Commit linked to Deployment — deliberately does
+            # not name the root cause; a real commit message wouldn't
+            # announce the incident it's about to trigger.
             neo4j_client.execute_query(
                 """
                 MERGE (c:Commit {sha: $commit_sha})
@@ -67,16 +85,24 @@ def seed_scenario_data(scenario: Dict[str, Any]) -> None:
                 """,
                 {
                     "commit_sha": f"sha-{scenario_id}",
-                    "commit_msg": (
-                        f"update {target_service} config settings"
-                        f" with root cause {root_cause}"
-                    ),
+                    "commit_msg": f"update {target_service} configuration",
                     "deploy_name": f"{target_service}-deploy",
                 },
             )
 
-            # Create Logs linked to Pod
-            for idx, claim in enumerate(claims):
+            # Create Logs linked to Pod, from the raw observed symptoms —
+            # not the ground-truth claims (see module docstring).
+            #
+            # Timestamps step back from the incident time rather than all
+            # sharing one value. Identical timestamps make the hybrid
+            # ranker's recency term a constant across every candidate,
+            # silently reducing a three-signal score to two — the seeded
+            # data would then decide the outcome of a retrieval ablation
+            # by construction. Stepping them also matches how real
+            # evidence arrives: the newest line is the closest to the
+            # incident.
+            for idx, symptom in enumerate(symptoms):
+                age = (len(symptoms) - 1 - idx) * LOG_INTERVAL_SECONDS
                 neo4j_client.execute_query(
                     """
                     MATCH (p:Pod {name: $pod_name})
@@ -84,7 +110,7 @@ def seed_scenario_data(scenario: Dict[str, Any]) -> None:
                         id: $log_id,
                         message: $message,
                         level: 'ERROR',
-                        timestamp: 1600000000,
+                        timestamp: $timestamp,
                         is_benchmark: true
                     })
                     CREATE (p)-[:GENERATES {is_benchmark: true}]->(l)
@@ -92,7 +118,8 @@ def seed_scenario_data(scenario: Dict[str, Any]) -> None:
                     {
                         "pod_name": target_entity,
                         "log_id": f"log-{scenario_id}-{idx}",
-                        "message": claim,
+                        "message": symptom,
+                        "timestamp": incident_time - age,
                     },
                 )
 
@@ -104,7 +131,7 @@ def seed_scenario_data(scenario: Dict[str, Any]) -> None:
                     id: $metric_id,
                     name: 'container_cpu_usage_seconds_total',
                     value: 95.0,
-                    timestamp: 1600000000,
+                    timestamp: $timestamp,
                     is_benchmark: true
                 })
                 CREATE (p)-[:GENERATES {is_benchmark: true}]->(m)
@@ -112,6 +139,7 @@ def seed_scenario_data(scenario: Dict[str, Any]) -> None:
                 {
                     "pod_name": target_entity,
                     "metric_id": f"metric-{scenario_id}",
+                    "timestamp": incident_time,
                 },
             )
             logger.info("Successfully seeded Neo4j for scenario %s", scenario_id)
@@ -120,12 +148,12 @@ def seed_scenario_data(scenario: Dict[str, Any]) -> None:
 
     # 2. Seed Qdrant Vector Store and local fallback cache
     try:
-        # Index Commit
+        # Index Commit — same non-revealing message as the Neo4j node.
         semantic_store.index_document(
             doc_id=f"commit-{scenario_id}",
             text=(
                 f"Git revision commit sha-{scenario_id}"
-                f" update {target_service} config: {root_cause}"
+                f" update {target_service} configuration"
             ),
             metadata={
                 "is_benchmark": True,
@@ -134,11 +162,12 @@ def seed_scenario_data(scenario: Dict[str, Any]) -> None:
             },
         )
 
-        # Index Logs (Claims)
-        for idx, claim in enumerate(claims):
+        # Index Logs from the raw observed symptoms — not the
+        # ground-truth claims (see module docstring).
+        for idx, symptom in enumerate(symptoms):
             semantic_store.index_document(
                 doc_id=f"log-{scenario_id}-{idx}",
-                text=claim,
+                text=symptom,
                 metadata={
                     "is_benchmark": True,
                     "label": "Log",

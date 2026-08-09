@@ -73,6 +73,7 @@ Examples:
   cloudgraph ingest http://localhost:8000 /api/v1/telemetry/logs
   sudo cloudgraph deploy
   cloudgraph report --limit 3
+  cloudgraph report --limit 5 --offset 5    # scenarios 6-10, for batched runs
   cloudgraph report http://localhost:8000
   cloudgraph uninstall
 `
