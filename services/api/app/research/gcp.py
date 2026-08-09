@@ -5,6 +5,15 @@ from typing import Any, Dict, List
 
 from app.database.neo4j_client import neo4j_client
 
+
+class GraphUnavailableError(RuntimeError):
+    """Raised when confidence propagation has no graph to run over.
+
+    Subclasses RuntimeError so existing callers that already guard with
+    `except RuntimeError` keep working.
+    """
+
+
 EDGE_WEIGHTS = {
     "GENERATES": 0.95,
     "BELONGS_TO": 0.80,
@@ -117,9 +126,20 @@ class GraphConfidencePropagator:
         return scores
 
     def run_propagation(self, pod_name: str) -> Dict[str, Any]:
-        """Query Neo4j topology around anomalous pod, propagate confidences."""
+        """Query Neo4j topology around anomalous pod, propagate confidences.
+
+        Raises GraphUnavailableError if there is no graph to propagate
+        over. This used to return a hard-coded {"root_cause": 0.80,
+        "recommendation": 0.75} instead, which was actively harmful: 0.80
+        clears GCP_CORRECTNESS_THRESHOLD, so a scenario where Neo4j was
+        simply unreachable scored as a *correct* GCP result. Confidence
+        that was never computed must not be reported as confidence.
+        """
         if not neo4j_client.driver:
-            return {"root_cause": 0.80, "recommendation": 0.75}
+            raise GraphUnavailableError(
+                "Neo4j is unavailable, so no confidence can be propagated "
+                f"for pod {pod_name!r}"
+            )
 
         nodes = neo4j_client.execute_query(
             "MATCH (p:Pod {name: $pod_name})-[*0..3]-(n) "
@@ -135,7 +155,13 @@ class GraphConfidencePropagator:
         )
 
         if not nodes:
-            return {"root_cause": 0.80, "recommendation": 0.75}
+            # Same reasoning as the unavailable-driver case above: finding
+            # no topology around the pod means nothing was propagated, so
+            # there is no confidence to report.
+            raise GraphUnavailableError(
+                f"No graph topology found around pod {pod_name!r}; "
+                "nothing to propagate confidence over"
+            )
 
         adjacency = self.build_adjacency_map(edges)
         scores = {}
@@ -158,7 +184,11 @@ class GraphConfidencePropagator:
                 {"id": nid, "score": round(final_score, 3)},
             )
 
-        root_cause = round(scores.get(target_id, 0.80), 2)
+        # 0.0, not 0.80, when the target pod isn't among the propagated
+        # nodes: an absent target means no confidence was computed for it,
+        # and a confident-looking default would clear the correctness
+        # threshold on a scenario the algorithm never actually scored.
+        root_cause = round(scores.get(target_id, 0.0), 2)
         return {
             "root_cause": root_cause,
             "recommendation": round(root_cause * 0.90, 2),

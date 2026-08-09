@@ -4,7 +4,7 @@ machine without needing a local source checkout.
 
 Three sections make up "the report":
 
-1. GPCS vs. self-consistency (research/7_DAY_SPRINT_CHECKLIST.md Day 2,
+1. GPCS vs. self-consistency (see dissertation/PROGRESS.md Week 8,
    NOVEL_CONTRIBUTIONS.md Contribution 2) — the flagship comparison.
 2. Context-condition ablation (Day 3) — the same generation+scoring
    pipeline run under three conditions per scenario: no retrieved context
@@ -30,13 +30,14 @@ tool: a lost in-progress run just gets re-started, and this avoids adding
 any storage/PVC requirement to the deployment for it.
 """
 
+import dataclasses
 import threading
 from io import StringIO
 from typing import Any
 
 import pandas as pd
 
-from app.demo.benchmark_dataset import BENCHMARK_GROUND_TRUTH_SCENARIOS
+from app.demo.datasets import load_scenarios, scenario_incident_time
 from app.demo.seeding import seed_scenario_data, teardown_benchmark_data
 from app.research.evaluation import (
     retrieval_detail_for_scenario,
@@ -45,6 +46,7 @@ from app.research.evaluation import (
 )
 from app.research.gpcs import GraphProvenanceClaimScorer
 from app.research.llm_settings import load_stored_llm_settings
+from app.services.graphrag_search import graphrag_search
 from app.research.self_consistency import (
     SelfConsistencyUnavailableError,
     generate_and_score,
@@ -96,9 +98,16 @@ def get_status() -> dict[str, Any]:
         return dict(_state)
 
 
-def start_report(scenario_limit: int | None = None) -> bool:
+def start_report(scenario_limit: int | None = None, scenario_offset: int = 0) -> bool:
     """Starts generating the report in a background thread. Returns False
-    (and does not start a second run) if one is already in progress."""
+    (and does not start a second run) if one is already in progress.
+
+    scenario_offset lets a caller run the benchmark in batches (e.g. 5
+    scenarios at a time) instead of one long run — offset=5, limit=5 runs
+    scenarios 6-10. Each batch is saved independently; combining batches
+    into one dataset is a separate, client-side merge step (see
+    scripts/merge_reports.py), not something this function does.
+    """
     with _lock:
         if _state["status"] == "running":
             return False
@@ -107,7 +116,9 @@ def start_report(scenario_limit: int | None = None) -> bool:
         _state["result"] = None
         _state["error"] = None
 
-    thread = threading.Thread(target=_run, args=(scenario_limit,), daemon=True)
+    thread = threading.Thread(
+        target=_run, args=(scenario_limit, scenario_offset), daemon=True
+    )
     thread.start()
     return True
 
@@ -117,14 +128,14 @@ def _set_progress(text: str) -> None:
         _state["progress"] = text
 
 
-def _run(scenario_limit: int | None) -> None:
+def _run(scenario_limit: int | None, scenario_offset: int = 0) -> None:
     # Broad except is intentional: this runs unattended in a background
     # thread with no caller to propagate an exception to — if anything
     # unexpected happens, it must be recorded in _state (status: "failed",
     # with the reason) rather than left silently stuck on "running"
     # forever with no way for a polling client to ever find out why.
     try:
-        result = generate_report(scenario_limit)
+        result = generate_report(scenario_limit, scenario_offset)
         with _lock:
             _state["status"] = "completed"
             _state["progress"] = "done"
@@ -142,7 +153,9 @@ def _retrieval_results_for_condition(
         return None
     if condition == "raw":
         return run_raw_context_search(scenario["query"])
-    return run_hybrid_search(scenario["query"])
+    return run_hybrid_search(
+        scenario["query"], reference_time=scenario_incident_time(scenario)
+    )
 
 
 def _neurosymbolic_row(scenario: dict[str, Any], method_key: str) -> dict[str, Any]:
@@ -217,8 +230,10 @@ def _run_condition(
             scenario,
             n_samples=3,
             temperature=0.8,
-            request_logger=request_logger,
-            retrieval_results=retrieval_results,
+            call_options={
+                "request_logger": request_logger,
+                "retrieval_results": retrieval_results,
+            },
         )
     except SelfConsistencyUnavailableError as exc:
         return [], {
@@ -228,7 +243,16 @@ def _run_condition(
         }
 
     primary_generation = sc_result["generations"][0]
-    gpcs_result = scorer.score_claims(primary_generation, run_hybrid_search)
+    # score_claims' search_func contract is (GraphRAGSearchPayload, method) ->
+    # {"results": [...]} (see gpcs.ClaimSearchFunc / _retrieve_supporting_
+    # evidence) — run_hybrid_search takes a bare str and returns a list, so
+    # passing it here silently raised TypeError on every call (caught by
+    # _retrieve_supporting_evidence's broad except) and the semantic/keyword
+    # search evidence path never contributed anything to GPCS scoring.
+    # graphrag_search (imported at module scope, from app.services.
+    # graphrag_search — not app.main, which would cycle back through
+    # app.routers.report) is the function that actually matches the contract.
+    gpcs_result = scorer.score_claims(primary_generation, graphrag_search)
     gpcs_by_id = {c["claim_id"]: c for c in gpcs_result["claims"]}
     rows = [
         _claim_row(scenario, condition, sc_claim, gpcs_by_id)
@@ -268,25 +292,29 @@ def _run_scenario(
         teardown_benchmark_data()
 
 
-class _ReportAccumulator:  # pylint: disable=too-few-public-methods
+@dataclasses.dataclass
+class _ReportAccumulator:
     """Collects one scenario's results at a time — a single local in
-    generate_report instead of three separate accumulator lists."""
+    generate_report instead of three separate accumulator lists. Plain
+    data (no behavior of its own); _add_scenario_result below is the one
+    operation that mutates it, kept as a free function rather than a
+    single-method class."""
 
-    def __init__(self) -> None:
-        self.claim_rows: list[dict[str, Any]] = []
-        self.excluded: list[dict[str, str]] = []
-        self.neurosymbolic_rows: list[dict[str, Any]] = []
+    claim_rows: list[dict[str, Any]] = dataclasses.field(default_factory=list)
+    excluded: list[dict[str, str]] = dataclasses.field(default_factory=list)
+    neurosymbolic_rows: list[dict[str, Any]] = dataclasses.field(default_factory=list)
 
-    def add_scenario_result(
-        self,
-        rows: list[dict[str, Any]],
-        excluded: list[dict[str, str]],
-        neurosymbolic_rows: list[dict[str, Any]],
-    ) -> None:
-        """Extend all three accumulators with one scenario's results."""
-        self.claim_rows.extend(rows)
-        self.excluded.extend(excluded)
-        self.neurosymbolic_rows.extend(neurosymbolic_rows)
+
+def _add_scenario_result(
+    accumulator: _ReportAccumulator,
+    rows: list[dict[str, Any]],
+    excluded: list[dict[str, str]],
+    neurosymbolic_rows: list[dict[str, Any]],
+) -> None:
+    """Extend all three of accumulator's lists with one scenario's results."""
+    accumulator.claim_rows.extend(rows)
+    accumulator.excluded.extend(excluded)
+    accumulator.neurosymbolic_rows.extend(neurosymbolic_rows)
 
 
 def _overall_summary(all_rows: list[dict[str, Any]]) -> tuple[str, str]:
@@ -321,12 +349,19 @@ def _condition_summary(all_rows: list[dict[str, Any]]) -> dict[str, str]:
     return summary
 
 
-def generate_report(scenario_limit: int | None) -> dict[str, Any]:
+def generate_report(
+    scenario_limit: int | None, scenario_offset: int = 0
+) -> dict[str, Any]:
     """Runs the full report synchronously and returns the result dict — the
     actual report-generation logic, callable directly (e.g. from
     scripts/generate_research_report.py for local-dev use against a full
     source checkout) or via start_report/_run above for the HTTP-driven,
     backgrounded `cloudgraph report` path.
+
+    scenario_offset + scenario_limit together select a slice of the
+    benchmark (offset=5, limit=5 -> scenarios 6-10), so a full run can be
+    split into independent batches — each batch's result is self-
+    contained; combining batches is a separate step (scripts/merge_reports.py).
 
     Note on cost: running all three context conditions triples generation
     volume versus Day 2 alone (9 orchestrator calls per scenario instead of
@@ -335,11 +370,9 @@ def generate_report(scenario_limit: int | None) -> dict[str, Any]:
     """
     llm_settings = load_stored_llm_settings()
     scorer = GraphProvenanceClaimScorer(
-        llm_provider=llm_settings.get("provider") or "",
-        llm_api_key=llm_settings.get("api_key") or "",
-        llm_model=llm_settings.get("model") or "",
+        llm_settings=llm_settings,
     )
-    scenarios = BENCHMARK_GROUND_TRUTH_SCENARIOS
+    scenarios = load_scenarios()[scenario_offset:]
     if scenario_limit:
         scenarios = scenarios[:scenario_limit]
 
@@ -350,10 +383,11 @@ def generate_report(scenario_limit: int | None) -> dict[str, Any]:
         requests_log.append(record)
 
     for i, scenario in enumerate(scenarios, start=1):
-        accumulator.add_scenario_result(
+        _add_scenario_result(
+            accumulator,
             *_run_scenario(
                 scenario, f"scenario {i}/{len(scenarios)}", scorer, request_logger
-            )
+            ),
         )
 
     all_rows = accumulator.claim_rows

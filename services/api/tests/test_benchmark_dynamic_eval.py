@@ -1,32 +1,29 @@
 """Unit tests for the ground-truth dataset and dynamic benchmark evaluation engine."""
 
+import types
+
 import pytest
 import requests
 from fastapi.testclient import TestClient
 
 from app.main import app
 from app.database.neo4j_client import neo4j_client
-from app.demo.benchmark_dataset import BENCHMARK_GROUND_TRUTH_SCENARIOS
+from app.demo.datasets import load_scenarios
 from app.research.evaluation import evaluate_scenario
 
 client = TestClient(app)
 
 
-class _FakeOrchestratorResponse:  # pylint: disable=too-few-public-methods
+def _fake_orchestrator_response(payload, status_code=200):
     """Stand-in for requests.Response, used to mock the agent-orchestrator
-    HTTP boundary only — evaluate_scenario's own logic runs unmodified."""
-
-    def __init__(self, payload, status_code=200):
-        self._payload = payload
-        self.status_code = status_code
-
-    def json(self):
-        """Return the mocked orchestrator payload."""
-        return self._payload
+    HTTP boundary only — evaluate_scenario's own logic runs unmodified. A
+    plain factory function rather than a class, since only .status_code and
+    .json() are ever read off the result."""
+    return types.SimpleNamespace(status_code=status_code, json=lambda: payload)
 
 
 def _fake_orchestrator_post(*_args, **_kwargs):
-    return _FakeOrchestratorResponse(
+    return _fake_orchestrator_response(
         {
             "status": "success",
             "consensus": {
@@ -60,8 +57,11 @@ def mock_agent_orchestrator(monkeypatch):
 
 
 def test_benchmark_ground_truth_dataset_structure():
-    """Verify that ground-truth dataset scenarios contain all required fields."""
-    assert len(BENCHMARK_GROUND_TRUTH_SCENARIOS) == 25
+    """Every scenario must carry the fields the pipeline reads.
+
+    Leakage separation is covered in tests/test_rcaeval_dataset.py,
+    which owns the generated dataset's invariants."""
+    assert len(load_scenarios()) == 36
 
     required_keys = {
         "id",
@@ -70,20 +70,23 @@ def test_benchmark_ground_truth_dataset_structure():
         "target_entity",
         "root_cause",
         "expected_tags",
+        "observed_symptoms",
         "ground_truth_claims",
     }
 
-    for scenario in BENCHMARK_GROUND_TRUTH_SCENARIOS:
+    for scenario in load_scenarios():
         assert required_keys.issubset(scenario.keys())
         assert isinstance(scenario["expected_tags"], list)
         assert len(scenario["expected_tags"]) > 0
+        assert isinstance(scenario["observed_symptoms"], list)
+        assert len(scenario["observed_symptoms"]) > 0
         assert isinstance(scenario["ground_truth_claims"], list)
         assert len(scenario["ground_truth_claims"]) > 0
 
 
 def test_evaluate_scenario_calculates_valid_metrics():
     """Verify evaluation logic on a ground-truth scenario."""
-    scenario = BENCHMARK_GROUND_TRUTH_SCENARIOS[0]
+    scenario = load_scenarios()[0]
 
     # Keyword Search generates no text/claims, so hallucination rate is
     # undefined (None / N/A), not a fabricated number.
@@ -122,7 +125,7 @@ def test_evaluate_scenario_excludes_when_orchestrator_unreachable(monkeypatch):
         "app.research.evaluation.requests.post", _raise_connection_error
     )
 
-    scenario = BENCHMARK_GROUND_TRUTH_SCENARIOS[0]
+    scenario = load_scenarios()[0]
     result = evaluate_scenario(scenario, "GraphRAG + Agents")
     assert result is None
 
@@ -132,10 +135,10 @@ def test_evaluate_scenario_excludes_on_non_200_orchestrator_response(monkeypatch
     than silently substitute fabricated data."""
     monkeypatch.setattr(
         "app.research.evaluation.requests.post",
-        lambda *a, **k: _FakeOrchestratorResponse({}, status_code=500),
+        lambda *a, **k: _fake_orchestrator_response({}, status_code=500),
     )
 
-    scenario = BENCHMARK_GROUND_TRUTH_SCENARIOS[0]
+    scenario = load_scenarios()[0]
     result = evaluate_scenario(scenario, "GraphRAG + Agents + GCP")
     assert result is None
 
@@ -157,7 +160,7 @@ def test_run_benchmark_endpoint_updates_state_and_logs():
 
     # Verify execution logs contain calculation step details
     log_text = " ".join(body["logs"])
-    assert "Processing scenario: scenario-01" in log_text
+    assert "Processing scenario: rcaeval-01" in log_text
     assert "Tearing down scenario" in log_text
     assert "Dynamic evaluation engine completed" in log_text
 

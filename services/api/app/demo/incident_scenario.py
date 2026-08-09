@@ -8,7 +8,7 @@ exercise the RCA pipeline against different anomaly signatures; see
 testing/intensive/ for the script that applies these to a live cluster.
 """
 
-from collections.abc import Callable  # pylint: disable=import-error
+from collections.abc import Callable
 from pathlib import Path
 
 

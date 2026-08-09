@@ -1,0 +1,85 @@
+\section*{NeurIPS Paper Checklist}
+
+\begin{enumerate}
+
+\item {\bf Claims}
+    \item[] Question: Do the main claims made in the abstract and introduction accurately reflect the paper's contributions and scope?
+    \item[] Answer: \answerYes{}
+    \item[] Justification: The abstract and Section~\ref{sec:intro} state exactly the three findings reported in Section~\ref{sec:results}, including the negative result, with the $n=25$ sample-size scope stated explicitly rather than implied.
+
+\item {\bf Limitations}
+    \item[] Question: Does the paper discuss the limitations of the work performed by the authors?
+    \item[] Answer: \answerYes{}
+    \item[] Justification: Section~\ref{sec:limitations} is a dedicated section covering sample size, single-provider scope, a known claim-segmentation mismatch, compute-count asymmetry in the matched-compute control, and the intentionally narrow scope of GPCS's own verification signal.
+
+\item {\bf Theory assumptions and proofs}
+    \item[] Question: For each theoretical result, does the paper provide the full set of assumptions and a complete (and correct) proof?
+    \item[] Answer: \answerNA{}
+    \item[] Justification: This is an empirical systems paper; it contains no theorems or formal proofs.
+
+\item {\bf Experimental result reproducibility}
+    \item[] Question: Does the paper fully disclose all the information needed to reproduce the main experimental results of the paper to the extent that it affects the main claims and/or conclusions of the paper (regardless of whether the code and data are provided or not)?
+    \item[] Answer: \answerYes{}
+    \item[] Justification: The GPCS scoring formula is given in full (Section~\ref{sec:gpcs}, Equation~\ref{eq:gpcs}), the self-consistency baseline is fully specified (Section~\ref{sec:selfconsistency}), and Section~\ref{sec:setup} specifies the benchmark, all three retrieval conditions, the matched-compute design and exact call counts, and the statistical methodology (paired bootstrap, 10{,}000 resamples, seed=42; Wilcoxon signed-rank).
+
+\item {\bf Open access to data and code}
+    \item[] Question: Does the paper provide open access to the data and code, with sufficient instructions to faithfully reproduce the main experimental results, as described in supplemental material?
+    \item[] Answer: \answerNo{}
+    \item[] Justification: The system's code and benchmark dataset are not linked at submission time to preserve double-blind anonymity. We intend to release both upon acceptance.
+
+\item {\bf Experimental setting/details}
+    \item[] Question: Does the paper specify all the training and test details (e.g., data splits, hyperparameters, how they were chosen, type of optimizer) necessary to understand the results?
+    \item[] Answer: \answerYes{}
+    \item[] Justification: Section~\ref{sec:setup} specifies the 25-scenario benchmark composition, all three context conditions, the matched-compute arms and call counts, and the GPCS semantic-relevance threshold and how it was calibrated (Section~\ref{sec:gpcs}).
+
+\item {\bf Experiment statistical significance}
+    \item[] Question: Does the paper report error bars suitably and correctly defined or other appropriate information about the statistical significance of the experiments?
+    \item[] Answer: \answerYes{}
+    \item[] Justification: All four headline deltas are reported with paired bootstrap 95\% confidence intervals (10{,}000 resamples, seed=42) and Wilcoxon signed-rank $p$-values (Sections~\ref{sec:results-rq1}--\ref{sec:results-matched-compute}), with the method stated in Section~\ref{sec:setup}.
+
+\item {\bf Experiments compute resources}
+    \item[] Question: For each experiment, does the paper provide sufficient information on the computer resources (type of compute workers, memory, time of execution) needed to reproduce the experiments?
+    \item[] Answer: \answerYes{}
+    \item[] Justification: All experiments call a hosted third-party LLM API rather than authors' own compute infrastructure, so the relevant resource metric is API call count, not GPU-hours; exact call counts are given for every comparison (150 vs.\ 125 for the matched-compute control, Section~\ref{sec:results-matched-compute}; 75 scenario$\times$condition passes for the main comparison, Section~\ref{sec:setup}).
+
+\item {\bf Code of ethics}
+    \item[] Question: Does the research conducted in the paper conform, in every respect, with the NeurIPS Code of Ethics \url{https://neurips.cc/public/EthicsGuidelines}?
+    \item[] Answer: \answerYes{}
+    \item[] Justification: The work uses telemetry from the authors' own test infrastructure, involves no human subjects, no crowdsourcing, and no personally identifiable or sensitive data.
+
+\item {\bf Broader impacts}
+    \item[] Question: Does the paper discuss both potential positive societal impacts and negative societal impacts of the work performed?
+    \item[] Answer: \answerYes{}
+    \item[] Justification: A dedicated Broader impacts paragraph closes Section~\ref{sec:discussion}, covering both the positive application (fewer ungrounded claims reaching on-call engineers) and the risk the paper's own negative result illustrates (over-trusting an imperfect verifier or unaudited multi-agent consensus in production).
+
+\item {\bf Safeguards}
+    \item[] Question: Does the paper describe safeguards that have been put in place for responsible release of data or models that have a high risk for misuse (e.g., pre-trained language models, image generators, or scraped datasets)?
+    \item[] Answer: \answerNA{}
+    \item[] Justification: The paper releases no model, generator, or scraped dataset with a high risk of misuse; it evaluates an internal diagnostic system against a benchmark of the authors' own seeded incident scenarios.
+
+\item {\bf Licenses for existing assets}
+    \item[] Question: Are the creators or original owners of assets (e.g., code, data, models), used in the paper, properly credited and are the license and terms of use explicitly mentioned and properly respected?
+    \item[] Answer: \answerYes{}
+    \item[] Justification: GraphRAG, self-consistency, and the multi-agent survey this work builds on and compares against are cited (Section~\ref{sec:related}); the embedding model and retrieval infrastructure used are standard, openly licensed open-source components.
+
+\item {\bf New assets}
+    \item[] Question: Are new assets introduced in the paper well documented and is the documentation provided alongside the assets?
+    \item[] Answer: \answerNo{}
+    \item[] Justification: The 25-scenario incident benchmark is a new asset, described in Section~\ref{sec:setup}, but is not yet packaged as a standalone, separately documented release at submission time; we intend to release it alongside the code upon acceptance.
+
+\item {\bf Crowdsourcing and research with human subjects}
+    \item[] Question: For crowdsourcing experiments and research with human subjects, does the paper include the full text of instructions given to participants and screenshots, if applicable, as well as details about compensation (if any)?
+    \item[] Answer: \answerNA{}
+    \item[] Justification: The paper involves no crowdsourcing and no human subjects.
+
+\item {\bf Institutional review board (IRB) approvals or equivalent for research with human subjects}
+    \item[] Question: Does the paper describe potential risks incurred by study participants, whether such risks were disclosed to the subjects, and whether Institutional Review Board (IRB) approvals (or an equivalent approval/review based on the requirements of your country or institution) were obtained?
+    \item[] Answer: \answerNA{}
+    \item[] Justification: The paper involves no human subjects research.
+
+\item {\bf Declaration of LLM usage}
+    \item[] Question: Does the paper describe the usage of LLMs if it is an important, original, or non-standard component of the core methods in this research? Note that if the LLM is used only for writing, editing, or formatting purposes and does \emph{not} impact the core methodology, scientific rigor, or originality of the research, declaration is not required.
+    \item[] Answer: \answerYes{}
+    \item[] Justification: LLMs are a core, non-standard component of the method itself, not a writing aid: the five specialist agents, the consensus step, GPCS's claim extraction, and the self-consistency baseline's sampling are all LLM-backed and fully described in Section~\ref{sec:system}.
+
+\end{enumerate}

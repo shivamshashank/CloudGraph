@@ -26,9 +26,15 @@ cloudgraphApi:
     targetPort: 8080
 
   resources:
+    # Bumped from 500m/1Gi after a real 25-scenario report run crashed
+    # this pod partway through — verified live via kubectl describe
+    # (exitCode 137, liveness probe timeout), not a hypothetical margin.
+    # This service now does substantial real synchronous work per claim
+    # (LLM extraction calls, graph traversal) that it wasn't doing before
+    # the GPCS fixes earlier this session.
     limits:
-      cpu: 500m
-      memory: 1Gi
+      cpu: "1"
+      memory: 2Gi
     requests:
       cpu: 10m
       memory: 256Mi

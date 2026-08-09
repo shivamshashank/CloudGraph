@@ -49,7 +49,7 @@ class GraphTraversalRetriever:
         # Neo4j does not accept a parameter for variable-length path bounds.
         query = f"""
         MATCH (seed)
-        WHERE (seed:Incident OR seed:Pod)
+        WHERE (seed:Incident OR seed:Pod OR seed:Deployment OR seed:Node)
           AND (
             elementId(seed) = $seed_id
             OR seed.id = $seed_id

@@ -14,6 +14,7 @@ from app.adapters import k8s_discovery
 from app.adapters.tempo import ingest_tempo_trace
 from app.database.neo4j_client import neo4j_client
 from app.main import app
+from app.services import graphrag_search as graphrag_search_module
 from app.services.semantic_store import SemanticVectorStore
 
 client = TestClient(app)
@@ -551,7 +552,9 @@ def test_graphrag_search_uses_configurable_temporal_traversal(monkeypatch):
 
     monkeypatch.setattr(neo4j_client, "execute_query", _fake_execute_query)
     monkeypatch.setattr(main.semantic_store, "search", lambda query, limit: [])
-    monkeypatch.setattr(main.graph_traversal_retriever, "retrieve", _fake_traverse)
+    monkeypatch.setattr(
+        graphrag_search_module.graph_traversal_retriever, "retrieve", _fake_traverse
+    )
 
     response = client.post(
         "/api/v1/graphrag/search",
@@ -641,7 +644,7 @@ def test_graphrag_api_exposes_combined_ranking_rationale(monkeypatch):
         ],
     )
     monkeypatch.setattr(
-        main.graph_traversal_retriever,
+        graphrag_search_module.graph_traversal_retriever,
         "retrieve",
         lambda seed_id, **kwargs: [
             {

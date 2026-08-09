@@ -42,7 +42,7 @@ func TestStartReportRunSendsLimitAsQueryParam(t *testing.T) {
 	}))
 	defer server.Close()
 
-	if err := startReportRun(server.URL, 3); err != nil {
+	if err := startReportRun(server.URL, 3, 0); err != nil {
 		t.Fatalf("startReportRun returned an error: %v", err)
 	}
 	if receivedMethod != http.MethodPost {
@@ -63,11 +63,47 @@ func TestStartReportRunOmitsLimitWhenZero(t *testing.T) {
 	}))
 	defer server.Close()
 
-	if err := startReportRun(server.URL, 0); err != nil {
+	if err := startReportRun(server.URL, 0, 0); err != nil {
 		t.Fatalf("startReportRun returned an error: %v", err)
 	}
 	if receivedQuery != "" {
 		t.Errorf("query = %q, want empty (no limit)", receivedQuery)
+	}
+}
+
+func TestStartReportRunSendsLimitAndOffset(t *testing.T) {
+	var receivedQuery string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedQuery = r.URL.RawQuery
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"status":"started"}`))
+	}))
+	defer server.Close()
+
+	if err := startReportRun(server.URL, 5, 10); err != nil {
+		t.Fatalf("startReportRun returned an error: %v", err)
+	}
+	if receivedQuery != "limit=5&offset=10" {
+		t.Errorf("query = %q, want limit=5&offset=10", receivedQuery)
+	}
+}
+
+func TestStartReportRunSendsOffsetOnly(t *testing.T) {
+	var receivedQuery string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedQuery = r.URL.RawQuery
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"status":"started"}`))
+	}))
+	defer server.Close()
+
+	if err := startReportRun(server.URL, 0, 20); err != nil {
+		t.Fatalf("startReportRun returned an error: %v", err)
+	}
+	if receivedQuery != "offset=20" {
+		t.Errorf("query = %q, want offset=20", receivedQuery)
 	}
 }
 
