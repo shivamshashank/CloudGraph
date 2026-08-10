@@ -36,11 +36,24 @@ class QdrantClientWrapper:
             "timeout": float(os.getenv("QDRANT_TIMEOUT", "2.0")),
         }
         self.vector_size = int(os.getenv("QDRANT_VECTOR_SIZE", "384"))
-        self.collection_names = tuple(
+        # The collections serving real traffic. Recorded separately from
+        # collection_names because the evaluation collection is appended to
+        # that list below, and "which collections must never be purged" has
+        # to be derived from configuration rather than by excluding whatever
+        # happens to be named as the evaluation target — otherwise a
+        # misconfigured eval name would exempt itself from its own guard.
+        self.product_collection_names = tuple(
             name.strip()
             for name in os.getenv("QDRANT_COLLECTIONS", "evidence").split(",")
             if name.strip()
         )
+        # Benchmark runs seed and purge wholesale, so they must never touch
+        # a product collection. This one is created alongside the others and
+        # is the only collection evaluation code may purge.
+        self.eval_collection_name = os.getenv("QDRANT_EVAL_COLLECTION", "evidence_eval")
+        self.collection_names = self.product_collection_names
+        if self.eval_collection_name not in self.collection_names:
+            self.collection_names = self.collection_names + (self.eval_collection_name,)
         self._client_factory = client_factory
         self.client: QdrantClient | None = None
 

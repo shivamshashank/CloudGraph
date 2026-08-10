@@ -46,6 +46,12 @@ COPY --from=builder /opt/venv /opt/venv
 COPY --from=builder /opt/hf-cache /app/.cache
 COPY app/ ./app
 
+# Stamped at build time so a run can record exactly which source produced
+# it. Reconstructing this after the fact is impossible once an image is
+# rebuilt, and every published number needs to name its build.
+ARG GIT_COMMIT=unknown
+ENV CLOUDGRAPH_GIT_COMMIT=$GIT_COMMIT
+
 EXPOSE 8080
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]

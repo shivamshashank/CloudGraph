@@ -29,14 +29,25 @@ class FakeVectorClient:
     def __init__(self):
         self.upserts = []
         self.points = []
+        self.collections_written = []
+        self.collections_searched = []
+        self.filters_applied = []
 
-    def upsert(self, doc_id, vector, payload):
-        """Record upsert values."""
+    def upsert(self, doc_id, vector, payload, collection_name=None):
+        """Record upsert values, including the collection written to.
+
+        collection_name is accepted because evaluation runs redirect the
+        store to a dedicated collection; a stand-in with a narrower
+        signature than the real client turns that into a swallowed
+        TypeError and an empty result set rather than a clear failure."""
         self.upserts.append((doc_id, vector, payload))
+        self.collections_written.append(collection_name)
         return True
 
-    def search(self, _vector, limit=5):
+    def search(self, _vector, limit=5, query_filter=None, collection_name=None):
         """Mock searching vectors, returning pre-populated points list."""
+        self.collections_searched.append(collection_name)
+        self.filters_applied.append(query_filter)
         return self.points[:limit]
 
 

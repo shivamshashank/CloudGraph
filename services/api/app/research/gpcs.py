@@ -204,6 +204,7 @@ class GraphProvenanceClaimScorer:
         weights: dict[str, float] | None = None,
         threshold: float = 0.50,
         llm_settings: dict[str, str] | None = None,
+        scenario_id: str | None = None,
     ):
         weights = weights or {}
         self.semantic_weight = weights.get("semantic", 0.45)
@@ -211,6 +212,11 @@ class GraphProvenanceClaimScorer:
         self.reliability_weight = weights.get("reliability", 0.25)
         self.penalty_weight = weights.get("penalty", 0.15)
         self.threshold = threshold
+        # Scopes evidence retrieval to one benchmark scenario. Without it
+        # GPCS searches the whole vector store, so a claim can be
+        # "supported" by evidence seeded for a different incident — the
+        # same contamination that invalidated the retrieval ablation.
+        self.scenario_id = scenario_id
         # Without these, _extract_claims_with_llm's call_llm() has no
         # credentials to use (the pod carries none as env vars — the real
         # key lives in Neo4j) and always falls back to the heuristic
@@ -227,9 +233,20 @@ class GraphProvenanceClaimScorer:
         self,
         analysis: dict[str, Any],
         search_func: ClaimSearchFunc,
+        claims: list[dict[str, str]] | None = None,
     ) -> dict[str, Any]:
-        """Score the claims extracted from an analysis against the evidence graph."""
-        claims = self.extract_claims(analysis)
+        """Score the claims extracted from an analysis against the evidence graph.
+
+        Pass `claims` to score an already-extracted segmentation instead of
+        re-extracting from `analysis`. Any caller that joins this output
+        against another consumer of extract_claims *must* do so: extraction
+        is an LLM call, so re-extracting the same text yields a different
+        claim count and different text under the same positional "claim-N"
+        id, and an id-based join across the two silently pairs unrelated
+        claims (see self_consistency.generate_and_score's extracted_claims).
+        """
+        if claims is None:
+            claims = self.extract_claims(analysis)
         scored_claims = []
         unsupported = 0
 
@@ -382,7 +399,9 @@ class GraphProvenanceClaimScorer:
     ) -> list[dict[str, Any]]:
         evidence_candidates = []
         try:
-            payload = GraphRAGSearchPayload(query=claim, depth=2, method="hybrid")
+            payload = GraphRAGSearchPayload(
+                query=claim, depth=2, method="hybrid", scenario_id=self.scenario_id
+            )
             search_res = search_func(payload, method="hybrid")
             evidence_candidates.extend(
                 item
@@ -471,9 +490,22 @@ class GraphProvenanceClaimScorer:
             self._aggregate_evidence_metrics(evidence)
         )
 
-        min_hop = 0 if min_hop_distance is None else min_hop_distance
-        proximity = 1.0 / (1.0 + min_hop) if min_hop >= 0 else 0.0
-        penalty = self.penalty_weight * (min_hop * 0.05)
+        # hop_distance is None when evidence came from semantic search with
+        # no path back to the claim's entities in the graph. That is the
+        # *absence* of graph provenance, not proximity at zero hops, and it
+        # must not earn the proximity term: treating None as min_hop = 0
+        # gave such evidence the maximum graph score — full credit for
+        # provenance it never had — for 29.5% of the claims that retrieved
+        # any evidence at all (measured over batch 1's 607 claims). It also
+        # floored every scored claim near 0.485, collapsing the trust score
+        # into a near-binary evidence-presence test and leaving the 0.50
+        # decision threshold adjudicating 1 claim in 616.
+        if min_hop_distance is None:
+            proximity = 0.0
+            penalty = 0.0
+        else:
+            proximity = 1.0 / (1.0 + min_hop_distance)
+            penalty = self.penalty_weight * (min_hop_distance * 0.05)
 
         trust_score = (
             self.semantic_weight * best_score

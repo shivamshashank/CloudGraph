@@ -104,11 +104,19 @@ out = {
     'neurosymbolic_retrieval_detail.csv': r['neurosymbolic_csv'],
     'agreement_crosstab.csv': r['agreement_crosstab_csv'],
     'excluded_scenarios.json': json.dumps(r['excluded_scenarios'], indent=2),
+    # The per-call LLM audit trail exists only inside the in-memory job
+    # result, so it has to be pulled here with everything else: starting the
+    # next batch replaces it and it is gone. It is the only record of what
+    # was actually sent to the provider, which is what the ground-truth
+    # leakage check runs against.
+    'requests_log.jsonl': '\n'.join(json.dumps(x) for x in r['requests_log']),
     'summary.txt': (
         f\"n_scenarios={r['n_scenarios']}\n\"
         f\"n_claims={r['n_claims']}\n\"
         f\"n_excluded={r['n_excluded']}\n\"
         f\"agreement_summary={r['agreement_summary']}\n\"
+        f\"context_condition_summary=\"
+        f\"{json.dumps(r['context_condition_summary'], indent=2)}\n\"
     ),
 }
 print(json.dumps(out))

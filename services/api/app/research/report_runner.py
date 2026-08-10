@@ -31,14 +31,28 @@ any storage/PVC requirement to the deployment for it.
 """
 
 import dataclasses
+import hashlib
+import logging
+import os
+import pathlib
+import sys
 import threading
+from datetime import datetime, timezone
+from importlib.metadata import PackageNotFoundError, version
 from io import StringIO
 from typing import Any
 
 import pandas as pd
 
+from app.database.qdrant import qdrant_client
 from app.demo.datasets import load_scenarios, scenario_incident_time
-from app.demo.seeding import seed_scenario_data, teardown_benchmark_data
+from app.dependencies import semantic_store
+from app.demo.seeding import (
+    assert_semantic_store_isolated,
+    purge_semantic_store,
+    seed_scenario_data,
+    teardown_benchmark_data,
+)
 from app.research.evaluation import (
     retrieval_detail_for_scenario,
     run_hybrid_search,
@@ -52,11 +66,55 @@ from app.research.self_consistency import (
     generate_and_score,
 )
 
+logger = logging.getLogger(__name__)
+
+
+def _run_metadata() -> dict[str, Any]:
+    """Provenance for one run: what code, what data, what namespace.
+
+    Captured at run time because most of it cannot be reconstructed later
+    — the image is rebuilt in place under a moving tag, and the dataset
+    file is regenerable. Without this a published number cannot be tied
+    back to the build that produced it, which is exactly what was needed
+    twice while chasing evaluation defects in this pipeline.
+    """
+    dataset_path = (
+        pathlib.Path(__file__).resolve().parent.parent
+        / "demo"
+        / "rcaeval_dataset_generated.json"
+    )
+    try:
+        dataset_sha = hashlib.sha256(dataset_path.read_bytes()).hexdigest()
+    except OSError:
+        dataset_sha = "unavailable"
+
+    packages = {}
+    tracked = ("qdrant-client", "neo4j", "sentence-transformers", "pandas", "fastapi")
+    for name in tracked:
+        try:
+            packages[name] = version(name)
+        except PackageNotFoundError:
+            packages[name] = "not-installed"
+
+    return {
+        "started_utc": datetime.now(timezone.utc).isoformat(),
+        "git_commit": os.getenv("CLOUDGRAPH_GIT_COMMIT", "unknown"),
+        "python_version": sys.version.split()[0],
+        "packages": packages,
+        "eval_collection": qdrant_client.eval_collection_name,
+        "product_collections": list(qdrant_client.product_collection_names),
+        "dataset_file": dataset_path.name,
+        "dataset_sha256": dataset_sha,
+        "n_scenarios_in_dataset": len(load_scenarios()),
+    }
+
+
 CLAIM_FIELDNAMES = [
     "scenario_id",
     "context_condition",
     "claim_id",
     "claim_text",
+    "gpcs_claim_text",
     "claim_type",
     "gpcs_trust_score",
     "gpcs_unsupported",
@@ -152,9 +210,11 @@ def _retrieval_results_for_condition(
     if condition == "none":
         return None
     if condition == "raw":
-        return run_raw_context_search(scenario["query"])
+        return run_raw_context_search(scenario["query"], scenario_id=scenario["id"])
     return run_hybrid_search(
-        scenario["query"], reference_time=scenario_incident_time(scenario)
+        scenario["query"],
+        reference_time=scenario_incident_time(scenario),
+        scenario_id=scenario["id"],
     )
 
 
@@ -197,6 +257,9 @@ def _claim_row(
         "context_condition": condition,
         "claim_id": sc_claim["claim_id"],
         "claim_text": sc_claim["text"],
+        # Exported so a bad join is auditable in the CSV itself rather than
+        # invisible: this must equal claim_text on every row.
+        "gpcs_claim_text": gpcs_claim["text"] if gpcs_claim else None,
         "claim_type": sc_claim["claim_type"],
         "gpcs_trust_score": gpcs_claim["trust_score"] if gpcs_claim else None,
         "gpcs_unsupported": gpcs_claim["unsupported"] if gpcs_claim else None,
@@ -252,7 +315,15 @@ def _run_condition(
     # graphrag_search (imported at module scope, from app.services.
     # graphrag_search — not app.main, which would cycle back through
     # app.routers.report) is the function that actually matches the contract.
-    gpcs_result = scorer.score_claims(primary_generation, graphrag_search)
+    # Score the *same* segmentation self-consistency scored, rather than
+    # letting GPCS re-extract: extract_claims is an LLM call, so a second
+    # invocation returns a different claim count and different text under
+    # the same "claim-N" id, and _claim_row's id-based join then pairs
+    # unrelated claims (silently where the counts happen to match, and as a
+    # blank GPCS column where they don't).
+    gpcs_result = scorer.score_claims(
+        primary_generation, graphrag_search, claims=sc_result["extracted_claims"]
+    )
     gpcs_by_id = {c["claim_id"]: c for c in gpcs_result["claims"]}
     rows = [
         _claim_row(scenario, condition, sc_claim, gpcs_by_id)
@@ -271,6 +342,17 @@ def _run_scenario(
     scenario. Returns (claim rows, exclusion records, neurosymbolic rows)."""
     seed_scenario_data(scenario)
     try:
+        # Fail loudly rather than score against another incident's evidence:
+        # residue is invisible in the results and only shows up afterwards
+        # in the request logs (it already invalidated one full run).
+        #
+        # Inside the try, not before it: raising here still leaves this
+        # scenario's freshly seeded evidence in the store, so an isolation
+        # failure would otherwise strand exactly the data it is complaining
+        # about and contaminate whatever ran next.
+        assert_semantic_store_isolated(scenario["id"])
+        scorer.scenario_id = scenario["id"]
+
         neurosymbolic_rows = [
             _neurosymbolic_row(scenario, method_key)
             for method_key in ("keyword", "vector", "hybrid")
@@ -349,6 +431,24 @@ def _condition_summary(all_rows: list[dict[str, Any]]) -> dict[str, str]:
     return summary
 
 
+def _prepare_run() -> dict[str, Any]:
+    """Point the run at the evaluation collection, empty it, and capture
+    provenance. Returns the run metadata recorded with the results."""
+    run_metadata = _run_metadata()
+    logger.info("Run metadata: %s", run_metadata)
+    # Everything below reads and writes the dedicated evaluation
+    # collection, never the one serving real traffic: this run seeds and
+    # purges wholesale, which would destroy production evidence.
+    semantic_store.collection_name = qdrant_client.eval_collection_name
+    qdrant_client.ensure_collections()
+    # Start from an empty collection. Per-scenario teardown cannot remove
+    # points written by an earlier process, so without this a run inherits
+    # every scenario ever seeded on this cluster.
+    purged = purge_semantic_store()
+    logger.info("Purged %s residual vector points before the run", purged)
+    return run_metadata
+
+
 def generate_report(
     scenario_limit: int | None, scenario_offset: int = 0
 ) -> dict[str, Any]:
@@ -368,9 +468,9 @@ def generate_report(
     3) — this is real compute, not a free ablation, and takes proportionally
     longer.
     """
-    llm_settings = load_stored_llm_settings()
+    run_metadata = _prepare_run()
     scorer = GraphProvenanceClaimScorer(
-        llm_settings=llm_settings,
+        llm_settings=load_stored_llm_settings(),
     )
     scenarios = load_scenarios()[scenario_offset:]
     if scenario_limit:
@@ -407,6 +507,7 @@ def generate_report(
             accumulator.neurosymbolic_rows, NEUROSYMBOLIC_FIELDNAMES
         ),
         "requests_log": requests_log,
+        "run_metadata": run_metadata,
     }
 
 

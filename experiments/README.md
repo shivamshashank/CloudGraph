@@ -2,16 +2,32 @@
 
 ## Current state
 
-**No valid results exist yet.** The previous run's results were removed,
-not archived: a ground-truth leak meant every context condition received
-the answer as its own input observation, so those numbers measured
-something other than what they claimed (full account in
-`dissertation/PROGRESS.md`, Week 9). The leak and three related
-integrity defects are fixed and regression-tested; the re-run has not
-been executed.
+**No complete result exists yet.** One clean pilot batch (6 of 36
+scenarios) has been run and validated; batches 2-6 have not. Nothing
+here is reportable until all 36 are in.
 
-Anything citing "64.0% agreement", "44.2% vs 31.5%", or the old figures
-is referring to the invalid run. Those numbers should not be reused.
+A partial run is not simply a smaller one. Batch is confounded with
+fault type by construction — each batch of 6 covers only 2 of the 6
+fault types while staying balanced 2/2/2 across the 3 systems — so the
+pilot covers CPU and delay faults only, with a single replicate per
+system x fault cell. Two independent isolated runs of those same 6
+scenarios also moved per-condition concordance by up to 8 points on
+generation stochasticity alone, so no per-condition claim survives at
+n=6.
+
+Four integrity defects were found and fixed along the way, each of which
+had invalidated a full run: ground-truth leakage into the input
+observations, a GPCS/self-consistency join by positional id across two
+independent LLM extractions, evidence with no graph path receiving full
+graph-proximity credit, and cross-scenario contamination of the vector
+store. All are regression-tested; see `dissertation/PROGRESS.md` Week 9
+and `experiments/batches/_invalid_*/README.md` for the full account.
+
+Anything citing "64.0% agreement", "44.2% vs 31.5%", or any figure from
+the archived `_invalid_*` batches is referring to an invalid run. Those
+numbers should not be reused. Note also that `agreement` measures
+whether GPCS and self-consistency reached the *same* verdict — it is
+inter-method concordance, not ground-truth accuracy.
 
 ## Benchmark
 

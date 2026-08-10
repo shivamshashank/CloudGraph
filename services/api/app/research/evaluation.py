@@ -33,8 +33,20 @@ class OrchestratorUnavailableError(RuntimeError):
     scenario's own ground truth."""
 
 
-def run_keyword_search(query: str) -> List[Dict[str, Any]]:
-    """Execute real keyword lookup on Neo4j."""
+def run_keyword_search(
+    query: str, scenario_id: str | None = None
+) -> List[Dict[str, Any]]:
+    """Execute real keyword lookup on Neo4j.
+
+    scenario_id restricts the match to one benchmark scenario's seeded
+    nodes. Until now this was only true incidentally — teardown deletes
+    every is_benchmark node globally, so one scenario's data happened to
+    be all that existed at a time. That is an invariant maintained by a
+    different function than the one querying, which is exactly the shape
+    of the vector-store contamination bug; a partial teardown or an
+    overlapping run would have leaked silently. Scoping it here makes the
+    guarantee local to the query.
+    """
     if not neo4j_client.driver:
         return []
     try:
@@ -44,6 +56,7 @@ def run_keyword_search(query: str) -> List[Dict[str, Any]]:
             WHERE any(label in labels(n) WHERE label IN [
                 'Pod', 'Service', 'Deployment', 'Incident', 'Node', 'Commit'
             ])
+              AND ($scenario_id IS NULL OR n.scenario_id = $scenario_id)
               AND any(
                 word IN split(toLower($query), ' ') WHERE
                 size(word) > 2 AND (
@@ -58,7 +71,7 @@ def run_keyword_search(query: str) -> List[Dict[str, Any]]:
                    n.title as title, properties(n) as properties, elementId(n) as id
             LIMIT 5
             """,
-            {"query": query},
+            {"query": query, "scenario_id": scenario_id},
         )
         return raw_results
     except (RuntimeError, OSError) as exc:
@@ -66,16 +79,20 @@ def run_keyword_search(query: str) -> List[Dict[str, Any]]:
         return []
 
 
-def run_vector_search(query: str) -> List[Dict[str, Any]]:
+def run_vector_search(
+    query: str, scenario_id: str | None = None
+) -> List[Dict[str, Any]]:
     """Execute real semantic vector lookup in Qdrant/fallback store."""
     try:
-        return semantic_store.search(query, limit=5)
+        return semantic_store.search(query, limit=5, scenario_id=scenario_id)
     except (RuntimeError, ValueError) as exc:
         logger.error("Vector search failed: %s", exc)
         return []
 
 
-def run_raw_context_search(query: str) -> List[Dict[str, Any]]:
+def run_raw_context_search(
+    query: str, scenario_id: str | None = None
+) -> List[Dict[str, Any]]:
     """Raw-context control (see dissertation/PROGRESS.md Week 8): pull
     *all* evidence seeded for the current scenario, unranked and
     unfiltered — no graph traversal, no hop-limit, no top-k cutoff. Answers
@@ -83,11 +100,11 @@ def run_raw_context_search(query: str) -> List[Dict[str, Any]]:
     everything just as good" — the point is to remove the retrieval
     system's intelligence entirely, not just its ranking step.
 
-    Every scenario-seeded Neo4j node is tagged `is_benchmark = true` by
-    seed_scenario_data/teardown_benchmark_data (see app/demo/seeding.py) —
-    that tag already precisely scopes "the incident window" for whichever
-    scenario is currently seeded, so no additional traversal is needed to
-    find it.
+    Scenario-seeded Neo4j nodes carry both `is_benchmark = true` and their
+    `scenario_id` (see app/demo/seeding.py), and this query filters on
+    both: is_benchmark separates seeded evidence from real graph data, and
+    scenario_id makes "this incident only" a property of the query rather
+    than of whether teardown happened to have run.
 
     There's no "fetch everything" API on the Qdrant side (semantic_store
     only supports similarity search with a limit) — using a generously
@@ -102,10 +119,12 @@ def run_raw_context_search(query: str) -> List[Dict[str, Any]]:
                 """
                 MATCH (n)
                 WHERE n.is_benchmark = true
+                  AND ($scenario_id IS NULL OR n.scenario_id = $scenario_id)
                 RETURN labels(n) as labels, n.name as name, n.status as status,
                        n.title as title, properties(n) as properties,
                        elementId(n) as id
-                """
+                """,
+                {"scenario_id": scenario_id},
             )
             for record in records:
                 labels = record.get("labels") or []
@@ -132,7 +151,7 @@ def run_raw_context_search(query: str) -> List[Dict[str, Any]]:
         # limit=50: comfortably above any single scenario's seeded doc
         # count (a handful) — see docstring above on why this stands in
         # for "fetch everything" without a scroll API.
-        semantic_hits = semantic_store.search(query, limit=50)
+        semantic_hits = semantic_store.search(query, limit=50, scenario_id=scenario_id)
         raw_results.extend(semantic_hits)
     except (RuntimeError, ValueError) as exc:
         logger.error("Raw-context vector search failed: %s", exc)
@@ -141,7 +160,9 @@ def run_raw_context_search(query: str) -> List[Dict[str, Any]]:
 
 
 def run_hybrid_search(
-    query: str, reference_time: int | float | None = None
+    query: str,
+    reference_time: int | float | None = None,
+    scenario_id: str | None = None,
 ) -> List[Dict[str, Any]]:
     """Execute real GraphRAG hybrid retrieval.
 
@@ -155,7 +176,7 @@ def run_hybrid_search(
     way the term stops discriminating, which would quietly hollow out a
     retrieval ablation.
     """
-    raw_results = run_keyword_search(query)
+    raw_results = run_keyword_search(query, scenario_id=scenario_id)
     graph_hits = []
     for record in raw_results:
         label = record.get("labels")[0] if record.get("labels") else "Node"
@@ -206,7 +227,7 @@ def run_hybrid_search(
                     "Traversing context failed for %s: %s", record.get("id"), exc
                 )
 
-    semantic_hits = run_vector_search(query)
+    semantic_hits = run_vector_search(query, scenario_id=scenario_id)
     # HybridRanker.rank()'s vector_hits contract expects "text" (flat) and
     # "metadata" (nested dict) — semantic_hits (semantic_store.search()'s
     # raw output) already has exactly that shape. The previous code
@@ -452,10 +473,10 @@ def evaluate_scenario(
     """
     if baseline_name == "Keyword Search":
         method_key = "keyword"
-        results = run_keyword_search(scenario["query"])
+        results = run_keyword_search(scenario["query"], scenario_id=scenario["id"])
     elif baseline_name == "Vector RAG":
         method_key = "vector"
-        results = run_vector_search(scenario["query"])
+        results = run_vector_search(scenario["query"], scenario_id=scenario["id"])
     else:
         method_key = "hybrid"
         results = (
@@ -538,12 +559,14 @@ def retrieval_detail_for_scenario(
     automatically.
     """
     if method_key == "keyword":
-        results = run_keyword_search(scenario["query"])
+        results = run_keyword_search(scenario["query"], scenario_id=scenario["id"])
     elif method_key == "vector":
-        results = run_vector_search(scenario["query"])
+        results = run_vector_search(scenario["query"], scenario_id=scenario["id"])
     else:
         results = run_hybrid_search(
-            scenario["query"], reference_time=scenario_incident_time(scenario)
+            scenario["query"],
+            reference_time=scenario_incident_time(scenario),
+            scenario_id=scenario["id"],
         )
 
     retrieved_text = extract_text_from_results(results, method_key)

@@ -251,7 +251,9 @@ def graphrag_search(payload: GraphRAGSearchPayload, method: str | None = None):
 
         semantic_hits = []
         if search_method in {"vector", "hybrid"}:
-            semantic_hits = semantic_store.search(query, limit=5)
+            semantic_hits = semantic_store.search(
+                query, limit=5, scenario_id=payload.scenario_id
+            )
 
         results = []
         graph_hits = []

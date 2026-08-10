@@ -490,7 +490,7 @@ def test_graphrag_search_supports_keyword_and_vector_methods(monkeypatch):
     monkeypatch.setattr(
         main.semantic_store,
         "search",
-        lambda query, limit: [
+        lambda query, limit, **_kwargs: [
             {
                 "id": "vector-1",
                 "text": "checkout pod failure",
@@ -551,7 +551,9 @@ def test_graphrag_search_uses_configurable_temporal_traversal(monkeypatch):
         ]
 
     monkeypatch.setattr(neo4j_client, "execute_query", _fake_execute_query)
-    monkeypatch.setattr(main.semantic_store, "search", lambda query, limit: [])
+    monkeypatch.setattr(
+        main.semantic_store, "search", lambda query, limit, **_kwargs: []
+    )
     monkeypatch.setattr(
         graphrag_search_module.graph_traversal_retriever, "retrieve", _fake_traverse
     )
@@ -628,7 +630,7 @@ def test_graphrag_api_exposes_combined_ranking_rationale(monkeypatch):
     monkeypatch.setattr(
         main.semantic_store,
         "search",
-        lambda query, limit: [
+        lambda query, limit, **_kwargs: [
             {
                 "id": "qdrant-log-1",
                 "text": "database authentication failed",

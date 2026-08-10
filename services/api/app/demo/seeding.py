@@ -7,7 +7,13 @@ import logging
 import uuid
 from typing import Any, Dict
 
-from qdrant_client.models import PointIdsList
+from qdrant_client.models import (
+    FieldCondition,
+    Filter,
+    FilterSelector,
+    MatchValue,
+    PointIdsList,
+)
 
 from app.database.neo4j_client import neo4j_client
 from app.database.qdrant import qdrant_client
@@ -50,15 +56,19 @@ def seed_scenario_data(scenario: Dict[str, Any]) -> None:
                 SET p.status = 'Failed',
                     p.nodeName = 'node-worker-01',
                     p.is_benchmark = true,
+                    p.scenario_id = $scenario_id,
                     p.id = $pod_name
                 MERGE (s:Service {name: $svc_name})
-                SET s.is_benchmark = true
+                SET s.is_benchmark = true,
+                    s.scenario_id = $scenario_id
                 MERGE (n:Node {name: 'node-worker-01'})
                 SET n.status = 'Ready',
-                    n.is_benchmark = true
+                    n.is_benchmark = true,
+                    n.scenario_id = $scenario_id
                 MERGE (d:Deployment {name: $deploy_name})
                 SET d.status = 'Degraded',
-                    d.is_benchmark = true
+                    d.is_benchmark = true,
+                    d.scenario_id = $scenario_id
 
                 MERGE (p)-[:BELONGS_TO {is_benchmark: true}]->(s)
                 MERGE (p)-[:RUNS_ON {is_benchmark: true}]->(n)
@@ -68,6 +78,7 @@ def seed_scenario_data(scenario: Dict[str, Any]) -> None:
                     "pod_name": target_entity,
                     "svc_name": target_service,
                     "deploy_name": f"{target_service}-deploy",
+                    "scenario_id": scenario_id,
                 },
             )
 
@@ -78,7 +89,8 @@ def seed_scenario_data(scenario: Dict[str, Any]) -> None:
                 """
                 MERGE (c:Commit {sha: $commit_sha})
                 SET c.message = $commit_msg,
-                    c.is_benchmark = true
+                    c.is_benchmark = true,
+                    c.scenario_id = $scenario_id
                 WITH c
                 MATCH (d:Deployment {name: $deploy_name})
                 MERGE (c)-[:TRIGGERED_BY {is_benchmark: true}]->(d)
@@ -87,6 +99,7 @@ def seed_scenario_data(scenario: Dict[str, Any]) -> None:
                     "commit_sha": f"sha-{scenario_id}",
                     "commit_msg": f"update {target_service} configuration",
                     "deploy_name": f"{target_service}-deploy",
+                    "scenario_id": scenario_id,
                 },
             )
 
@@ -111,7 +124,8 @@ def seed_scenario_data(scenario: Dict[str, Any]) -> None:
                         message: $message,
                         level: 'ERROR',
                         timestamp: $timestamp,
-                        is_benchmark: true
+                        is_benchmark: true,
+                        scenario_id: $scenario_id
                     })
                     CREATE (p)-[:GENERATES {is_benchmark: true}]->(l)
                     """,
@@ -120,6 +134,7 @@ def seed_scenario_data(scenario: Dict[str, Any]) -> None:
                         "log_id": f"log-{scenario_id}-{idx}",
                         "message": symptom,
                         "timestamp": incident_time - age,
+                        "scenario_id": scenario_id,
                     },
                 )
 
@@ -132,7 +147,8 @@ def seed_scenario_data(scenario: Dict[str, Any]) -> None:
                     name: 'container_cpu_usage_seconds_total',
                     value: 95.0,
                     timestamp: $timestamp,
-                    is_benchmark: true
+                    is_benchmark: true,
+                    scenario_id: $scenario_id
                 })
                 CREATE (p)-[:GENERATES {is_benchmark: true}]->(m)
                 """,
@@ -140,6 +156,7 @@ def seed_scenario_data(scenario: Dict[str, Any]) -> None:
                     "pod_name": target_entity,
                     "metric_id": f"metric-{scenario_id}",
                     "timestamp": incident_time,
+                    "scenario_id": scenario_id,
                 },
             )
             logger.info("Successfully seeded Neo4j for scenario %s", scenario_id)
@@ -157,6 +174,7 @@ def seed_scenario_data(scenario: Dict[str, Any]) -> None:
             ),
             metadata={
                 "is_benchmark": True,
+                "scenario_id": scenario_id,
                 "label": "Commit",
                 "name": f"commit-{scenario_id}",
             },
@@ -170,6 +188,7 @@ def seed_scenario_data(scenario: Dict[str, Any]) -> None:
                 text=symptom,
                 metadata={
                     "is_benchmark": True,
+                    "scenario_id": scenario_id,
                     "label": "Log",
                     "name": target_entity,
                     "pod_name": target_entity,
@@ -185,6 +204,7 @@ def seed_scenario_data(scenario: Dict[str, Any]) -> None:
             ),
             metadata={
                 "is_benchmark": True,
+                "scenario_id": scenario_id,
                 "label": "Metric",
                 "name": "container_cpu_usage_seconds_total",
                 "pod_name": target_entity,
@@ -241,3 +261,145 @@ def teardown_benchmark_data() -> None:
                 logger.info("Deleted Qdrant points: %s", point_ids)
     except (RuntimeError, OSError, ValueError) as exc:
         logger.error("Failed to teardown Qdrant benchmark points: %s", exc)
+
+
+def _protected_collections() -> set[str]:
+    """Collections that serve real traffic and must never be purged.
+
+    Taken from the configured product collections, not from "everything
+    that is not the evaluation collection" — the latter is circular, since
+    an evaluation collection misconfigured to a live name would exclude
+    itself from the very set meant to protect it.
+    """
+    return set(qdrant_client.product_collection_names)
+
+
+class SemanticStoreNotIsolatedError(RuntimeError):
+    """Raised when the vector store holds evidence that is not the current
+    scenario's, which would silently contaminate every retrieval condition."""
+
+
+def purge_semantic_store() -> int:
+    """Delete every point in the evidence collection and every local
+    fallback document, returning how many vector points were removed.
+
+    Teardown alone is not sufficient to guarantee a clean store. It deletes
+    reconstructed point ids drawn from this process's in-memory document
+    list, so points written by any earlier process are unreachable forever
+    — and Qdrant outlives the API pod, which is restarted routinely. Points
+    seeded before scenario tagging existed carry no is_benchmark flag
+    either, so a predicate-based delete cannot find them. A full purge is
+    the only reliable reset, and an evaluation run must start from one.
+    """
+    semantic_store.documents = []
+    semantic_store.persist()
+
+    removed = 0
+    if not qdrant_client.connect():
+        logger.warning("Qdrant unavailable; purged local fallback documents only")
+        return removed
+
+    # Only ever the evaluation collection. This deletes every point it
+    # touches, so pointing it at the collection serving real traffic would
+    # destroy production evidence to set up a benchmark run.
+    collection = qdrant_client.eval_collection_name
+    if collection in _protected_collections():
+        raise RuntimeError(
+            f"refusing to purge {collection!r}: it is a live evidence "
+            "collection, not the dedicated evaluation one"
+        )
+    try:
+        before = qdrant_client.client.get_collection(collection).points_count
+        qdrant_client.client.delete(
+            collection_name=collection,
+            points_selector=FilterSelector(filter=Filter(must=[])),
+            wait=True,
+        )
+        after = qdrant_client.client.get_collection(collection).points_count
+        removed = before - after
+        logger.info(
+            "Purged evaluation collection %s: %s -> %s points",
+            collection,
+            before,
+            after,
+        )
+    except (RuntimeError, OSError, ValueError) as exc:
+        logger.error("Failed to purge evaluation collection %s: %s", collection, exc)
+    return removed
+
+
+def assert_semantic_store_isolated(scenario_id: str) -> None:
+    """Fail the run if the vector store holds anything but this scenario.
+
+    Deliberately fatal rather than best-effort. Cross-scenario residue does
+    not announce itself in the results — it silently inflates every
+    retrieval condition and invalidates the raw-vs-hybrid ablation and the
+    GPCS scores together, which is only discoverable afterwards by
+    inspecting request logs. Losing a run to a loud failure is far cheaper
+    than publishing a quiet one.
+    """
+    if not qdrant_client.connect():
+        return
+
+    foreign = 0
+    for collection in (qdrant_client.eval_collection_name,):
+        try:
+            records, _ = qdrant_client.client.scroll(
+                collection_name=collection,
+                scroll_filter=Filter(
+                    must_not=[
+                        FieldCondition(
+                            key="scenario_id", match=MatchValue(value=scenario_id)
+                        )
+                    ]
+                ),
+                limit=1,
+                with_payload=False,
+            )
+            foreign += len(records)
+        except (RuntimeError, OSError, ValueError) as exc:
+            logger.error("Could not verify isolation of %s: %s", collection, exc)
+
+    if foreign:
+        raise SemanticStoreNotIsolatedError(
+            f"vector store holds evidence not belonging to {scenario_id}; "
+            "every retrieval condition would be contaminated. Purge the "
+            "store (app.demo.seeding.purge_semantic_store) and re-run."
+        )
+
+    assert_graph_isolated(scenario_id)
+
+
+def assert_graph_isolated(scenario_id: str) -> None:
+    """Fail the run if Neo4j holds benchmark nodes from another scenario.
+
+    The graph side has the same exposure as the vector side: keyword and
+    raw-context retrieval read seeded nodes, and until those queries were
+    scenario-scoped the only thing keeping them honest was that teardown
+    happens to delete every is_benchmark node globally. Checking it here
+    means a partial teardown surfaces as a failed run rather than as
+    quietly contaminated evidence.
+    """
+    if not neo4j_client.driver:
+        return
+    try:
+        records = neo4j_client.execute_query(
+            """
+            MATCH (n)
+            WHERE n.is_benchmark = true
+              AND (n.scenario_id IS NULL OR n.scenario_id <> $scenario_id)
+            RETURN count(n) AS foreign
+            """,
+            {"scenario_id": scenario_id},
+        )
+    except (RuntimeError, OSError) as exc:
+        logger.error("Could not verify Neo4j isolation: %s", exc)
+        return
+
+    foreign = records[0].get("foreign", 0) if records else 0
+    if foreign:
+        raise SemanticStoreNotIsolatedError(
+            f"graph holds {foreign} benchmark nodes not belonging to "
+            f"{scenario_id}; keyword and raw-context retrieval would read "
+            "another incident's evidence. Tear down and re-run."
+        )

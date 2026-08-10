@@ -27,13 +27,31 @@ def _fake_sc_result(tag: str) -> dict:
                 "unsupported": False,
             }
         ],
+        # The segmentation self-consistency actually scored, which GPCS must
+        # be handed rather than re-deriving — see _fake_score_claims.
+        "extracted_claims": [
+            {"id": "claim-1", "text": f"claim text {tag}", "type": "state"}
+        ],
     }
 
 
-def _fake_score_claims(_analysis, _search_func) -> dict:
-    """Fixed-agreement stand-in for GraphProvenanceClaimScorer.score_claims."""
+def _fake_score_claims(_analysis, _search_func, claims=None) -> dict:
+    """Fixed-agreement stand-in for GraphProvenanceClaimScorer.score_claims.
+
+    Echoes back whatever segmentation it was given, exactly as the real one
+    does when `claims` is passed — so a caller that stopped forwarding
+    self-consistency's claims would produce empty GPCS columns here rather
+    than silently still passing."""
     return {
-        "claims": [{"claim_id": "claim-1", "trust_score": 0.9, "unsupported": False}]
+        "claims": [
+            {
+                "claim_id": c["id"],
+                "text": c["text"],
+                "trust_score": 0.9,
+                "unsupported": False,
+            }
+            for c in (claims or [])
+        ]
     }
 
 
@@ -80,7 +98,18 @@ def no_real_io(monkeypatch):
         lambda query, **_kwargs: [{"id": "hybrid-hit"}],
     )
     monkeypatch.setattr(
-        report_runner, "run_raw_context_search", lambda query: [{"id": "raw-hit"}]
+        # **_kwargs absorbs scenario_id, which the real call passes so
+        # retrieval is scoped to the scenario under evaluation (see
+        # evaluation.run_raw_context_search).
+        report_runner,
+        "run_raw_context_search",
+        lambda query, **_kwargs: [{"id": "raw-hit"}],
+    )
+    # Vector-store isolation is enforced against a live Qdrant; these tests
+    # are about report_runner's orchestration and must not require one.
+    monkeypatch.setattr(report_runner, "purge_semantic_store", lambda: 0)
+    monkeypatch.setattr(
+        report_runner, "assert_semantic_store_isolated", lambda _id: None
     )
     monkeypatch.setattr(
         report_runner, "retrieval_detail_for_scenario", _fake_retrieval_detail
@@ -116,6 +145,49 @@ def test_generate_report_runs_all_three_context_conditions(monkeypatch):
     for condition in ("none", "raw", "hybrid"):
         assert condition in result["claims_csv"]
     assert set(result["context_condition_summary"].keys()) == {"none", "raw", "hybrid"}
+
+
+def test_gpcs_scores_the_same_segmentation_self_consistency_scored(monkeypatch):
+    """Regression guard for a silent-mis-join bug: extract_claims is an LLM
+    call, so letting GPCS re-extract the primary generation produced a
+    *different* segmentation — different claim count, different text under
+    the same positional "claim-N" id. _claim_row joins the two by claim_id,
+    so that paired unrelated claims (blank GPCS columns where the counts
+    differed, wrong-but-populated rows where they happened to match),
+    corrupting the headline agreement metric.
+
+    GPCS must therefore be handed self-consistency's own claim list, and
+    every emitted row must carry identical claim_text and gpcs_claim_text."""
+    seen_claims = []
+
+    def recording_score_claims(_analysis, _search_func, claims=None):
+        seen_claims.append(claims)
+        return _fake_score_claims(_analysis, _search_func, claims)
+
+    monkeypatch.setattr(
+        report_runner,
+        "GraphProvenanceClaimScorer",
+        lambda **_kwargs: types.SimpleNamespace(score_claims=recording_score_claims),
+    )
+    monkeypatch.setattr(
+        report_runner, "generate_and_score", lambda *a, **k: _fake_sc_result("x")
+    )
+
+    result = report_runner.generate_report(scenario_limit=1)
+
+    # Passed explicitly on every condition, never left to re-extraction.
+    assert len(seen_claims) == 3
+    for claims in seen_claims:
+        assert claims == _fake_sc_result("x")["extracted_claims"]
+
+    rows = [r for r in result["claims_csv"].splitlines() if r.strip()]
+    header = rows[0].split(",")
+    text_idx = header.index("claim_text")
+    gpcs_text_idx = header.index("gpcs_claim_text")
+    assert len(rows) == 4  # header + one row per condition
+    for row in rows[1:]:
+        cells = row.split(",")
+        assert cells[text_idx] == cells[gpcs_text_idx] != ""
 
 
 def test_generate_report_excludes_per_condition_independently(monkeypatch):

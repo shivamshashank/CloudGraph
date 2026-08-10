@@ -6,6 +6,8 @@ import logging
 import os
 from typing import Any
 
+from qdrant_client.models import FieldCondition, Filter, MatchValue
+
 from app.database.neo4j_client import neo4j_client
 from app.database.qdrant import QDRANT_ERRORS, qdrant_client
 from app.services.embeddings import (
@@ -17,6 +19,19 @@ from app.services.evidence_chunking import chunk_evidence
 
 
 logger = logging.getLogger(__name__)
+
+
+def _scenario_filter(scenario_id: str | None) -> Filter | None:
+    """Qdrant filter restricting a search to one benchmark scenario.
+
+    Returns None when no scenario is given, which is the product's normal
+    unscoped behaviour — only evaluation runs pass a scenario_id.
+    """
+    if scenario_id is None:
+        return None
+    return Filter(
+        must=[FieldCondition(key="scenario_id", match=MatchValue(value=scenario_id))]
+    )
 
 
 class SemanticVectorStore:
@@ -34,6 +49,10 @@ class SemanticVectorStore:
         self.embedder = embedder or SentenceTransformerEmbedder()
         self.fallback_embedder = HashedFallbackEmbedder()
         self.vector_client = vector_client or qdrant_client
+        # Which Qdrant collection this store reads and writes. Evaluation
+        # runs point it at a dedicated collection so their wholesale seeding
+        # and purging cannot reach the one serving real traffic.
+        self.collection_name = os.getenv("QDRANT_COLLECTION", "evidence")
         self.documents: list[dict[str, Any]] = []
         self._load()
 
@@ -111,6 +130,7 @@ class SemanticVectorStore:
                     chunk_id,
                     embedding,
                     {"id": chunk_id, "text": chunk, **chunk_metadata},
+                    collection_name=self.collection_name,
                 )
             except QDRANT_ERRORS as exc:
                 logger.warning("Could not upsert semantic vector: %s", exc)
@@ -142,12 +162,31 @@ class SemanticVectorStore:
         self._save()
         return indexed[0] if indexed else {}
 
-    def search(self, query: str, limit: int = 5) -> list[dict[str, Any]]:
-        """Search documents using the vector client or the fallback store."""
+    def search(
+        self, query: str, limit: int = 5, scenario_id: str | None = None
+    ) -> list[dict[str, Any]]:
+        """Search documents using the vector client or the fallback store.
+
+        scenario_id restricts results to evidence seeded for that benchmark
+        scenario. Passing it is mandatory for evaluation runs and is what
+        makes each scenario an isolated trial: the vector collection is a
+        single global namespace that outlives any one process, so an
+        unscoped search returns evidence from every scenario ever seeded —
+        including runs from previous deployments whose points teardown can
+        no longer reach (see app/demo/seeding.py's teardown, which can only
+        delete ids this process knows about). Left unscoped, that turned
+        the raw-context control into "retrieve the entire accumulated
+        store" and contaminated every retrieval condition.
+        """
         query_embedding, backend = self._embed(query)
         if backend == "sentence-transformer":
             try:
-                points = self.vector_client.search(query_embedding, limit=limit)
+                points = self.vector_client.search(
+                    query_embedding,
+                    limit=limit,
+                    query_filter=_scenario_filter(scenario_id),
+                    collection_name=self.collection_name,
+                )
             except QDRANT_ERRORS as exc:
                 logger.warning("Could not search semantic vector store: %s", exc)
                 points = []
@@ -166,12 +205,21 @@ class SemanticVectorStore:
                     for point in points
                 ]
 
-        # Qdrant or the model is unavailable: search persisted local evidence.
+        # Qdrant or the model is unavailable: search persisted local
+        # evidence. The scenario scope has to be applied here too, or the
+        # fallback path silently reintroduces the contamination the vector
+        # path now prevents.
         scored = [
             (self._cosine_similarity(query_embedding, doc["embedding"]), doc)
             for doc in self.documents
-            if doc.get("metadata", {}).get("embedding_backend") == backend
-            or "embedding_backend" not in doc.get("metadata", {})
+            if (
+                doc.get("metadata", {}).get("embedding_backend") == backend
+                or "embedding_backend" not in doc.get("metadata", {})
+            )
+            and (
+                scenario_id is None
+                or doc.get("metadata", {}).get("scenario_id") == scenario_id
+            )
         ]
         scored.sort(key=lambda item: item[0], reverse=True)
         return [

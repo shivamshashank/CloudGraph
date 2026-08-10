@@ -135,6 +135,20 @@ def _request_one_sample(
             {
                 "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 "scenario_id": scenario["id"],
+                # Retrieval size and provenance, recorded per call so
+                # cross-scenario contamination is auditable directly from
+                # the log. Previously this could only be reconstructed by
+                # string-matching other scenarios' entity names after the
+                # fact, which is how a full invalid run went unnoticed.
+                "n_retrieval_results": len(retrieval_results or []),
+                "retrieval_scenario_ids": sorted(
+                    {
+                        str(item.get("metadata", {}).get("scenario_id"))
+                        for item in (retrieval_results or [])
+                        if isinstance(item, dict)
+                        and item.get("metadata", {}).get("scenario_id")
+                    }
+                ),
                 "request": _sanitize_request_payload(request_payload),
                 "status_code": status_code,
                 "response": response_body,
@@ -348,6 +362,14 @@ def generate_and_score(
     text is split into the same claims by both methods, only the
     verification mechanism differs.
 
+    The returned "extracted_claims" is that exact segmentation of the
+    primary generation, and callers comparing against GPCS must hand it
+    back to score_claims(claims=...) rather than letting GPCS re-extract.
+    extract_claims is an LLM call, so a second invocation on the same text
+    returns a *different* segmentation — a different claim count, and
+    different text under the same positional "claim-N" id. Joining the two
+    outputs by claim_id then silently pairs unrelated claims.
+
     call_options holds the advanced/rarely-set wiring together —
     orch_addr (defaults to AGENT_ORCHESTRATOR_URL), request_logger, and
     retrieval_results (None by default — the original Day-2 condition, no
@@ -394,6 +416,7 @@ def generate_and_score(
         "unsupported_claim_rate": round(unsupported / total, 3) if total else None,
         "claim_count": total,
         "claims": scored_claims,
+        "extracted_claims": primary_claims,
         "n_samples": n_samples,
         "temperature": temperature,
         "generations": generations,

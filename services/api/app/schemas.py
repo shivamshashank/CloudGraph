@@ -162,6 +162,10 @@ class GraphRAGSearchPayload(BaseModel):
     query: str
     namespace: str = "cloudgraph-system"
     depth: int = Field(default=2, ge=1, le=4)
+    # Restricts semantic retrieval to one benchmark scenario's evidence.
+    # Only evaluation runs set it; production search leaves it None and
+    # keeps searching the whole store.
+    scenario_id: str | None = None
     start_time: int | None = None
     end_time: int | None = None
     method: str = Field(default="hybrid")
