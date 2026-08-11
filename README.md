@@ -58,8 +58,8 @@ multi-agent reasoning.
 CloudGraph is designed to collect this data from open-source observability and
 cloud-native tools such as OpenTelemetry, Prometheus, Grafana Loki,
 kube-state-metrics, node_exporter, Alertmanager, Argo CD, Falco, and
-GitHub/GitLab webhooks. The full Week 1 data strategy is documented in
-`dissertation/week-1/data-collection-strategy.md`.
+GitHub/GitLab webhooks. What is actually wired versus planned is recorded in
+[`docs/README.md`](docs/README.md) and [`docs/project/STATUS.md`](docs/project/STATUS.md).
 
 ---
 
@@ -128,6 +128,34 @@ Confidence-aware agent voting improves recommendation quality and trust.
 
 ---
 
+## 📐 What has actually been evaluated
+
+The questions and hypotheses above are the research agenda. What has been
+**measured** is narrower, and should not be conflated with them.
+
+**The evaluated task is fault-type diagnosis for a known affected service,
+not root-cause service localisation.** The benchmark supplies the faulted
+service to the system, so it is asked *why* the service failed, never
+*which* service failed. No result here shows that CloudGraph finds the
+culprit service.
+
+Completed: 36 chaos-injected RCAEval RE2 incidents across three systems and
+six fault types, 3,685 claims, single build, zero exclusions.
+
+| Question | Status |
+|---|---|
+| Does neural/hybrid retrieval beat keyword retrieval? | **Yes** — +0.190 tag recall, 95% CI [+0.116, +0.269], p=0.0003. Keyword never recovered a complete tag set in 36 scenarios. |
+| Does the graph beat pure vector retrieval? | **No measurable difference** — identical on every retrieval metric. |
+| Does retrieval context change how much output is graph-grounded? | **No** — 0.9 pp spread across none/raw/hybrid. |
+| Are GPCS and self-consistency the same signal? | **No** — GPCS flags 11.9 pp more claims, CI [+0.073, +0.163]. |
+| Does either verifier detect *incorrect* claims? | **Not established.** On the claims that can be labelled automatically, neither discriminates. |
+
+H1–H4 as written are **not** tested by this evaluation. Full results:
+[`experiments/FINDINGS.html`](experiments/FINDINGS.html) ·
+[`experiments/README.md`](experiments/README.md).
+
+---
+
 ## ✨ Core Features
 
 - 🧠 GraphRAG-Powered Root Cause Analysis
@@ -187,33 +215,27 @@ GraphRAG evaluation.
 
 # 🏗️ Architecture
 
-<table>
-  <tr>
-    <td align="center" width="33%">
-      <b>High-Level Architecture</b><br><br>
-      <img src="docs/images/high-level-architecture.png" alt="Architecture">
-    </td>
-    <td align="center" width="33%">
-      <b>GraphRAG Pipeline</b><br><br>
-      <img src="docs/images/graphrag-pipeline.png" alt="GraphRAG">
-    </td>
-    <td align="center" width="33%">
-      <b>Multi-Agent Workflow</b><br><br>
-      <img src="docs/images/multi-agent-workflow.png" alt="Agents">
-    </td>
-  </tr>
-  <tr>
-    <td align="center">
-      <b>AWS Deployment</b><br><br>
-      <img src="docs/images/aws-deployment.png" alt="AWS Deployment">
-    </td>
-    <td align="center">
-      <b>Knowledge Graph Schema</b><br><br>
-      <img src="docs/images/knowledge-graph-schema.png" alt="Knowledge Graph Schema">
-    </td>
-    <td></td>
-  </tr>
-</table>
+## What is actually built
+
+<p align="center">
+  <img src="docs/architecture/figures/current-architecture.svg" alt="CloudGraph evaluated pipeline: solid boxes are implemented and exercised by the 36-scenario evaluation, dashed boxes on the right are planned and not built" width="880">
+</p>
+
+Solid boxes are implemented and were exercised by the 36-scenario
+evaluation. Dashed boxes are planned and do not exist — including the
+cross-agent critique round, which is the difference between an ensemble
+and a collaborating multi-agent system.
+
+## Design history
+
+The original design targeted AWS (EKS, RDS, S3), seven agents including
+trace/RCA/recommendation roles, cross-agent collaboration, external alert
+integrations and a continuous-learning loop. None of that was built. The
+diagrams depicting it have been removed rather than captioned, because a
+diagram that has to be explained away is worse than no diagram.
+
+[`docs/architecture/design-evolution.md`](docs/architecture/design-evolution.md)
+records what changed and why; git history retains the original visuals.
 
 ---
 
@@ -452,7 +474,14 @@ Generates:
 CloudGraph transforms raw observability telemetry into explainable root cause
 analysis through a multi-stage GraphRAG and multi-agent reasoning pipeline.
 
-<img src="docs/images/graphrag-investigation-pipeline.png" alt="GraphRAG Investigation Pipeline">
+<p align="center">
+  <img src="docs/architecture/figures/05-graphrag-pipeline.svg" alt="GraphRAG retrieval over the incident knowledge graph" width="760">
+</p>
+
+See [What is actually built](#what-is-actually-built) for the end-to-end
+pipeline, and
+[`docs/architecture/system-overview.md`](docs/architecture/system-overview.md)
+for the step-by-step walkthrough.
 
 ---
 

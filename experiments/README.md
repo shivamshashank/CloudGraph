@@ -16,7 +16,7 @@ Headline results, all derived from `results/claims.csv`:
 
 | Result | Effect | 95% CI | p |
 |---|---|---|---|
-| GPCS flags more unsupported than self-consistency | +0.120 | [+0.087, +0.152] | <0.0001 |
+| GPCS flags more unsupported than self-consistency | +0.119 | [+0.073, +0.163] | <0.0001 |
 | Neural/hybrid retrieval beats keyword recall | +0.190 | [+0.116, +0.269] | 0.0003 |
 | Hybrid vs raw retrieval context (concordance) | +0.024 | [-0.028, +0.077] | 0.302 (null) |
 
@@ -128,8 +128,10 @@ unranked), `hybrid` (ranked GraphRAG retrieval) — and for each:
    primary one.
 2. Scores those claims two independent ways: **self-consistency** (does
    the claim recur across samples?) and **GPCS** (does the claim have
-   supporting evidence in the graph, above a calibrated relevance
-   floor?).
+   supporting evidence in the graph, above a **fixed** relevance floor of
+   0.30?). The floor is not calibrated: it was set by inspecting live
+   query score distributions, and no held-out fitting has been done. The
+   0.50 trust threshold is likewise a default, not a fitted cutoff.
 3. Separately runs a neuro-symbolic retrieval benchmark
    (keyword=symbolic, vector=neural, hybrid=neuro-symbolic).
 

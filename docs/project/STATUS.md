@@ -184,7 +184,7 @@ Propagation (GCP) and Graph-Provenance Claim Scoring (GPCS).
 - **React/Next.js SPA refactor** — never started; current UI is, and is
   accurately documented as, static vanilla HTML/JS. Not currently planned
   (the vanilla UI works and isn't a priority versus the research/evaluation
-  work below). See `docs/design-evolution.md`.
+  work below). See `docs/architecture/design-evolution.md`.
 - **Multi-cluster / native cloud provider discovery** — `k8s_discovery.py`
   is limited to local kubeconfig; no AWS EKS/GCP GKE/Azure AKS SDK
   integration or multi-cluster federation.
@@ -192,7 +192,7 @@ Propagation (GCP) and Graph-Provenance Claim Scoring (GPCS).
   confidence) — **deliberately deferred**, not just "not yet done." It's
   specifically for uncertainty-quantification-adjacent PhD applications,
   not required for the workshop paper this project targets first (see Day
-  4's note in `research/7_DAY_SPRINT_CHECKLIST.md` for the reasoning).
+  4's note in `dissertation/PROGRESS.md` (Week 8) for the reasoning).
 - **GPCS claim-extraction determinism**: `GraphProvenanceClaimScorer.
   extract_claims()` is called independently by both `self_consistency.py`
   and the GPCS scoring path — two separate LLM calls on the same
@@ -208,8 +208,8 @@ Propagation (GCP) and Graph-Provenance Claim Scoring (GPCS).
   stores a real cloud provider API key, so this endpoint being unauthenticated
   is a genuine credential-exposure risk, not a theoretical one — worth
   prioritizing before this is exposed beyond a trusted network.
-- **Dissertation chapter writing** — 0% complete; only structural outlines
-  exist in `dissertation/week-1/`.
+- **Dissertation chapter writing** — 0% complete; the chapter plan and
+  evidence map are in `dissertation/DISSERTATION_OUTLINE.md`.
 
 ---
 

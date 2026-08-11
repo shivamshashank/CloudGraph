@@ -83,5 +83,5 @@ None of these three deviations weaken the research contributions
 comparison, and the neuro-symbolic retrieval ablation are all independent
 of which cloud provider, orchestration framework, or frontend stack
 implements the surrounding system. They're recorded here so a reviewer
-comparing this repo against earlier design docs (`dissertation/week-1/`)
+comparing this repo against the earlier design docs (in git history)
 sees engineering decisions with reasons, not unexplained drift.

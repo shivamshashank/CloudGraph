@@ -39,9 +39,9 @@ common way dissertation time budgets fail.
       set was retired in favour of 36 scenarios derived from real
       chaos-injected failures in RCAEval RE2
       (`app/demo/rcaeval_dataset.py`, `experiments/DATA_PROVENANCE.md`).
-- [ ] Implement a **train/held-out split** (e.g. 70/30, matching the split
-      already documented in `dissertation/week-2` evidence but not yet applied to actual
-      threshold calibration). Still not done — GPCS's semantic-evidence
+- [ ] Implement a **train/held-out split** (e.g. 70/30, as discussed in the
+      original evaluation plan but never applied to actual threshold
+      calibration). Still not done — GPCS's semantic-evidence
       threshold (`MIN_SEMANTIC_EVIDENCE_SCORE = 0.30` in `gpcs.py`) was
       calibrated ad hoc against real live query examples, not a formal
       held-out split methodology.
@@ -109,10 +109,10 @@ common way dissertation time budgets fail.
         actually used anywhere.
   - [x] Reframe AWS EKS/IAM/S3 references as historical/superseded — README's
         architecture section already notes current deployment uses
-        Helm+kubeadm, not AWS-specific; `docs/design-evolution.md` (new)
+        Helm+kubeadm, not AWS-specific; `docs/architecture/design-evolution.md` (new)
         covers the full reasoning.
 - [x] Add a **"Design Evolution / Deviations from Initial Design"** doc —
-      `docs/design-evolution.md`, covering all three deviations: AWS →
+      `docs/architecture/design-evolution.md`, covering all three deviations: AWS →
       Helm/kubeadm, LangGraph → custom orchestrator, planned SPA → static
       UI, each framed as an engineering decision with a reason. Written as
       a standalone doc rather than inline in the dissertation chapters
@@ -157,15 +157,17 @@ common way dissertation time budgets fail.
 
 ## 6. Dissertation Writing (Currently 0% Complete — Largest Remaining Time Cost)
 
-- [ ] **Introduction** — problem motivation, RQ1–RQ4, H1–H4 (source material
-      already exists in `dissertation/week-1/research-methodology.md`).
-- [ ] **Literature Review** — expand `dissertation/week-1/literature-review.md` into
+- [ ] **Introduction** — problem motivation, RQ1–RQ4, H1–H4 (definitions and
+      per-question verdicts already tabulated in `dissertation/PROGRESS.md`).
+- [ ] **Literature Review** — expand `dissertation/LITERATURE_REVIEW.md` into
       full academic prose with citations in required format (reference list
-      already compiled in `dissertation/week-1/references.md`).
-- [ ] **Methodology** — adapt from `research-methodology.md`; update with the
-      real (not heuristic) evaluation protocol once Section 1 is complete.
-- [ ] **System Design / Implementation** — adapt from `architecture-design.md`
-      and actual code; include the Design Evolution subsection from Section 3.
+      already compiled in `dissertation/REFERENCES.md`; three entries there
+      are flagged ⚠ as needing independent verification).
+- [ ] **Methodology** — write from `experiments/README.md` and
+      `experiments/DATA_PROVENANCE.md`, following
+      `dissertation/DISSERTATION_OUTLINE.md` Chapter 5.
+- [ ] **System Design / Implementation** — write from `docs/architecture/` and
+      actual code; include the Design Evolution subsection from Section 3.
 - [ ] **Evaluation** — cannot be credibly written until Section 1 is complete.
       This chapter receives the heaviest marker scrutiny.
 - [ ] **Discussion** — explicitly answer RQ1–RQ4 with evidence; include at least
@@ -200,8 +202,7 @@ research artifact suitable for a peer-reviewed AIOps/MLSys/systems venue.
 ## Evaluation Depth
 
 - [ ] Scale the incident benchmark dataset to 100+ scenarios (the original
-      target stated in `README.md` and `dissertation/week-1/data-collection-strategy.md`
-      but never reached).
+      target stated in `README.md` but never reached).
 - [ ] Replace synthetic/scripted incidents with a mix of real production-style
       traces — consider public incident datasets or partnering with an org
       willing to share anonymized incident logs.
@@ -219,7 +220,7 @@ research artifact suitable for a peer-reviewed AIOps/MLSys/systems venue.
 ## Related Work & Positioning
 
 - [ ] Expand literature review to directly compare against recent
-      GraphRAG-for-RCA papers already in `references.md` (MetaRCA, Agentic
+      GraphRAG-for-RCA papers already in `dissertation/REFERENCES.md` (MetaRCA, Agentic
       Structured Graph Traversal, Graphical Causal Reasoning for Root Cause
       Analysis) with a proper comparison table (method, dataset, metrics,
       limitations).
@@ -253,7 +254,7 @@ research artifact suitable for a peer-reviewed AIOps/MLSys/systems venue.
       ICSE-SEIP, or an MLSys/AIOps workshop).
 - [ ] Reframe GPCS and GCP as the paper's core technical contributions with
       dedicated formal descriptions (algorithm boxes, complexity analysis — the
-      latter already partially exists in `docs/research/gcp_design.md`).
+      latter already partially exists in `docs/design/GCP_DESIGN.md`).
 - [ ] Get supervisor/co-author sign-off and identify 2–3 target venues before
       submission.
 
@@ -279,7 +280,7 @@ depth.
 - [ ] Formalize Graph Confidence Propagation (GCP) as a probabilistic graphical
       model; connect explicitly to existing literature on belief propagation and
       Noisy-OR networks, with convergence/complexity proofs beyond the current
-      empirical `O(V·b^d)` estimate in `gcp_design.md`.
+      empirical `O(V·b^d)` estimate in `docs/design/GCP_DESIGN.md`.
 - [ ] Investigate calibration properties of GPCS trust scores (are 0.7-trust
       claims actually correct ~70% of the time? — formal calibration analysis,
       reliability diagrams).
@@ -304,9 +305,9 @@ depth.
       incidents), addressing the "small dataset" limitation carried over from
       v1/v2.
 - [ ] Conduct a longitudinal study: does the growing temporal knowledge graph
-      actually improve RCA quality over time, as claimed in
-      `data-collection-strategy.md`'s "Dissertation Value" section? This
-      requires multi-month deployment data — a natural PhD-length study.
+      actually improve RCA quality over time, as the original data-collection
+      strategy claimed? This requires multi-month deployment data — a natural
+      PhD-length study.
 
 ## Systems Contributions
 

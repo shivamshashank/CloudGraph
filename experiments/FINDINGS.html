@@ -509,10 +509,22 @@
     then asked to diagnose it three times, under three retrieval conditions.
   </p>
   <p>
+    <strong
+      >The task is fault-type diagnosis for a known affected service.</strong
+    >
+    The benchmark supplies the faulted service, so the system is asked
+    <em>why</em> it failed, never <em>which</em> service failed. Nothing here
+    measures root-cause localisation, and no result should be described as
+    finding the culprit service.
+  </p>
+  <p>
     Every diagnosis is split into atomic claims, and each claim is judged twice
     — once by <strong>self-consistency</strong> (does it recur across
     independent samples?) and once by <strong>GPCS</strong> (can it be traced to
-    retrieved graph evidence?). Both verifiers judge the identical claim list.
+    retrieved graph evidence above a fixed 0.30 relevance floor?). Both
+    verifiers judge the identical claim list. Neither the floor nor the 0.50
+    trust threshold is calibrated — both are hand-set defaults, never fitted on
+    a held-out split.
   </p>
 </div>
 

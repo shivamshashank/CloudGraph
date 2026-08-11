@@ -11,7 +11,7 @@ Instead, it acts as an **AI investigation layer** that sits on top of your exist
 # High-Level Architecture
 
 <p align="center">
-<img src="../images/system-overview/01-overall-architecture.svg" alt="Overall Architecture" width="auto"/>
+<img src="figures/01-overall-architecture.svg" alt="Overall Architecture" width="auto"/>
 </p>
 
 ---
@@ -129,7 +129,7 @@ Pod C
 CloudGraph understands relationships.
 
 <p align="center">
-<img src="../images/system-overview/02-service-dependency-graph.svg" alt="Service Dependency Graph" width="auto"/>
+<img src="figures/02-service-dependency-graph.svg" alt="Service Dependency Graph" width="auto"/>
 </p>
 
 Neo4j stores relationships such as:
@@ -212,7 +212,7 @@ Telemetry is transformed into graph entities.
 Example:
 
 <p align="center">
-<img src="../images/system-overview/03-knowledge-graph-pipeline.svg" alt="Knowledge Graph Pipeline" height="512px"/>
+<img src="figures/03-knowledge-graph-pipeline.svg" alt="Knowledge Graph Pipeline" height="512px"/>
 </p>
 
 The graph continuously evolves as the cluster changes.
@@ -247,7 +247,7 @@ No human intervention is required.
 Several AI agents investigate the incident simultaneously.
 
 <p align="center">
-<img src="../images/system-overview/04-multi-agent-workflow.svg" alt="Multi-Agent Workflow" width="auto"/>
+<img src="figures/04-multi-agent-workflow.svg" alt="Multi-Agent Workflow" width="auto"/>
 </p>
 
 Each agent has a specialized responsibility.
@@ -273,13 +273,13 @@ Investigates:
 
 ---
 
-## Investigation Agent
+## Topology Agent
 
 Investigates:
 
 - Service latency
 - Dependency chains
-- Deployment impact
+- Blast radius across the dependency graph
 
 ---
 
@@ -330,7 +330,7 @@ GraphRAG retrieves:
 using multi-hop graph traversal.
 
 <p align="center">
-<img src="../images/system-overview/05-graphrag-pipeline.svg" alt="GraphRAG Pipeline" width="auto"/>
+<img src="figures/05-graphrag-pipeline.svg" alt="GraphRAG Pipeline" width="auto"/>
 </p>
 
 Only highly relevant evidence is retrieved.
@@ -372,13 +372,13 @@ Every AI agent produces:
 - Confidence
 - Evidence
 
-Example:
+Example output (illustrative figures, not measured performance):
 
 | Agent | Confidence |
 |---------|-----------|
 | Monitoring | 92% |
 | Logs | 97% |
-| Traces | 94% |
+| Topology | 94% |
 | Deployment | 95% |
 | Security | 89% |
 
@@ -452,28 +452,6 @@ This enables:
 - Better recommendations
 - Reduced Mean Time To Resolution (MTTR)
 - Continuous operational learning
-
----
-
-# Multi-Cluster Deployment
-
-CloudGraph supports enterprise-scale environments.
-
-<p align="center">
-<img src="../images/system-overview/06-multi-cluster-architecture.svg" alt="Multi-Cluster Architecture" width="auto"/>
-</p>
-
-Each cluster runs a lightweight CloudGraph Agent.
-
-The Control Plane aggregates telemetry and investigations across all clusters.
-
----
-
-# CloudGraph Architecture Summary
-
-<p align="center">
-<img src="../images/system-overview/07-end-to-end-pipeline.svg" alt="End to End Pipeline" height="512px"/>
-</p>
 
 ---
 
