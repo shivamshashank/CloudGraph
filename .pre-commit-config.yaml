@@ -16,6 +16,11 @@ repos:
       - id: check-json
       - id: check-merge-conflict
       - id: check-added-large-files
+        # experiments/results/claims.csv is ~720KB: it is the dataset every
+        # published number derives from, so it has to be tracked rather than
+        # regenerated (regenerating costs ~6h of LLM calls and would not
+        # reproduce, the provider exposes no sampling seed).
+        args: [--maxkb=1024]
       - id: detect-private-key
 
   # ===================================================================

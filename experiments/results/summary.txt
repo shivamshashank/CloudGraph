@@ -1,0 +1,28 @@
+CloudGraph Research Report (merged)
+===================================
+Generated:           2026-08-11T12:56:58.791796+00:00
+Source batches:      6
+Scenarios:           36/36
+Excluded attempts:   0/108 (scenario x context-condition)
+Claims scored:       3685
+LLM calls logged:    329
+Agreement:           2414/3685 claims agree
+  context=none   849/1254 claims agree (1254 claims)
+  context=raw    748/1192 claims agree (1192 claims)
+  context=hybrid 817/1239 claims agree (1239 claims)
+
+Scenarios by system (pre-specified stratum):
+  Online Boutique    12 scenarios
+  Sock Shop          12 scenarios
+  Train Ticket       12 scenarios
+
+Scenarios by fault type (pre-specified stratum):
+  cpu                6 scenarios
+  delay              6 scenarios
+  disk               6 scenarios
+  loss               6 scenarios
+  mem                6 scenarios
+  socket             6 scenarios
+
+Note: `batch` is operational only and is confounded with fault
+type. Report by system or fault type, never by batch.

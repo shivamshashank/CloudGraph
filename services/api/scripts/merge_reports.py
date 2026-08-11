@@ -30,6 +30,7 @@ Usage (from services/api):
 
 import argparse
 import csv
+import gzip
 import hashlib
 import json
 import re
@@ -375,7 +376,7 @@ def _write_manifest(
                 "claims.csv",
                 "agreement_crosstab.csv",
                 "neurosymbolic_retrieval_detail.csv",
-                "requests_log.jsonl",
+                "requests_log.jsonl.gz",
                 "summary.txt",
             )
         },
@@ -445,10 +446,12 @@ def merge(report_dirs: list[Path], out_dir: Path, expected_scenarios: int) -> No
         _rows_to_csv(collected["neurosymbolic"], MERGED_NEUROSYMBOLIC_FIELDNAMES),
         encoding="utf-8",
     )
-    (out_dir / "requests_log.jsonl").write_text(
-        "\n".join(json.dumps(r) for r in collected["requests"]) + "\n",
-        encoding="utf-8",
-    )
+    # Gzipped: this is ~7MB of raw JSON per full run, and it is evidence
+    # rather than a convenience artefact — the ground-truth leakage checks
+    # run against it, so it has to stay in the repo rather than be
+    # regenerated. Compressed it is small enough to track honestly.
+    with gzip.open(out_dir / "requests_log.jsonl.gz", "wt", encoding="utf-8") as fh:
+        fh.write("\n".join(json.dumps(r) for r in collected["requests"]) + "\n")
 
     summary_text = _build_summary(
         collected, strata, expected_scenarios, agreement_summary, condition_summary
