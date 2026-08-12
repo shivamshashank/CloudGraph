@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Runs the full GPCS-vs-self-consistency comparison from a full source
-# checkout, in batches, then merges them — this is how the real 25-scenario
-# result in experiments/ was actually produced. Replaces the old
+# checkout, in batches, then merges them — this is how the real 36-scenario
+# result in experiments/ was actually produced (6 batches of 6). Replaces the old
 # run_report_full.sh, which only ran a single monolithic pass with no
 # offset/batching support — a real mid-run crash cost 19/25 scenarios of
 # progress once this session (the report job's state is in-memory only, by

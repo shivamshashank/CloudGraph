@@ -141,10 +141,10 @@ cd services/api
 # Full suite, serially — measured at ~32 minutes on this project's suite
 .venv/bin/pytest tests/ -q
 
-# Parallel across CPU cores — measured at ~18 minutes (-n auto) on the same
-# suite, a real ~45% reduction, not just a theoretical one. A single slow
-# test (the real 25-scenario x 6-baseline benchmark evaluation) sets a
-# floor xdist can't parallelize away, so don't expect more than this.
+# Parallel across CPU cores. Measured 2026-08-12: 123 tests in ~28 minutes
+# with -n auto, reproduced across two full runs. A single slow test (the
+# real multi-baseline benchmark evaluation) sets a floor xdist can't
+# parallelize away, so don't expect much better than this.
 .venv/bin/pytest tests/ -q -n auto
 ```
 

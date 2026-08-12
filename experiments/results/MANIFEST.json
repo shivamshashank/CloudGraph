@@ -5,7 +5,42 @@
   "complete": true,
   "n_claims": 3685,
   "n_excluded_attempts": 0,
-  "n_llm_calls": 329,
+  "n_investigation_requests": 329,
+  "n_specialist_agent_calls": 1645,
+  "n_consensus_calls": 329,
+  "n_agent_llm_calls": 1974,
+  "generation_source_counts": {
+    "llm": 324,
+    "rule_based_fallback": 5
+  },
+  "n_non_llm_generations": 5,
+  "non_llm_generations": [
+    {
+      "scenario_id": "rcaeval-02",
+      "batch": "batch-01",
+      "generation_source": "rule_based_fallback"
+    },
+    {
+      "scenario_id": "rcaeval-04",
+      "batch": "batch-01",
+      "generation_source": "rule_based_fallback"
+    },
+    {
+      "scenario_id": "rcaeval-05",
+      "batch": "batch-01",
+      "generation_source": "rule_based_fallback"
+    },
+    {
+      "scenario_id": "rcaeval-05",
+      "batch": "batch-01",
+      "generation_source": "rule_based_fallback"
+    },
+    {
+      "scenario_id": "rcaeval-36",
+      "batch": "batch-06",
+      "generation_source": "rule_based_fallback"
+    }
+  ],
   "integrity_checks_passed": true,
   "source_batches": [
     {
@@ -207,5 +242,6 @@
     "neurosymbolic_retrieval_detail.csv": "960b9a9c9a292703fa78d471f7809f6783253a70318af2572df3c545b91b4f7d",
     "requests_log.jsonl": "1514df02e0820cb755bdf4d6d0d6a52f96f525cadfec72f5ec1c7547aad267f2",
     "summary.txt": "8b77d75150d61b352e0c6aaaa12b45c6c8b859f99860f77704ffb356b6e31f0d"
-  }
+  },
+  "source_batches_note": "Batch directories were removed after merging; they are gitignored working artefacts. Every scenario, checksum and request they contributed is recorded here and in requests_log.jsonl.gz."
 }

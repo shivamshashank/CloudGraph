@@ -5,7 +5,9 @@ Source batches:      6
 Scenarios:           36/36
 Excluded attempts:   0/108 (scenario x context-condition)
 Claims scored:       3685
-LLM calls logged:    329
+Investigations:      329 (one logged record each; NOT one LLM call each)
+Agent LLM calls:     1974 (1645 specialist + 329 consensus; excludes GPCS extraction/scoring)
+Non-LLM generations: 5 (rule-based fallback — see MANIFEST.json)
 Agreement:           2414/3685 claims agree
   context=none   849/1254 claims agree (1254 claims)
   context=raw    748/1192 claims agree (1192 claims)

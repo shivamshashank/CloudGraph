@@ -1439,9 +1439,14 @@
 
 <footer>
   <p>
-    Reproduce: <code>merge_reports.py experiments/batches/batch-0*</code> →
-    <code>paired_bootstrap.py</code> → <code>make_figures.py</code>. All figures
-    regenerate from <code>experiments/results/claims.csv</code>.
+    Reproduce from the shipped dataset: <code>paired_bootstrap.py</code> →
+    <code>make_figures.py</code>. Every figure and statistic regenerates from
+    <code>experiments/results/claims.csv</code>. To reproduce that file from
+    scratch, re-run the benchmark per <code>experiments/README.md</code> and
+    merge the resulting batch directories with <code>merge_reports.py</code>
+    — the batch directories from this run were gitignored working artefacts and
+    are not shipped; their provenance and checksums are recorded in
+    <code>results/MANIFEST.json</code>.
   </p>
   <p>
     36 scenarios · 3 systems × 6 fault types × 2 replicates · 0 excluded ·

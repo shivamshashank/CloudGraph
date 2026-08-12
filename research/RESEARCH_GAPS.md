@@ -50,7 +50,7 @@ For each area: what exists in the literature, what CloudGraph currently has, and
 
 **Literature.** MetaRCA (Liang et al., 2026) and agentic structured graph traversal for RCA (Cui et al., 2025) are close, recent competitors: both target graph-based RCA with agentic elements.
 
-**CloudGraph today.** Directly overlaps with this niche but has not been benchmarked against either system or their datasets, and its own evaluation is currently simulated (see `REPOSITORY_REVIEW.md`).
+**CloudGraph today.** Directly overlaps with this niche. Its own evaluation is now real — 36 RCAEval RE2 cases, `experiments/README.md` — but it has still not been benchmarked against either system or their datasets.
 
 **Gap.** The most direct competitive gap: CloudGraph must, at minimum, cite and ideally reproduce a comparison against these two systems (or their reported numbers on a shared or adapted dataset) to establish it is not redundant with existing 2025–2026 work. This is a literature-positioning risk, not just an implementation gap — a paper submission without this comparison will likely be rejected as incremental.
 

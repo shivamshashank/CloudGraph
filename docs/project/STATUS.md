@@ -227,5 +227,6 @@ Propagation (GCP) and Graph-Provenance Claim Scoring (GPCS).
    (AWS→Helm/kubeadm, LangGraph→custom orchestrator).
 4. **Where to look next**: see `dissertation/PROGRESS.md` for the full
    week-by-week account of how this project reached its current state,
-   including the real evaluation results and where the workshop paper
-   draft (`research/paper/DRAFT.md`) currently stands.
+   including the real evaluation results. The earlier paper drafts were
+   retired on 2026-08-11 — every number in them predated the integrity
+   fixes — and will be rewritten from `experiments/results/`.

@@ -29,6 +29,7 @@ Usage (from services/api):
     .venv/bin/python scripts/paired_bootstrap.py
 """
 
+import json
 import sys
 from pathlib import Path
 
@@ -94,6 +95,29 @@ def gpcs_vs_self_consistency_deltas(claims: pd.DataFrame) -> np.ndarray:
     gpcs_rate = grouped["gpcs_unsupported"].mean()
     sc_rate = grouped["self_consistency_unsupported"].mean()
     return (gpcs_rate - sc_rate).to_numpy(dtype=float)
+
+
+def non_llm_generation_scenarios(results_dir: Path) -> list[str]:
+    """Scenarios where at least one generation came from the deterministic
+    rule-based fallback rather than the LLM.
+
+    Read from MANIFEST.json rather than hardcoded, so this tracks whatever
+    the merge actually recorded. Those generations are not LLM output; they
+    were secondary self-consistency samples (no fallback text reaches
+    claims.csv), but they can still depress a recurrence rate, so the
+    headline delta is reported with and without them.
+    """
+    manifest_path = results_dir / "MANIFEST.json"
+    if not manifest_path.exists():
+        return []
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    return sorted(
+        {
+            entry["scenario_id"]
+            for entry in manifest.get("non_llm_generations", [])
+            if entry.get("scenario_id")
+        }
+    )
 
 
 def hybrid_vs_raw_agreement_deltas(claims: pd.DataFrame) -> np.ndarray:
@@ -186,6 +210,24 @@ def main() -> None:
                 "hallucinates MORE than a single LLM sampled the same "
                 "number of times)",
                 agents_vs_single_llm_deltas(matched_compute),
+            )
+        )
+
+    # Sensitivity: a handful of generations fell back to the deterministic
+    # rule-based path instead of the LLM. No fallback text reaches
+    # claims.csv, but a fallback sample can still depress a recurrence rate,
+    # so re-run the headline delta with every affected scenario dropped. If
+    # the effect only survives with them in, it was never real.
+    fallback_scenarios = non_llm_generation_scenarios(RESULTS_DIR)
+    if fallback_scenarios:
+        kept = claims[~claims["scenario_id"].isin(fallback_scenarios)]
+        sections.append(
+            _report(
+                "SENSITIVITY -- GPCS vs. self-consistency, excluding the "
+                f"{len(fallback_scenarios)} scenarios containing a "
+                "rule-based-fallback generation "
+                f"({', '.join(fallback_scenarios)})",
+                gpcs_vs_self_consistency_deltas(kept),
             )
         )
 

@@ -25,3 +25,11 @@ mean delta = +0.1898
 95% bootstrap CI = [+0.1157, +0.2685]
 Wilcoxon signed-rank: statistic=0.00, p=0.0003
 significant at alpha=0.05: yes
+
+### SENSITIVITY -- GPCS vs. self-consistency, excluding the 4 scenarios containing a rule-based-fallback generation (rcaeval-02, rcaeval-04, rcaeval-05, rcaeval-36)
+
+n = 32 paired observations
+mean delta = +0.1255
+95% bootstrap CI = [+0.0801, +0.1724]
+Wilcoxon signed-rank: statistic=49.00, p=0.0000
+significant at alpha=0.05: yes
