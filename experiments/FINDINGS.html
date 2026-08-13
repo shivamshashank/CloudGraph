@@ -1,0 +1,1457 @@
+<title>CloudGraph — Evaluation Findings (n=36)</title>
+
+<style>
+  :root {
+    --ink: #14181c;
+    --ink-soft: #3d464f;
+    --muted: #6b7480;
+    --rule: #d9ddd7;
+    --paper: #f6f7f5;
+    --card: #ffffff;
+    --accent: #0d6e6e;
+    --accent-dim: #0d6e6e1f;
+    --flag: #a8442a;
+    --flag-dim: #a8442a1c;
+    --null: #6b7480;
+
+    --serif:
+      "Iowan Old Style", "Palatino Linotype", Palatino, Georgia,
+      "Times New Roman", serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+
+    --measure: 68ch;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ink: #e4e8e6;
+      --ink-soft: #b3bcc2;
+      --muted: #8b959e;
+      --rule: #2a3138;
+      --paper: #0e1216;
+      --card: #161c21;
+      --accent: #4fb3ad;
+      --accent-dim: #4fb3ad24;
+      --flag: #e08a68;
+      --flag-dim: #e08a6824;
+      --null: #8b959e;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ink: #e4e8e6;
+    --ink-soft: #b3bcc2;
+    --muted: #8b959e;
+    --rule: #2a3138;
+    --paper: #0e1216;
+    --card: #161c21;
+    --accent: #4fb3ad;
+    --accent-dim: #4fb3ad24;
+    --flag: #e08a68;
+    --flag-dim: #e08a6824;
+    --null: #8b959e;
+  }
+  :root[data-theme="light"] {
+    --ink: #14181c;
+    --ink-soft: #3d464f;
+    --muted: #6b7480;
+    --rule: #d9ddd7;
+    --paper: #f6f7f5;
+    --card: #ffffff;
+    --accent: #0d6e6e;
+    --accent-dim: #0d6e6e1f;
+    --flag: #a8442a;
+    --flag-dim: #a8442a1c;
+    --null: #6b7480;
+  }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16.5px;
+    line-height: 1.65;
+    margin: 0;
+    padding: 0 1.25rem 6rem;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: var(--measure);
+    margin: 0 auto;
+  }
+  .wide {
+    max-width: 104ch;
+    margin-inline: auto;
+  }
+
+  /* ---- masthead ---- */
+  header.masthead {
+    max-width: 104ch;
+    margin: 0 auto;
+    padding: 4.5rem 0 2rem;
+    border-bottom: 2px solid var(--ink);
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 1.1rem;
+  }
+  h1 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: clamp(2.1rem, 5vw, 3.1rem);
+    line-height: 1.1;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+    margin: 0 0 1rem;
+  }
+  .standfirst {
+    font-family: var(--serif);
+    font-size: 1.2rem;
+    line-height: 1.5;
+    color: var(--ink-soft);
+    max-width: 60ch;
+    margin: 0 0 1.8rem;
+  }
+  .provenance {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.6rem;
+    font-family: var(--mono);
+    font-size: 0.74rem;
+    color: var(--muted);
+    padding-bottom: 0.4rem;
+  }
+  .provenance b {
+    color: var(--ink-soft);
+    font-weight: 500;
+  }
+
+  /* ---- headline stats ---- */
+  .stats {
+    max-width: 104ch;
+    margin: 2.5rem auto 3.5rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+  }
+  .stat {
+    background: var(--card);
+    padding: 1.1rem 1.15rem;
+  }
+  .stat .n {
+    font-family: var(--mono);
+    font-size: 1.75rem;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+    display: block;
+    margin-bottom: 0.3rem;
+  }
+  .stat .l {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: block;
+  }
+
+  h2 {
+    font-family: var(--serif);
+    font-size: 1.75rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 3.5rem 0 0.4rem;
+    text-wrap: balance;
+  }
+  h3 {
+    font-family: var(--serif);
+    font-size: 1.22rem;
+    font-weight: 600;
+    margin: 2rem 0 0.5rem;
+    text-wrap: balance;
+  }
+  .section-note {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 1.5rem;
+  }
+  p {
+    margin: 0 0 1.1rem;
+  }
+  a {
+    color: var(--accent);
+  }
+  strong {
+    font-weight: 650;
+  }
+  code {
+    font-family: var(--mono);
+    font-size: 0.86em;
+    background: var(--accent-dim);
+    padding: 0.1em 0.35em;
+    border-radius: 2px;
+  }
+
+  /* ---- findings ---- */
+  .finding {
+    max-width: 104ch;
+    margin: 0 auto 2.25rem;
+    border: 1px solid var(--rule);
+    background: var(--card);
+  }
+  .finding-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.9rem;
+    flex-wrap: wrap;
+    padding: 1.1rem 1.4rem 0.6rem;
+  }
+  .fid {
+    font-family: var(--mono);
+    font-size: 0.74rem;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .chip {
+    font-family: var(--mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    padding: 0.2em 0.6em;
+    border-radius: 2px;
+    border: 1px solid currentColor;
+  }
+  .chip.sig {
+    color: var(--accent);
+    background: var(--accent-dim);
+  }
+  .chip.null {
+    color: var(--null);
+  }
+  .chip.desc {
+    color: var(--flag);
+    background: var(--flag-dim);
+  }
+  .finding h3 {
+    margin: 0 0 0.1rem;
+    font-size: 1.3rem;
+    width: 100%;
+  }
+  .finding-body {
+    padding: 0 1.4rem 1.3rem;
+  }
+  .finding-body > p:last-child {
+    margin-bottom: 0;
+  }
+  .stat-line {
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-soft);
+    background: var(--paper);
+    border-left: 3px solid var(--accent);
+    padding: 0.6rem 0.85rem;
+    margin: 0 0 1rem;
+    overflow-x: auto;
+  }
+  .stat-line.isnull {
+    border-left-color: var(--null);
+  }
+
+  /* ---- charts ---- */
+  figure {
+    margin: 1.6rem 0;
+  }
+  figcaption {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--muted);
+    line-height: 1.5;
+    margin-top: 0.7rem;
+  }
+  .chart {
+    display: grid;
+    gap: 0.45rem;
+  }
+  .row {
+    display: grid;
+    grid-template-columns: 8.5rem 1fr 4.2rem;
+    align-items: center;
+    gap: 0.7rem;
+  }
+  .row .k {
+    font-family: var(--mono);
+    font-size: 0.76rem;
+    color: var(--ink-soft);
+    text-align: right;
+    white-space: nowrap;
+  }
+  .track {
+    background: var(--rule);
+    height: 1.15rem;
+    position: relative;
+  }
+  .bar {
+    height: 100%;
+    background: var(--accent);
+  }
+  .bar.flagged {
+    background: var(--flag);
+  }
+  .bar.zero {
+    background: repeating-linear-gradient(
+      45deg,
+      var(--rule),
+      var(--rule) 3px,
+      transparent 3px,
+      transparent 6px
+    );
+  }
+  .row .v {
+    font-family: var(--mono);
+    font-size: 0.76rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-soft);
+  }
+  .grouped {
+    display: grid;
+    gap: 1rem;
+  }
+  .group-label {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.3rem;
+  }
+
+  /* ---- tables ---- */
+  .table-scroll {
+    overflow-x: auto;
+    margin: 1.4rem 0;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 0.88rem;
+  }
+  th,
+  td {
+    text-align: left;
+    padding: 0.5rem 0.8rem;
+    border-bottom: 1px solid var(--rule);
+    font-variant-numeric: tabular-nums;
+  }
+  th {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 500;
+    border-bottom: 1.5px solid var(--ink-soft);
+    white-space: nowrap;
+  }
+  td.num {
+    font-family: var(--mono);
+    font-size: 0.84rem;
+  }
+  tr:last-child td {
+    border-bottom: none;
+  }
+  .zero-cell {
+    color: var(--flag);
+    font-weight: 600;
+  }
+
+  /* ---- diagram cards: fixed light ground so mermaid reads in both themes ---- */
+  .diagram {
+    background: #fbfbf9;
+    border: 1px solid var(--rule);
+    padding: 1.4rem 1rem;
+    overflow-x: auto;
+    color-scheme: light;
+  }
+  .diagram pre.mermaid {
+    margin: 0;
+    background: transparent;
+    text-align: center;
+  }
+
+  /* ---- callout ---- */
+  .callout {
+    border: 1px solid var(--flag);
+    background: var(--flag-dim);
+    padding: 1.2rem 1.4rem;
+    margin: 2rem auto;
+    max-width: 104ch;
+  }
+  .callout h3 {
+    margin-top: 0;
+    color: var(--flag);
+  }
+  .callout p:last-child {
+    margin-bottom: 0;
+  }
+
+  ul,
+  ol {
+    margin: 0 0 1.1rem;
+    padding-left: 1.3rem;
+  }
+  li {
+    margin-bottom: 0.45rem;
+  }
+
+  hr.rule {
+    border: none;
+    border-top: 1px solid var(--rule);
+    margin: 3.5rem auto;
+    max-width: 104ch;
+  }
+
+  footer {
+    max-width: 104ch;
+    margin: 4rem auto 0;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--rule);
+    font-family: var(--mono);
+    font-size: 0.74rem;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+
+  @media (max-width: 620px) {
+    .row {
+      grid-template-columns: 6rem 1fr 3.4rem;
+      gap: 0.5rem;
+    }
+    .row .k {
+      font-size: 0.68rem;
+    }
+  }
+
+  .diagram-svg {
+    border: 1px solid var(--rule);
+    background: var(--card);
+    padding: 1.4rem 1.1rem;
+    overflow-x: auto;
+    color: var(--ink-soft);
+  }
+  @media print {
+    body {
+      font-size: 10.5pt;
+      padding: 0;
+    }
+    .finding,
+    .callout,
+    figure,
+    .diagram-svg {
+      break-inside: avoid;
+    }
+  }
+</style>
+
+<header class="masthead">
+  <p class="eyebrow">CloudGraph · Empirical evaluation · RCAEval RE2</p>
+  <h1>Verifying what agents claim</h1>
+  <p class="standfirst">
+    A 36-scenario evaluation of graph-provenance claim scoring against a
+    self-consistency baseline, on chaos-injected failures from three real
+    Kubernetes systems.
+  </p>
+  <div class="provenance">
+    <span><b>commit</b> 9787fde7b2cfd982</span>
+    <span><b>image</b> sha256:81c4864130e8</span>
+    <span><b>dataset</b> 37a527d655894321</span>
+    <span><b>generated</b> 2026-08-11</span>
+  </div>
+</header>
+
+<section class="stats">
+  <div class="stat">
+    <span class="n">36</span><span class="l">scenarios</span>
+  </div>
+  <div class="stat">
+    <span class="n">3,685</span><span class="l">claims scored</span>
+  </div>
+  <div class="stat">
+    <span class="n">108</span><span class="l">condition runs</span>
+  </div>
+  <div class="stat">
+    <span class="n">0</span><span class="l">excluded</span>
+  </div>
+  <div class="stat">
+    <span class="n">329</span><span class="l">llm calls · 0 errors</span>
+  </div>
+</section>
+
+<div class="wrap">
+  <h2>What was measured</h2>
+  <p class="section-note">Method</p>
+
+  <p>
+    Each scenario is one chaos-injected fault from RCAEval RE2 — a real failure
+    in Online Boutique, Sock Shop, or Train Ticket. Its observed telemetry is
+    seeded into a knowledge graph and a vector store; a multi-agent system is
+    then asked to diagnose it three times, under three retrieval conditions.
+  </p>
+  <p>
+    <strong
+      >The task is fault-type diagnosis for a known affected service.</strong
+    >
+    The benchmark supplies the faulted service, so the system is asked
+    <em>why</em> it failed, never <em>which</em> service failed. Nothing here
+    measures root-cause localisation, and no result should be described as
+    finding the culprit service.
+  </p>
+  <p>
+    Every diagnosis is split into atomic claims, and each claim is judged twice
+    — once by <strong>self-consistency</strong> (does it recur across
+    independent samples?) and once by <strong>GPCS</strong> (can it be traced to
+    retrieved graph evidence above a fixed 0.30 relevance floor?). Both
+    verifiers judge the identical claim list. Neither the floor nor the 0.50
+    trust threshold is calibrated — both are hand-set defaults, never fitted on
+    a held-out split.
+  </p>
+</div>
+
+<div class="wide">
+  <figure>
+    <div class="diagram-svg">
+      <svg
+        viewBox="0 0 900 330"
+        role="img"
+        aria-label="Evaluation pipeline: an RCAEval case is seeded into a graph and vector store, run under three retrieval conditions, generating three diagnoses which are split into atomic claims and judged independently by self-consistency and GPCS. Ground truth is held out and never reaches generation."
+        style="max-width: 100%; height: auto"
+      >
+        <defs>
+          <marker
+            id="ar"
+            viewBox="0 0 10 10"
+            refX="9"
+            refY="5"
+            markerWidth="6"
+            markerHeight="6"
+            orient="auto-start-reverse"
+          >
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor" />
+          </marker>
+        </defs>
+        <g
+          font-family="ui-monospace, Menlo, monospace"
+          font-size="12"
+          fill="currentColor"
+          stroke="currentColor"
+        >
+          <rect
+            x="8"
+            y="130"
+            width="112"
+            height="44"
+            fill="none"
+            stroke-width="1.2"
+          />
+          <text x="64" y="148" text-anchor="middle" stroke="none">
+            RCAEval RE2
+          </text>
+          <text x="64" y="163" text-anchor="middle" stroke="none">case</text>
+
+          <rect
+            x="164"
+            y="130"
+            width="118"
+            height="44"
+            fill="none"
+            stroke-width="1.2"
+          />
+          <text x="223" y="148" text-anchor="middle" stroke="none">
+            seed graph
+          </text>
+          <text x="223" y="163" text-anchor="middle" stroke="none">
+            + vectors
+          </text>
+
+          <rect
+            x="332"
+            y="52"
+            width="104"
+            height="36"
+            fill="none"
+            stroke-width="1.2"
+          />
+          <text x="384" y="74" text-anchor="middle" stroke="none">none</text>
+          <rect
+            x="332"
+            y="134"
+            width="104"
+            height="36"
+            fill="none"
+            stroke-width="1.2"
+          />
+          <text x="384" y="156" text-anchor="middle" stroke="none">raw</text>
+          <rect
+            x="332"
+            y="216"
+            width="104"
+            height="36"
+            fill="none"
+            stroke-width="1.2"
+          />
+          <text x="384" y="238" text-anchor="middle" stroke="none">hybrid</text>
+          <text x="384" y="34" text-anchor="middle" stroke="none" opacity=".65">
+            retrieval condition
+          </text>
+
+          <rect
+            x="486"
+            y="130"
+            width="112"
+            height="44"
+            fill="none"
+            stroke-width="1.2"
+          />
+          <text x="542" y="148" text-anchor="middle" stroke="none">
+            3 diagnoses
+          </text>
+          <text x="542" y="163" text-anchor="middle" stroke="none">
+            T = 0.8
+          </text>
+
+          <rect
+            x="644"
+            y="130"
+            width="106"
+            height="44"
+            fill="none"
+            stroke-width="1.2"
+          />
+          <text x="697" y="148" text-anchor="middle" stroke="none">atomic</text>
+          <text x="697" y="163" text-anchor="middle" stroke="none">claims</text>
+
+          <rect
+            x="794"
+            y="86"
+            width="98"
+            height="40"
+            fill="none"
+            stroke-width="1.2"
+          />
+          <text x="843" y="102" text-anchor="middle" stroke="none">
+            self-cons.
+          </text>
+          <text x="843" y="116" text-anchor="middle" stroke="none" opacity=".7">
+            recurrence
+          </text>
+          <rect
+            x="794"
+            y="178"
+            width="98"
+            height="40"
+            fill="none"
+            stroke-width="1.2"
+          />
+          <text x="843" y="194" text-anchor="middle" stroke="none">GPCS</text>
+          <text x="843" y="208" text-anchor="middle" stroke="none" opacity=".7">
+            provenance
+          </text>
+
+          <line
+            x1="120"
+            y1="152"
+            x2="158"
+            y2="152"
+            stroke-width="1.2"
+            marker-end="url(#ar)"
+          />
+          <line
+            x1="282"
+            y1="152"
+            x2="326"
+            y2="152"
+            stroke-width="1.2"
+            marker-end="url(#ar)"
+          />
+          <path
+            d="M282,152 L306,152 L306,70 L326,70"
+            fill="none"
+            stroke-width="1.2"
+            marker-end="url(#ar)"
+          />
+          <path
+            d="M282,152 L306,152 L306,234 L326,234"
+            fill="none"
+            stroke-width="1.2"
+            marker-end="url(#ar)"
+          />
+          <path
+            d="M436,70 L460,70 L460,152 L480,152"
+            fill="none"
+            stroke-width="1.2"
+            marker-end="url(#ar)"
+          />
+          <line
+            x1="436"
+            y1="152"
+            x2="480"
+            y2="152"
+            stroke-width="1.2"
+            marker-end="url(#ar)"
+          />
+          <path
+            d="M436,234 L460,234 L460,152 L480,152"
+            fill="none"
+            stroke-width="1.2"
+            marker-end="url(#ar)"
+          />
+          <line
+            x1="598"
+            y1="152"
+            x2="638"
+            y2="152"
+            stroke-width="1.2"
+            marker-end="url(#ar)"
+          />
+          <path
+            d="M750,152 L772,152 L772,106 L788,106"
+            fill="none"
+            stroke-width="1.2"
+            marker-end="url(#ar)"
+          />
+          <path
+            d="M750,152 L772,152 L772,198 L788,198"
+            fill="none"
+            stroke-width="1.2"
+            marker-end="url(#ar)"
+          />
+          <text
+            x="697"
+            y="122"
+            text-anchor="middle"
+            stroke="none"
+            font-size="11"
+            opacity=".7"
+          >
+            one segmentation,
+          </text>
+          <text
+            x="697"
+            y="110"
+            text-anchor="middle"
+            stroke="none"
+            font-size="11"
+            opacity=".7"
+          >
+            both verifiers
+          </text>
+
+          <rect
+            x="486"
+            y="278"
+            width="112"
+            height="34"
+            fill="none"
+            stroke-width="1.2"
+            stroke-dasharray="4 3"
+            opacity=".6"
+          />
+          <text x="542" y="299" text-anchor="middle" stroke="none" opacity=".6">
+            ground truth
+          </text>
+          <path
+            d="M542,278 L542,178"
+            fill="none"
+            stroke-width="1.2"
+            stroke-dasharray="4 3"
+            opacity=".6"
+          />
+          <line
+            x1="524"
+            y1="232"
+            x2="560"
+            y2="212"
+            stroke-width="1.4"
+            opacity=".85"
+          />
+          <text x="612" y="228" stroke="none" font-size="11" opacity=".75">
+            held out — never seen
+          </text>
+        </g>
+      </svg>
+    </div>
+
+    <figcaption>
+      Figure 1 — The evaluation pipeline. Ground truth is held out entirely: it
+      never enters generation or scoring, which is what makes the leakage check
+      meaningful. One claim segmentation feeds both verifiers, so their verdicts
+      are comparable claim-for-claim.
+    </figcaption>
+  </figure>
+</div>
+
+<div class="wrap">
+  <h2>Findings</h2>
+  <p class="section-note">Each carries its evidential status</p>
+</div>
+
+<!-- F1 -->
+<article class="finding">
+  <div class="finding-head">
+    <span class="fid">F1</span><span class="chip sig">Significant</span>
+    <h3>GPCS is substantially stricter than self-consistency</h3>
+  </div>
+  <div class="finding-body">
+    <p class="stat-line">
+      Δ unsupported-rate = +0.119 &nbsp;·&nbsp; 95% CI [+0.073, +0.163]
+      &nbsp;·&nbsp; Wilcoxon p &lt; 0.0001 &nbsp;·&nbsp; n = 36 scenarios
+      (clustered)
+    </p>
+    <p>
+      GPCS flags <strong>70.3%</strong> of claims as unsupported;
+      self-consistency flags <strong>57.9%</strong>. The two agree on 65.5% of
+      claims.
+    </p>
+    <p>
+      The bootstrap is clustered on <em>scenario</em>, not on scenario &times;
+      condition. The three conditions of one incident share the same seeded
+      evidence and the same graph, so their deltas are correlated; treating all
+      108 as independent is pseudo-replication that narrows the interval on what
+      is really a 36-incident sample. Clustering widens the CI from [+0.087,
+      +0.152] to [+0.073, +0.163] — the effect survives, at the width the design
+      actually supports.
+    </p>
+    <p>
+      They also disagree <em>asymmetrically</em>: in 864 cases GPCS flags a
+      claim the ensemble was confident about, versus 407 the other way. A claim
+      can be repeated identically by every sample and still have no evidence
+      behind it — which is precisely the failure mode self-consistency cannot
+      see.
+    </p>
+    <figure class="wide">
+      <div class="chart">
+        <div class="row">
+          <span class="k">both supported</span
+          ><span class="track"
+            ><span class="bar" style="width: 39.7%"></span></span
+          ><span class="v">686</span>
+        </div>
+        <div class="row">
+          <span class="k">both unsupported</span
+          ><span class="track"
+            ><span class="bar" style="width: 100%"></span></span
+          ><span class="v">1728</span>
+        </div>
+        <div class="row">
+          <span class="k">GPCS flags only</span
+          ><span class="track"
+            ><span class="bar flagged" style="width: 50%"></span></span
+          ><span class="v">864</span>
+        </div>
+        <div class="row">
+          <span class="k">self-cons. only</span
+          ><span class="track"
+            ><span class="bar flagged" style="width: 23.6%"></span></span
+          ><span class="v">407</span>
+        </div>
+      </div>
+      <figcaption>
+        Figure 2 — Verdict agreement across 3,685 claims. The 864-vs-407
+        asymmetry is the substantive result: GPCS rejects far more of what the
+        ensemble accepts than the reverse.
+      </figcaption>
+    </figure>
+  </div>
+</article>
+
+<!-- F2 -->
+<article class="finding">
+  <div class="finding-head">
+    <span class="fid">F2</span><span class="chip null">Null result</span>
+    <h3>Retrieval context does not change what GPCS accepts</h3>
+  </div>
+  <div class="finding-body">
+    <p class="stat-line isnull">
+      GPCS unsupported: none 70.0% · raw 70.1% · hybrid 70.9% &nbsp;—&nbsp;
+      spread 0.9 pp over ~1,200 claims each<br />
+      hybrid vs raw concordance Δ = +0.024 · 95% CI [−0.028, +0.077] · p = 0.302
+    </p>
+    <p>
+      Showing the agents no evidence, all the evidence, or ranked evidence makes
+      almost no difference to how much of their output is graph-grounded. The
+      confidence interval straddles zero.
+    </p>
+    <p>
+      This is coherent rather than disappointing: GPCS scores claims against the
+      graph, and the graph does not change with what the generator was shown. It
+      does mean the retrieval-context ablation, as designed, cannot demonstrate
+      value — the verifier is measuring something the manipulation doesn't
+      touch.
+    </p>
+  </div>
+</article>
+
+<!-- F3 -->
+<article class="finding">
+  <div class="finding-head">
+    <span class="fid">F3</span><span class="chip sig">Significant</span>
+    <h3>
+      Neural retrieval beats symbolic retrieval — and keyword never once
+      succeeds
+    </h3>
+  </div>
+  <div class="finding-body">
+    <p class="stat-line">
+      recall Δ (hybrid − keyword) = +0.190 · 95% CI [+0.116, +0.269] · p =
+      0.0003 · n = 36
+    </p>
+    <p>
+      Under strict scoring — every expected tag retrieved — keyword search
+      scores
+      <strong>0 out of 36</strong>. Not once in thirty-six scenarios did it
+      recover a complete tag set, and its recall was exactly 40% in all six
+      independent batches.
+    </p>
+    <figure class="wide">
+      <div class="chart">
+        <div class="row">
+          <span class="k">keyword</span
+          ><span class="track"
+            ><span class="bar zero" style="width: 100%"></span></span
+          ><span class="v">0/36</span>
+        </div>
+        <div class="row">
+          <span class="k">vector</span
+          ><span class="track"
+            ><span class="bar" style="width: 36.1%"></span></span
+          ><span class="v">13/36</span>
+        </div>
+        <div class="row">
+          <span class="k">hybrid</span
+          ><span class="track"
+            ><span class="bar" style="width: 36.1%"></span></span
+          ><span class="v">13/36</span>
+        </div>
+      </div>
+      <figcaption>
+        Figure 3 — Strict retrieval accuracy (all expected tags recovered).
+        Hatched bar = zero. Recall tells the same story: 40% / 56% / 56%.
+      </figcaption>
+    </figure>
+    <p>
+      The shipped <code>correct</code> metric reports
+      <strong>36/36 for all three methods</strong>, because it needs only half
+      the expected tags and the service name alone satisfies that. It is
+      saturated by construction and hides the entire effect.
+    </p>
+  </div>
+</article>
+
+<!-- F4 -->
+<article class="finding">
+  <div class="finding-head">
+    <span class="fid">F4</span><span class="chip null">Null result</span>
+    <h3>The graph adds nothing to retrieval</h3>
+  </div>
+  <div class="finding-body">
+    <p class="stat-line isnull">
+      vector ≡ hybrid on strict accuracy, recall, and per-fault breakdown —
+      identical in all 36 scenarios and all six batches
+    </p>
+    <p>
+      Hybrid retrieval never separated from pure vector search on any measure.
+      This is reported as a negative result: on this benchmark the graph
+      traversal contributes nothing to <em>finding</em> evidence.
+    </p>
+    <p>
+      It does contribute to <em>scoring</em> it. Correcting a defect where
+      evidence with no graph path received full proximity credit moved GPCS's
+      unsupported rate by 13 points and turned a near-binary trust score into a
+      graded one — so the graph matters where provenance is judged, not where
+      candidates are fetched.
+    </p>
+  </div>
+</article>
+
+<!-- F5 -->
+<article class="finding">
+  <div class="finding-head">
+    <span class="fid">F5</span><span class="chip desc">Deterministic</span>
+    <h3>Retrieval fails on vocabulary, not on difficulty</h3>
+  </div>
+  <div class="finding-body">
+    <p>
+      Breaking strict accuracy down by fault type splits the benchmark almost
+      perfectly in two — and the dividing line is lexical.
+    </p>
+    <figure class="wide">
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Fault</th>
+              <th>Expected tags</th>
+              <th>Tokens</th>
+              <th>Vector strict</th>
+              <th>Recall</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>cpu</td>
+              <td><code>cpu</code></td>
+              <td class="num">1</td>
+              <td class="num">6/6</td>
+              <td class="num">100%</td>
+            </tr>
+            <tr>
+              <td>socket</td>
+              <td><code>socket</code></td>
+              <td class="num">1</td>
+              <td class="num">5/6</td>
+              <td class="num">92%</td>
+            </tr>
+            <tr>
+              <td>disk</td>
+              <td><code>disk</code></td>
+              <td class="num">1</td>
+              <td class="num">2/6</td>
+              <td class="num">67%</td>
+            </tr>
+            <tr>
+              <td>delay</td>
+              <td><code>delay</code> + <code>network</code></td>
+              <td class="num">2</td>
+              <td class="num zero-cell">0/6</td>
+              <td class="num">33%</td>
+            </tr>
+            <tr>
+              <td>loss</td>
+              <td><code>loss</code> + <code>packet</code></td>
+              <td class="num">2</td>
+              <td class="num zero-cell">0/6</td>
+              <td class="num">33%</td>
+            </tr>
+            <tr>
+              <td>mem</td>
+              <td><code>mem</code> + <code>memory</code></td>
+              <td class="num">2</td>
+              <td class="num zero-cell">0/6</td>
+              <td class="num">39%</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <figcaption>
+        Figure 4 — Every fault type whose label needs two tokens scores exactly
+        zero; every single-token type scores well. <code>memory</code> is missed
+        in 6 of 6 cases — the seeded telemetry never uses that word.
+      </figcaption>
+    </figure>
+    <p>
+      This is not retrieval being weak on hard faults. It is a
+      benchmark-vocabulary mismatch: the label uses a word the telemetry does
+      not contain. It reproduced exactly across both independent replicates of
+      every fault-type pair, on disjoint cases — retrieval is deterministic
+      given seeded data, so these are not sampling artefacts.
+    </p>
+  </div>
+</article>
+
+<!-- F6 -->
+<article class="finding">
+  <div class="finding-head">
+    <span class="fid">F6</span><span class="chip desc">Reproducible</span>
+    <h3>Groundedness tracks claim type</h3>
+  </div>
+  <div class="finding-body">
+    <figure class="wide">
+      <div class="chart">
+        <div class="row">
+          <span class="k">entity relation</span
+          ><span class="track"
+            ><span class="bar" style="width: 21.3%"></span></span
+          ><span class="v">21.3%</span>
+        </div>
+        <div class="row">
+          <span class="k">temporal</span
+          ><span class="track"
+            ><span class="bar" style="width: 54.4%"></span></span
+          ><span class="v">54.4%</span>
+        </div>
+        <div class="row">
+          <span class="k">state</span
+          ><span class="track"
+            ><span class="bar" style="width: 57.9%"></span></span
+          ><span class="v">57.9%</span>
+        </div>
+        <div class="row">
+          <span class="k">causal</span
+          ><span class="track"
+            ><span class="bar flagged" style="width: 69.3%"></span></span
+          ><span class="v">69.3%</span>
+        </div>
+        <div class="row">
+          <span class="k">general</span
+          ><span class="track"
+            ><span class="bar flagged" style="width: 91.6%"></span></span
+          ><span class="v">91.6%</span>
+        </div>
+      </div>
+      <figcaption>
+        Figure 5 — Share of claims with zero retrievable graph evidence, by
+        claim type (n = 3,685). Lower is better-grounded.
+      </figcaption>
+    </figure>
+    <p>
+      Claims asserting a concrete relationship between named entities are
+      grounded four times more often than vague general statements.
+      <strong>91.6%</strong> of "general" claims have no evidence at all — and
+      that figure landed between 88.5% and 94.2% in every one of the six
+      batches.
+    </p>
+    <p>
+      This is what a provenance-based verifier ought to do: reward specificity,
+      refuse to certify hand-waving.
+    </p>
+  </div>
+</article>
+
+<!-- F7 -->
+<article class="finding">
+  <div class="finding-head">
+    <span class="fid">F7</span><span class="chip desc">Observational</span>
+    <h3>Which system you diagnose matters more than how you retrieve</h3>
+  </div>
+  <div class="finding-body">
+    <figure class="wide">
+      <div class="chart">
+        <div class="row">
+          <span class="k">Train Ticket</span
+          ><span class="track"
+            ><span class="bar" style="width: 63.1%"></span></span
+          ><span class="v">63.1%</span>
+        </div>
+        <div class="row">
+          <span class="k">Online Boutique</span
+          ><span class="track"
+            ><span class="bar" style="width: 66.3%"></span></span
+          ><span class="v">66.3%</span>
+        </div>
+        <div class="row">
+          <span class="k">Sock Shop</span
+          ><span class="track"
+            ><span class="bar flagged" style="width: 81%"></span></span
+          ><span class="v">81.0%</span>
+        </div>
+      </div>
+      <figcaption>
+        Figure 6 — GPCS unsupported rate by system. An 18-point spread, against
+        a 0.9-point spread across retrieval conditions (F2).
+      </figcaption>
+    </figure>
+    <p>
+      Per-scenario variability is also strongly asymmetric between the two
+      verifiers: GPCS ranges from 33.7% to 89.2% (sd 12.7), self-consistency
+      only from 47.4% to 69.6% (sd 6.4). GPCS discriminates between incidents;
+      self-consistency largely does not.
+    </p>
+  </div>
+</article>
+
+<!-- F8 -->
+<article class="finding">
+  <div class="finding-head">
+    <span class="fid">F8</span><span class="chip null">Null result</span>
+    <h3>Neither verifier's flags track whether a claim is correct</h3>
+  </div>
+  <div class="finding-body">
+    <p class="stat-line isnull">
+      base rate of incorrect claims = 68.4% &nbsp;·&nbsp; GPCS precision 0.681
+      &nbsp;·&nbsp; self-consistency precision 0.681 &nbsp;—&nbsp; flagging
+      everything scores 0.684<br />
+      evaluable subset n = 155 (4.2% of claims)
+    </p>
+    <p>
+      Both verifiers post respectable-looking precision. Both are also sitting
+      exactly on the base rate, which is what a verifier that flags everything
+      would score. The discriminating question is not precision but whether the
+      flag rate <em>differs</em>
+      between claims that are right and claims that are wrong.
+    </p>
+    <figure class="wide">
+      <div class="grouped">
+        <div>
+          <p class="group-label">GPCS — gap −0.8 pp</p>
+          <div class="chart">
+            <div class="row">
+              <span class="k">contradicted</span
+              ><span class="track"
+                ><span class="bar flagged" style="width: 60.4%"></span></span
+              ><span class="v">60.4%</span>
+            </div>
+            <div class="row">
+              <span class="k">consistent</span
+              ><span class="track"
+                ><span class="bar" style="width: 61.2%"></span></span
+              ><span class="v">61.2%</span>
+            </div>
+          </div>
+        </div>
+        <div>
+          <p class="group-label">Self-consistency — gap −0.8 pp</p>
+          <div class="chart">
+            <div class="row">
+              <span class="k">contradicted</span
+              ><span class="track"
+                ><span class="bar flagged" style="width: 72.6%"></span></span
+              ><span class="v">72.6%</span>
+            </div>
+            <div class="row">
+              <span class="k">consistent</span
+              ><span class="track"
+                ><span class="bar" style="width: 73.5%"></span></span
+              ><span class="v">73.5%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <figcaption>
+        Figure 8 — Share of claims flagged unsupported, split by whether the
+        claim was actually correct. A verifier that discriminates would show a
+        tall bar above a short one. Both show a flat pair.
+      </figcaption>
+    </figure>
+    <p>
+      Correctness here is labelled automatically from RCAEval's own case
+      metadata — the faulted service and injected fault type — and only for
+      causal claims, since a descriptive observation such as "exhibited
+      increased memory usage" may be perfectly true during a CPU fault.
+    </p>
+    <p>
+      <strong>How much weight this carries.</strong> Coverage is narrow (4.2%)
+      and biased toward causal claims with a nameable mechanism, and the labels
+      remain imperfect — a claim citing "CPU <em>and</em> memory pressure" on a
+      CPU fault is scored contradicted. Label noise attenuates any real signal
+      toward zero, so this is evidence against a <em>strong</em> effect rather
+      than proof of none. It did, however, survive three successive versions of
+      the labeller whose error rates differed substantially (+1.1, +2.8, −0.8
+      pp), which is the main reason to take it seriously.
+    </p>
+    <p>
+      Building that labeller was itself instructive: the first version read "CPU
+      spike caused degradation <em>to</em> orders service" as blaming the orders
+      service, and the second read "stable CPU <em>rules out</em> CPU
+      saturation" as blaming CPU. Both produced confident, plausible precision
+      figures from labels that were wrong on inspection.
+    </p>
+  </div>
+</article>
+
+<hr class="rule" />
+
+<div class="wrap">
+  <h2>Four defects that produced confident, invalid results</h2>
+  <p class="section-note">Evaluation integrity</p>
+  <p>
+    Four separate runs of this evaluation completed cleanly, produced plausible
+    numbers, and were wrong. Each defect was caught by a different check, and
+    none would have been visible in the results themselves.
+  </p>
+</div>
+
+<div class="wide">
+  <figure>
+    <div class="diagram-svg">
+      <svg
+        viewBox="0 0 900 300"
+        role="img"
+        aria-label="Four defects mapped to the pipeline stage each corrupted: ground-truth leakage at seeding, cross-scenario contamination at retrieval, unearned graph-proximity credit at scoring, and an index-based claim join at verdict joining."
+        style="max-width: 100%; height: auto"
+      >
+        <defs>
+          <marker
+            id="ar2"
+            viewBox="0 0 10 10"
+            refX="9"
+            refY="5"
+            markerWidth="6"
+            markerHeight="6"
+            orient="auto-start-reverse"
+          >
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor" />
+          </marker>
+        </defs>
+        <g
+          font-family="ui-monospace, Menlo, monospace"
+          font-size="12"
+          fill="currentColor"
+          stroke="currentColor"
+        >
+          <g stroke-width="1.2">
+            <rect x="10" y="20" width="120" height="38" fill="none" />
+            <rect x="182" y="20" width="120" height="38" fill="none" />
+            <rect x="354" y="20" width="120" height="38" fill="none" />
+            <rect x="526" y="20" width="120" height="38" fill="none" />
+            <rect x="698" y="20" width="88" height="38" fill="none" />
+            <rect x="812" y="20" width="78" height="38" fill="none" />
+          </g>
+          <text x="70" y="44" text-anchor="middle" stroke="none">seed</text>
+          <text x="242" y="44" text-anchor="middle" stroke="none">
+            retrieve
+          </text>
+          <text x="414" y="44" text-anchor="middle" stroke="none">
+            generate
+          </text>
+          <text x="586" y="44" text-anchor="middle" stroke="none">extract</text>
+          <text x="742" y="44" text-anchor="middle" stroke="none">score</text>
+          <text x="851" y="44" text-anchor="middle" stroke="none">join</text>
+
+          <g stroke-width="1.2">
+            <line x1="130" y1="39" x2="176" y2="39" marker-end="url(#ar2)" />
+            <line x1="302" y1="39" x2="348" y2="39" marker-end="url(#ar2)" />
+            <line x1="474" y1="39" x2="520" y2="39" marker-end="url(#ar2)" />
+            <line x1="646" y1="39" x2="692" y2="39" marker-end="url(#ar2)" />
+            <line x1="786" y1="39" x2="806" y2="39" marker-end="url(#ar2)" />
+          </g>
+
+          <g stroke-width="1.1" stroke-dasharray="4 3" opacity=".75">
+            <line x1="70" y1="112" x2="70" y2="62" marker-end="url(#ar2)" />
+            <line x1="242" y1="160" x2="242" y2="62" marker-end="url(#ar2)" />
+            <line x1="742" y1="208" x2="742" y2="62" marker-end="url(#ar2)" />
+            <line x1="851" y1="256" x2="851" y2="62" marker-end="url(#ar2)" />
+          </g>
+
+          <g stroke="none" font-size="11.5">
+            <text x="10" y="128">
+              D1 · ground truth seeded as an input observation
+            </text>
+            <text x="10" y="176">
+              D2 · vector store shared across every scenario — 97 orphan points
+              survived pod restarts
+            </text>
+            <text x="10" y="224">
+              D3 · evidence with no graph path given full proximity credit —
+              inflated trust by 13 points
+            </text>
+            <text x="10" y="272">
+              D4 · two non-deterministic claim extractions joined by index —
+              paired unrelated claims
+            </text>
+          </g>
+        </g>
+      </svg>
+    </div>
+
+    <figcaption>
+      Figure 7 — Where each defect sat. D1 fed the answer key back as an
+      observation. D2 let one scenario retrieve another's evidence — 97 orphaned
+      vectors survived across pod restarts. D3 gave semantic-only evidence
+      maximum graph credit, inflating trust scores by 13 points. D4 joined two
+      non-deterministic claim segmentations by position, silently pairing
+      unrelated claims.
+    </figcaption>
+  </figure>
+</div>
+
+<div class="wrap">
+  <p>
+    All four are now enforced in code rather than by discipline: scenario-scoped
+    retrieval in both stores, a fatal pre-run isolation assertion, a dedicated
+    evaluation namespace, and a merge step that aborts on duplicate claims,
+    broken joins, or any claim reproducing held-out ground truth.
+  </p>
+  <p>
+    A related measurement is worth reporting on its own terms. Four isolated
+    re-runs of the <em>same</em> six scenarios moved per-condition concordance
+    across a <strong>12-point range</strong>, with the best-performing condition
+    changing three times. At temperature 0.8, single-batch condition comparisons
+    are noise.
+  </p>
+</div>
+
+<div class="callout">
+  <h3>What these results do not show</h3>
+  <p>
+    <strong>Agreement is not accuracy.</strong> Concordance measures whether two
+    verifiers reached the same verdict, not whether either was right — both can
+    be wrong on the same claim and it counts as agreement. Held-out ground truth
+    is used only to prove the absence of leakage; nothing in this dataset scores
+    a claim as true or false.
+  </p>
+  <p>
+    So F1 establishes that GPCS is <em>stricter</em>, not that it is
+    <em>better</em> — and F8 finds no evidence that the extra strictness is
+    better aimed. On the subset that can be labelled automatically, GPCS's
+    higher flag rate is a higher flag rate, not sharper discrimination. Settling
+    that properly needs human-labelled correctness, which is the single most
+    valuable piece of work still outstanding. Everything here is scoped to
+    RCAEval RE2 and should not be read as a general result about Kubernetes
+    root-cause analysis.
+  </p>
+</div>
+
+<div class="wrap">
+  <h2>Conclusion</h2>
+  <p class="section-note">What holds</p>
+  <p>
+    Two verification signals that are routinely treated as interchangeable
+    proxies for reliability disagree on more than a third of claims, and
+    disagree asymmetrically. Graph provenance rejects a great deal of what an
+    ensemble confidently repeats. That is a measurable, statistically supported
+    dissociation, and it holds across three systems and six fault types.
+  </p>
+  <p>
+    What neither of them appears to do is track correctness. On the claims that
+    can be labelled against the benchmark's own metadata, both verifiers flag
+    right and wrong answers at indistinguishable rates. The dissociation in F1
+    is therefore between two signals, not between a better one and a worse one —
+    a finding that is uncomfortable for the method and, precisely for that
+    reason, worth reporting.
+  </p>
+  <p>
+    The retrieval comparison is cleaner still, because it has objective ground
+    truth. Symbolic search recovers the service name and reliably misses the
+    mechanism — 0 of 36 complete retrievals. Neural search does substantially
+    better, and the graph adds nothing on top of it. The failures that remain
+    are lexical, not semantic.
+  </p>
+  <p>
+    The most transferable finding may be the least glamorous one. Four
+    consecutive runs of a carefully built evaluation produced confident,
+    plausible, invalid numbers, and every one was caught by an integrity check
+    rather than by the results looking wrong. Agent evaluations fail silently by
+    default — which is an uncomfortable thing to learn while building a system
+    whose purpose is to catch agents failing silently.
+  </p>
+</div>
+
+<footer>
+  <p>
+    Reproduce from the shipped dataset: <code>paired_bootstrap.py</code> →
+    <code>make_figures.py</code>. Every figure and statistic regenerates from
+    <code>experiments/results/claims.csv</code>. To reproduce that file from
+    scratch, re-run the benchmark per <code>experiments/README.md</code> and
+    merge the resulting batch directories with <code>merge_reports.py</code>
+    — the batch directories from this run were gitignored working artefacts and
+    are not shipped; their provenance and checksums are recorded in
+    <code>results/MANIFEST.json</code>.
+  </p>
+  <p>
+    36 scenarios · 3 systems × 6 fault types × 2 replicates · 0 excluded ·
+    single build 9787fde · image sha256:81c4864130e8 · zero cross-scenario
+    contamination, zero ground-truth leakage, zero join defects across all six
+    batches.
+  </p>
+</footer>

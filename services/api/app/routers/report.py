@@ -18,7 +18,7 @@ def start_report(
     a full run can take a long time. Poll via GET /api/v1/research/report
     for status and the eventual result.
 
-    offset + limit select a slice of the 25-scenario benchmark
+    offset + limit select a slice of the benchmark
     (offset=5&limit=5 runs scenarios 6-10), so a full run can be split
     into independent batches instead of one long one — each batch's
     result is self-contained; combine batches with

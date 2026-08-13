@@ -1,6 +1,14 @@
 # Graph Confidence Propagation (GCP) Algorithm Design
 
-The Graph Confidence Propagation (GCP) algorithm is a novel graph-neural-inspired propagation technique designed to calculate and propagate belief values across a Kubernetes topological dependency graph. It maps initial local telemetry anomaly confidences to global infrastructure failure probabilities.
+The Graph Confidence Propagation (GCP) algorithm is a novel graph-neural-inspired propagation technique designed to calculate and propagate belief values across a Kubernetes topological dependency graph. It maps initial local telemetry anomaly confidences to a propagated belief
+score for each node.
+
+**These scores are not probabilities.** The edge weights are hand-set rather
+than fitted, and the output has never been checked against observed
+correctness rates, so a 0.8 does not mean "correct 80% of the time". Calling
+them probabilities would claim a calibration the implementation does not
+have. See `docs/project/ROADMAP.md` for the calibration work that would be
+required to earn that word.
 
 ## 1. Mathematical Formulation
 

@@ -30,6 +30,7 @@ Usage (from services/api):
 
 import argparse
 import csv
+import gzip
 import hashlib
 import json
 import re
@@ -180,6 +181,47 @@ def _load_neurosymbolic(report_dir: Path) -> list[dict[str, Any]]:
     return rows
 
 
+def _generation_stats(requests: list[dict[str, Any]]) -> dict[str, Any]:
+    """Break the request log down into what it actually counts.
+
+    One logged record is one *investigation* — a single POST to the
+    orchestrator — not a single LLM call. Each investigation fans out to the
+    specialist agents and then one consensus call, so reporting the record
+    count as an LLM-call count understates real compute by roughly 6x. That
+    mislabel shipped in an earlier manifest; these keys are named for what
+    they measure so it cannot recur.
+
+    Also surfaces investigations that fell back to the deterministic
+    rule-based path instead of reaching the LLM. Those are not LLM
+    generations and must be disclosed rather than silently averaged in.
+    """
+    specialist_calls = 0
+    sources: dict[str, int] = {}
+    fallbacks: list[dict[str, Any]] = []
+    for record in requests:
+        consensus = (record.get("response") or {}).get("consensus") or {}
+        specialist_calls += len(consensus.get("agents") or [])
+        source = consensus.get("generation_source") or "unknown"
+        sources[source] = sources.get(source, 0) + 1
+        if source != "llm":
+            fallbacks.append(
+                {
+                    "scenario_id": record.get("scenario_id"),
+                    "batch": record.get("batch"),
+                    "generation_source": source,
+                }
+            )
+    return {
+        "n_investigation_requests": len(requests),
+        "n_specialist_agent_calls": specialist_calls,
+        "n_consensus_calls": len(requests),
+        "n_agent_llm_calls": specialist_calls + len(requests),
+        "generation_source_counts": sources,
+        "n_non_llm_generations": len(fallbacks),
+        "non_llm_generations": fallbacks,
+    }
+
+
 def _load_requests_log(report_dir: Path) -> list[dict[str, Any]]:
     path = report_dir / "requests_log.jsonl"
     if not path.exists():
@@ -286,6 +328,7 @@ def _build_summary(
 ) -> str:
     """Render summary.txt, including the stratum breakdowns that should be
     reported and an explicit warning against reporting by batch."""
+    gen_stats = _generation_stats(collected["requests"])
     scenario_ids = collected["scenario_ids"]
     total_attempts = len(scenario_ids) * len(CONTEXT_CONDITIONS)
     condition_lines = "\n".join(
@@ -320,7 +363,14 @@ def _build_summary(
         f"Excluded attempts:   {len(collected['excluded'])}/{total_attempts} "
         "(scenario x context-condition)\n"
         f"Claims scored:       {len(collected['claims'])}\n"
-        f"LLM calls logged:    {len(collected['requests'])}\n"
+        f"Investigations:      {gen_stats['n_investigation_requests']} "
+        "(one logged record each; NOT one LLM call each)\n"
+        f"Agent LLM calls:     {gen_stats['n_agent_llm_calls']} "
+        f"({gen_stats['n_specialist_agent_calls']} specialist + "
+        f"{gen_stats['n_consensus_calls']} consensus; excludes GPCS "
+        "extraction/scoring)\n"
+        f"Non-LLM generations: {gen_stats['n_non_llm_generations']} "
+        "(rule-based fallback — see MANIFEST.json)\n"
         f"Agreement:           {agreement_summary}\n"
         f"{condition_lines}\n"
         f"{warning}"
@@ -351,7 +401,7 @@ def _write_manifest(
         "complete": len(scenario_ids) == expected_scenarios,
         "n_claims": len(claims),
         "n_excluded_attempts": len(collected["excluded"]),
-        "n_llm_calls": len(collected["requests"]),
+        **_generation_stats(collected["requests"]),
         "integrity_checks_passed": True,
         "source_batches": [
             {
@@ -375,7 +425,7 @@ def _write_manifest(
                 "claims.csv",
                 "agreement_crosstab.csv",
                 "neurosymbolic_retrieval_detail.csv",
-                "requests_log.jsonl",
+                "requests_log.jsonl.gz",
                 "summary.txt",
             )
         },
@@ -445,10 +495,12 @@ def merge(report_dirs: list[Path], out_dir: Path, expected_scenarios: int) -> No
         _rows_to_csv(collected["neurosymbolic"], MERGED_NEUROSYMBOLIC_FIELDNAMES),
         encoding="utf-8",
     )
-    (out_dir / "requests_log.jsonl").write_text(
-        "\n".join(json.dumps(r) for r in collected["requests"]) + "\n",
-        encoding="utf-8",
-    )
+    # Gzipped: this is ~7MB of raw JSON per full run, and it is evidence
+    # rather than a convenience artefact — the ground-truth leakage checks
+    # run against it, so it has to stay in the repo rather than be
+    # regenerated. Compressed it is small enough to track honestly.
+    with gzip.open(out_dir / "requests_log.jsonl.gz", "wt", encoding="utf-8") as fh:
+        fh.write("\n".join(json.dumps(r) for r in collected["requests"]) + "\n")
 
     summary_text = _build_summary(
         collected, strata, expected_scenarios, agreement_summary, condition_summary

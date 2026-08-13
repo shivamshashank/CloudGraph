@@ -1,8 +1,17 @@
 # CloudGraph — full pipeline, methods, citations, and contributions
 
 Green = your contribution. Blue = borrowed/cited technique. Amber dashed =
-not done yet. See `research/NOVEL_CONTRIBUTIONS.md` for the full written
-explanation this diagram summarizes.
+not done yet. See `NOVEL_CONTRIBUTIONS.md` for the full written explanation
+this diagram summarizes, including which contributions the 36-scenario run
+has since supported, nullified, or left untested.
+
+The six-method ladder is the benchmark UI's ablation. That screen is hidden
+in the current release and deferred to the next version — it is retained as an
+implementation deliverable, not as evidence. Note that the
+published results come from the three-condition retrieval comparison in
+`experiments/`, not from this ladder, and that **vector and hybrid scored
+identically on every measure** — so steps 2 and 3 of the ladder are not
+empirically distinguishable on this benchmark.
 
 ```mermaid
 flowchart TD

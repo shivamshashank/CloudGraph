@@ -10,6 +10,21 @@ PORT = int(os.environ.get("PORT", 3000))
 # The target API url (e.g. from environment or default local)
 API_URL = os.environ.get("REACT_APP_API_URL", "http://localhost:8080").rstrip("/")
 
+# Endpoints that fan out to the LLM and legitimately take minutes. Everything
+# else keeps the short timeout so a genuinely hung backend still fails fast.
+_LONG_RUNNING_TIMEOUT = int(os.environ.get("PROXY_LONG_TIMEOUT", "900"))
+_LONG_RUNNING_PREFIXES = (
+    "/api/v1/investigations/",
+    "/api/v1/benchmark/run",
+    "/api/v1/research/report",
+)
+
+
+def _is_long_running(path: str) -> bool:
+    """True when the proxied path is an LLM-backed, long-running operation."""
+    return path.startswith(_LONG_RUNNING_PREFIXES)
+
+
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 
 
@@ -69,8 +84,15 @@ class ProxyAndStaticHandler(http.server.SimpleHTTPRequestHandler):
             target_url, data=body, headers=headers, method=method
         )
 
+        # 15s is fine for graph reads and health polls, but an investigation
+        # fans out to five specialist agents plus a consensus call per pod —
+        # minutes of real LLM latency. The short ceiling turned every real
+        # diagnosis into a proxy 500 while the backend was still working, and
+        # the UI sat on its spinner with no error.
+        timeout = _LONG_RUNNING_TIMEOUT if _is_long_running(self.path) else 15
+
         try:
-            with urllib.request.urlopen(req, timeout=15) as response:
+            with urllib.request.urlopen(req, timeout=timeout) as response:
                 # Read response status, headers, and body
                 self.send_response(response.status)
                 for key, val in response.headers.items():
@@ -108,9 +130,16 @@ ProxyAndStaticHandler.do_DELETE = ProxyAndStaticHandler.do_delete
 if __name__ == "__main__":
     # Unique setup layout to prevent duplicate block matches with other mock servers
     os.makedirs(STATIC_DIR, exist_ok=True)
-    socketserver.TCPServer.allow_reuse_address = True
+    # Threaded, not the plain TCPServer: a single-threaded server blocks every
+    # other request for the whole duration of a proxied call, so one multi-minute
+    # investigation froze health polls and static assets and the whole UI looked
+    # hung.
+    socketserver.ThreadingTCPServer.allow_reuse_address = True
+    socketserver.ThreadingTCPServer.daemon_threads = True
     server_address = ("", PORT)
 
-    with socketserver.TCPServer(server_address, ProxyAndStaticHandler) as dev_server:
+    with socketserver.ThreadingTCPServer(
+        server_address, ProxyAndStaticHandler
+    ) as dev_server:
         print(f"UI proxy serving static assets. Proxying API to {API_URL} on {PORT}...")
         dev_server.serve_forever()

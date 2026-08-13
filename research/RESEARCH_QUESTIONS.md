@@ -2,6 +2,24 @@
 
 18 candidate research questions, each scored on Novelty (N), Feasibility with current codebase (F), Publication potential (P), and Implementation effort (E — lower is easier), each 1–5. Ranked by a composite of N + P weighted against E.
 
+**Scoring is the pre-evaluation judgement, kept unedited.** The status column
+below records what the 36-scenario RCAEval run (`experiments/`) actually
+settled. Four of the Phase-1 shortlist are now closed; two of those closed
+*against* the hypothesis.
+
+| RQ | Status after the 36-scenario run |
+|---|---|
+| RQ1 GPCS vs self-consistency | **Partly answered.** GPCS flags 70.3% unsupported vs 57.9%, Δ +0.119 CI [+0.073, +0.163], p<0.0001. But on the 4.2% of claims with automatic correctness labels *neither* verifier discriminates correct from incorrect (both gaps −0.8 pp). The "which blind spot" half — claim-type-stratified — is still open and needs human labels. |
+| RQ2 Is the improvement real end-to-end | **Answered — yes, and smaller than the simulated numbers implied.** Every baseline now invokes the real pipeline. Four integrity defects had to be fixed first; earlier results were invalid. |
+| RQ3 Multi-agent vs single LLM at matched compute | **Open.** The matched-compute control has only ever run on the leaked pipeline. Re-running it is the cheapest remaining closure. |
+| RQ6 Graph retrieval vs raw context | **Answered — null.** hybrid vs raw context, Δ +0.024, CI [−0.028, +0.077], p=0.302. Structure did not beat dumping all evidence into context. |
+| RQ17 Neuro-symbolic ablation | **Answered — negative.** Vector and hybrid were *identical on every measure*; the symbolic component contributed nothing to retrieval on this benchmark. It does contribute to claim scoring, which is a different mechanism. |
+| RQ5, RQ9 GCP/GPCS calibration | **Not started.** Thresholds remain fixed defaults; no reliability diagram or Brier score exists. |
+| RQ4, RQ7, RQ8, RQ10–RQ16, RQ18 | **Open**, as scored. |
+
+RQ2 was the stated non-negotiable prerequisite and is now discharged, so the
+remaining shortlist is genuinely actionable rather than blocked.
+
 ---
 
 ## Tier 1 — Highest priority (novel, feasible, strong publication fit)

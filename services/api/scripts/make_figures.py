@@ -107,7 +107,12 @@ def make_retrieval_recall_figure(neurosymbolic: pd.DataFrame, out_path: Path) ->
     ax.set_xticklabels([METHOD_LABELS[m] for m in METHOD_ORDER])
     ax.set_ylabel("Tag recall (mean, 95% bootstrap CI)")
     ax.set_ylim(0, 1.05)
-    ax.set_title("Retrieval recall by method (n=25 scenarios)")
+    # Derived, never hardcoded: this title read "n=25" through an entire
+    # 36-scenario run, stating a false sample size on a published figure.
+    ax.set_title(
+        f"Retrieval recall by method (n={neurosymbolic['scenario_id'].nunique()}"
+        " scenarios)"
+    )
     fig.tight_layout()
     fig.savefig(out_path, dpi=150)
     plt.close(fig)

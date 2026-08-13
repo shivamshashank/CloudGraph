@@ -65,13 +65,31 @@ def test_uses_qdrant_host_and_creates_unified_evidence_collection(monkeypatch):
     assert fake.created[0][1].size == 768
 
 
-def test_existing_collection_is_not_recreated():
-    """Verify that verify_collections does not recreate an existing collection."""
+def test_existing_collections_are_not_recreated():
+    """Verify ensure_collections does not recreate collections that exist.
+
+    The existing set is taken from the wrapper's own configuration rather
+    than hardcoded: the evaluation collection was later added to
+    collection_names, and a literal {"evidence"} silently turned this into
+    a test that the *new* collection gets created.
+    """
+    fake = FakeQdrantClient()
+    client = QdrantClientWrapper(client_factory=lambda **_kwargs: fake)
+    fake.existing = set(client.collection_names)
+
+    assert client.ensure_collections() is True
+    assert not fake.created
+
+
+def test_evaluation_collection_is_created_and_kept_separate():
+    """Benchmark runs seed and purge wholesale, so they need a collection of
+    their own that is never one of the product collections."""
     fake = FakeQdrantClient(existing={"evidence"})
     client = QdrantClientWrapper(client_factory=lambda **_kwargs: fake)
 
     assert client.ensure_collections() is True
-    assert not fake.created
+    assert [name for name, _ in fake.created] == [client.eval_collection_name]
+    assert client.eval_collection_name not in client.product_collection_names
 
 
 def test_offline_qdrant_returns_empty_results_without_raising():

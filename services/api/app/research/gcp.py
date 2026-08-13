@@ -106,6 +106,16 @@ class GraphConfidencePropagator:
                 continue
 
             for neighbor, rel_type in adjacency.get(curr_id, []):
+                # The adjacency map is built from an edge query that reaches one
+                # hop further than the node query that produced `scores`, so it
+                # can name nodes outside the modelled subgraph. Those have no
+                # initial confidence, and writing one back would assign a score
+                # to a node the algorithm never actually modelled — so skip
+                # them. Indexing them directly used to raise KeyError and fail
+                # the whole investigation with a 500.
+                if neighbor not in scores:
+                    continue
+
                 propagated = (
                     curr_conf * EDGE_WEIGHTS.get(rel_type, 0.50) * self.decay_factor
                 )

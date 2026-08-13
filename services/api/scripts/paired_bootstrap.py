@@ -7,7 +7,7 @@ experiments/results/matched_compute_raw.csv — already-collected real data,
 this script makes no LLM calls — and reports significance for four paired
 deltas:
 
-1. GPCS vs. self-consistency unsupported-rate, per (scenario, context
+1. GPCS vs. self-consistency unsupported-rate, per scenario (context
    condition) — is one method systematically stricter than the other?
 2. hybrid vs. raw context, per-scenario claim-agreement rate — does ranked
    retrieval actually beat an unranked evidence dump?
@@ -21,7 +21,7 @@ deltas:
    — does the specialist architecture earn its complexity over raw
    compute?
 
-n=25 scenarios gives wide confidence intervals by construction — every
+The scenario count is read from the data; CIs are wide at this size — every
 result below must be read as such, never as a precise point estimate
 (guardrail #3, 7_DAY_SPRINT_CHECKLIST.md).
 
@@ -29,6 +29,7 @@ Usage (from services/api):
     .venv/bin/python scripts/paired_bootstrap.py
 """
 
+import json
 import sys
 from pathlib import Path
 
@@ -80,13 +81,43 @@ def _report(name: str, deltas: np.ndarray) -> str:
 
 
 def gpcs_vs_self_consistency_deltas(claims: pd.DataFrame) -> np.ndarray:
-    """Per (scenario, context_condition): GPCS unsupported rate minus
-    self-consistency unsupported rate, over that group's scored claims."""
+    """Per *scenario*: GPCS unsupported rate minus self-consistency's.
+
+    Clustered on scenario rather than on (scenario, context_condition).
+    The three conditions of one scenario share the same seeded evidence and
+    the same graph, so their deltas are correlated; treating all 108 as
+    independent is pseudo-replication that narrows the confidence interval
+    on a sample that is really 36 incidents. Clustering widens the interval
+    to what the design actually supports.
+    """
     scored = claims.dropna(subset=["gpcs_trust_score"])
-    grouped = scored.groupby(["scenario_id", "context_condition"])
+    grouped = scored.groupby("scenario_id")
     gpcs_rate = grouped["gpcs_unsupported"].mean()
     sc_rate = grouped["self_consistency_unsupported"].mean()
     return (gpcs_rate - sc_rate).to_numpy(dtype=float)
+
+
+def non_llm_generation_scenarios(results_dir: Path) -> list[str]:
+    """Scenarios where at least one generation came from the deterministic
+    rule-based fallback rather than the LLM.
+
+    Read from MANIFEST.json rather than hardcoded, so this tracks whatever
+    the merge actually recorded. Those generations are not LLM output; they
+    were secondary self-consistency samples (no fallback text reaches
+    claims.csv), but they can still depress a recurrence rate, so the
+    headline delta is reported with and without them.
+    """
+    manifest_path = results_dir / "MANIFEST.json"
+    if not manifest_path.exists():
+        return []
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    return sorted(
+        {
+            entry["scenario_id"]
+            for entry in manifest.get("non_llm_generations", [])
+            if entry.get("scenario_id")
+        }
+    )
 
 
 def hybrid_vs_raw_agreement_deltas(claims: pd.DataFrame) -> np.ndarray:
@@ -182,11 +213,33 @@ def main() -> None:
             )
         )
 
+    # Sensitivity: a handful of generations fell back to the deterministic
+    # rule-based path instead of the LLM. No fallback text reaches
+    # claims.csv, but a fallback sample can still depress a recurrence rate,
+    # so re-run the headline delta with every affected scenario dropped. If
+    # the effect only survives with them in, it was never real.
+    fallback_scenarios = non_llm_generation_scenarios(RESULTS_DIR)
+    if fallback_scenarios:
+        kept = claims[~claims["scenario_id"].isin(fallback_scenarios)]
+        sections.append(
+            _report(
+                "SENSITIVITY -- GPCS vs. self-consistency, excluding the "
+                f"{len(fallback_scenarios)} scenarios containing a "
+                "rule-based-fallback generation "
+                f"({', '.join(fallback_scenarios)})",
+                gpcs_vs_self_consistency_deltas(kept),
+            )
+        )
+
+    # Derived from the data, never hardcoded: a stale scenario count in a
+    # generated results file is exactly the kind of unverifiable claim this
+    # pipeline exists to prevent.
+    n_scenarios = claims["scenario_id"].nunique()
     header = (
         "# Significance tests (paired bootstrap CI + Wilcoxon)\n\n"
-        "n=25 scenarios gives wide confidence intervals by construction — "
-        "treat every result below as such, not as a precise point "
-        "estimate.\n\n"
+        f"n={n_scenarios} scenarios. Confidence intervals are wide at this "
+        "sample size — treat every result below as an interval, not a "
+        "precise point estimate.\n\n"
     )
     output = header + "\n".join(sections)
     out_path = RESULTS_DIR / "significance_tests.md"

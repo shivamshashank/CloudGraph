@@ -474,6 +474,17 @@ def trigger_investigation(payload: InvestigationTrigger):
             LIMIT 5
             """
             anomalous_pods = neo4j_client.execute_query(log_anomaly_query)
+        # The UI posts only a namespace and expects the server to use whatever
+        # provider was saved on the Settings page. Without this fallback the
+        # per-request fields stay None and the downstream consensus call
+        # defaults to the `openai` env value — so the five specialists ran on
+        # the configured provider while consensus 401'd against OpenAI and
+        # silently degraded to the rule-based path.
+        stored = load_stored_llm_settings() or {}
+        llm_provider = payload.llm_provider or stored.get("provider")
+        llm_api_key = payload.llm_api_key or stored.get("api_key")
+        llm_model = payload.llm_model or stored.get("model")
+
         investigations = []
         if anomalous_pods:
             for pod in anomalous_pods:
@@ -481,9 +492,9 @@ def trigger_investigation(payload: InvestigationTrigger):
                     _investigate_pod(
                         pod,
                         payload.namespace,
-                        llm_provider=payload.llm_provider,
-                        llm_api_key=payload.llm_api_key,
-                        llm_model=payload.llm_model,
+                        llm_provider=llm_provider,
+                        llm_api_key=llm_api_key,
+                        llm_model=llm_model,
                     )
                 )
         else:

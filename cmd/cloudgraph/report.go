@@ -133,7 +133,7 @@ func runReport(args []string) {
 	case offset > 0:
 		printInfo(fmt.Sprintf("Starting report generation (from scenario %d to the end)...", offset+1))
 	default:
-		printInfo("Starting report generation (full — 25 scenarios)...")
+		printInfo("Starting report generation (full benchmark)...")
 	}
 
 	runStartTime := time.Now().UTC()
