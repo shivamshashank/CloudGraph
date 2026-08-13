@@ -126,7 +126,7 @@ as "Week 2" arrived 06-23 – 06-30: `fcc0b11`, `6fbde78`, `2673643`, `29d6173`,
 
 **Commits:** `c19ea09` (07-22), `b3fb5f6` (07-25).
 
-- [x] Dynamic 6-baseline benchmark engine and UI (Keyword / Vector / GraphRAG / +Agents / +GCP / +GPCS) — [`routers/benchmark.py`](../services/api/app/routers/benchmark.py), `c19ea09`
+- [~] Dynamic 6-baseline benchmark engine and UI (Keyword / Vector / GraphRAG / +Agents / +GCP / +GPCS) — [`routers/benchmark.py`](../services/api/app/routers/benchmark.py), `c19ea09`. Built and retained, but **hidden from the UI in the final release** and deferred: it emits point estimates with no CIs and confounds compute with architecture, so it is not citable. No published result came from it.
 - [x] Cluster-metrics UI panel — `c19ea09`
 - [x] Redis removed from the Helm chart as an unneeded dependency — `c19ea09`
 - [x] Stale documentation and checklists purged — `b3fb5f6`

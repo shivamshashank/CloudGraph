@@ -221,6 +221,11 @@ rbac:
             - nodes
             - namespaces
             - pods
+            # Reading container stdout/stderr is a separate subresource from
+            # reading the pod object. Without it every read_namespaced_pod_log
+            # call returns 403, which the ingestion path swallowed at debug
+            # level — so log ingestion silently produced nothing.
+            - pods/log
             - services
             - endpoints
             - configmaps

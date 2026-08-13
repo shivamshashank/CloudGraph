@@ -1,9 +1,11 @@
 """Tests for advanced Kubernetes graph nodes ingestion endpoints."""
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 from fastapi.testclient import TestClient
 from neo4j.exceptions import Neo4jError, ServiceUnavailable
 
+from app.adapters.k8s_discovery import _resolve_pod_status
 from app.main import app
 from app.database.neo4j_client import neo4j_client
 from app.dependencies import semantic_store
@@ -99,3 +101,86 @@ def test_chaos_experiment_ingestion(monkeypatch):
     assert response.json()["status"] == "success"
     assert response.json()["experiment_id"] is not None
     assert mock_index.called
+
+
+# --- pod status resolution ------------------------------------------------
+#
+# `_resolve_pod_status` used to return the first terminated reason it found
+# across the main *and* init container lists, without checking the exit code.
+# Every pod with an init container therefore reported "Completed" instead of
+# "Running": the topology drew healthy pods red, and the log view keyed off
+# that status to fabricate crash/OOM lines for them.
+
+
+def _container(waiting=None, terminated=None):
+    """A container *status* — what `container_statuses` holds, wrapping a state."""
+    return SimpleNamespace(
+        state=SimpleNamespace(waiting=waiting, terminated=terminated)
+    )
+
+
+def _waiting(reason):
+    """A waiting container state with the given reason."""
+    return SimpleNamespace(reason=reason)
+
+
+def _terminated(reason, exit_code):
+    """A terminated container state; exit_code 0 means it succeeded."""
+    return SimpleNamespace(reason=reason, exit_code=exit_code)
+
+
+def _pod(phase, containers=None, init_containers=None):
+    """A pod whose status is what `_resolve_pod_status` reads."""
+    return SimpleNamespace(
+        status=SimpleNamespace(
+            phase=phase,
+            container_statuses=containers,
+            init_container_statuses=init_containers,
+        )
+    )
+
+
+def test_successful_init_container_does_not_mask_running_phase():
+    """The regression: an init container exiting 0 must not read as Completed."""
+    pod = _pod(
+        phase="Running",
+        containers=[_container()],
+        init_containers=[_container(terminated=_terminated("Completed", 0))],
+    )
+    assert _resolve_pod_status(pod) == "Running"
+
+
+def test_failed_init_container_is_surfaced():
+    """A non-zero init container exit is a genuine fault and must surface."""
+    pod = _pod(
+        phase="Pending",
+        init_containers=[_container(terminated=_terminated("Error", 1))],
+    )
+    assert _resolve_pod_status(pod) == "Error"
+
+
+def test_image_pull_failure_still_overrides_running_phase():
+    """A stuck container must still beat the pod phase."""
+    pod = _pod(
+        phase="Running",
+        containers=[_container(waiting=_waiting("ImagePullBackOff"))],
+    )
+    assert _resolve_pod_status(pod) == "ImagePullBackOff"
+
+
+def test_benign_startup_waiting_reasons_are_not_faults():
+    """Normal start-up states must not be reported as failures."""
+    pod = _pod(
+        phase="Pending",
+        containers=[_container(waiting=_waiting("PodInitializing"))],
+    )
+    assert _resolve_pod_status(pod) == "Pending"
+
+
+def test_completed_job_pod_still_reports_succeeded():
+    """A Job's main container exits 0; the phase, not "Completed", wins."""
+    pod = _pod(
+        phase="Succeeded",
+        containers=[_container(terminated=_terminated("Completed", 0))],
+    )
+    assert _resolve_pod_status(pod) == "Succeeded"

@@ -54,7 +54,16 @@ jobs:
           # -n auto: measured ~45% wall-clock reduction on this suite locally
           # (32min -> 17.7min) — real, not theoretical, given CI runners bill
           # by the minute.
-          PYTHONPATH=services/api python -m pytest services/api/tests -n auto --cov=services/api/app --cov-report=xml:services/api/coverage.xml
+          #
+          # --dist loadfile: keep every test file on one worker. Without it
+          # xdist splits files across workers arbitrarily and tests that share
+          # module-level store state collide, so the run fails at random with
+          # nothing wrong in the code. Measured back to back on 129 tests:
+          # bare -n auto gave 2 failed / 127 passed (test_retrieval_isolation's
+          # scenario-scoping and graph-isolation tests), --dist loadfile gave
+          # 129 passed. Costs nothing — 46m21s vs 46m45s, because the floor is
+          # one slow test, not the distribution.
+          PYTHONPATH=services/api python -m pytest services/api/tests -n auto --dist loadfile --cov=services/api/app --cov-report=xml:services/api/coverage.xml
 
       - name: Upload Coverage to Codecov
         uses: codecov/codecov-action@v6

@@ -2,19 +2,21 @@
 
 # 🚀 CloudGraph
 
-### GraphRAG-Powered Multi-Agent Root Cause Analysis for Cloud-Native Systems
+### Graph-Grounded Verification of LLM-Generated Root Cause Analysis for Kubernetes
 
-CloudGraph is an AI-powered AIOps platform that combines Knowledge Graphs,
-GraphRAG, Multi-Agent Systems, Kubernetes Observability, and Large Language
-Models to automatically investigate incidents, identify root causes, and
-generate remediation recommendations across cloud-native environments.
+CloudGraph builds a temporal knowledge graph from live cluster telemetry,
+retrieves incident context over it, has five specialist LLM agents diagnose the
+incident, and then — the part this project is actually about — **checks every
+claim in the generated explanation against graph evidence.**
+
+The research question is not *"can an LLM write a plausible root cause?"*
+It is *"can we tell whether it made that up?"*
 
 <br />
 
 [![CI](https://img.shields.io/github/actions/workflow/status/shivamshashank/CloudGraph/ci.yml?branch=main&label=CI&logo=githubactions&style=flat-square)](https://github.com/shivamshashank/CloudGraph/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/actions/workflow/status/shivamshashank/CloudGraph/release.yml?branch=main&label=Release&logo=githubactions&style=flat-square)](https://github.com/shivamshashank/CloudGraph/actions/workflows/release.yml)
 [![Codecov](https://img.shields.io/codecov/c/github/shivamshashank/CloudGraph?logo=codecov&style=flat-square)](https://codecov.io/gh/shivamshashank/CloudGraph)
-[![Go Report Card](https://goreportcard.com/badge/github.com/shivamshashank/CloudGraph?https://img.shields.io/badge/go%20report-A+-brightgreen.svg?style=flat)](https://goreportcard.com/report/github.com/shivamshashank/CloudGraph)
 [![GitHub release](https://img.shields.io/github/v/release/shivamshashank/CloudGraph?style=flat-square)](https://github.com/shivamshashank/CloudGraph/releases)
 [![GitHub stars](https://img.shields.io/github/stars/shivamshashank/CloudGraph?style=flat-square)](https://github.com/shivamshashank/CloudGraph/stargazers)
 [![GitHub forks](https://img.shields.io/github/forks/shivamshashank/CloudGraph?style=flat-square)](https://github.com/shivamshashank/CloudGraph/network/members)
@@ -23,901 +25,368 @@ generate remediation recommendations across cloud-native environments.
 <br />
 
 ![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![Go](https://img.shields.io/badge/Go-00ADD8?style=for-the-badge&logo=go&logoColor=white)
 ![Kubernetes](https://img.shields.io/badge/Kubernetes-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white)
-![AWS](https://img.shields.io/badge/AWS-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white)
+![Helm](https://img.shields.io/badge/Helm-0F1689?style=for-the-badge&logo=helm&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 ![Neo4j](https://img.shields.io/badge/Neo4j-4581C3?style=for-the-badge&logo=neo4j&logoColor=white)
+![Qdrant](https://img.shields.io/badge/Qdrant-DC244C?style=for-the-badge)
 ![Prometheus](https://img.shields.io/badge/Prometheus-E6522C?style=for-the-badge&logo=prometheus&logoColor=white)
 ![Grafana](https://img.shields.io/badge/Grafana-F46800?style=for-the-badge&logo=grafana&logoColor=white)
 ![OpenTelemetry](https://img.shields.io/badge/OpenTelemetry-000000?style=for-the-badge&logo=opentelemetry&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)
 ![Orchestrator](https://img.shields.io/badge/Orchestrator-Custom_HTTP-blue?style=for-the-badge)
-![Qdrant](https://img.shields.io/badge/Qdrant-DC244C?style=for-the-badge)
+
+<br />
+
+**v1 complete** · 36 RCAEval RE2 scenarios · 3,685 claims · 0 exclusions · 129 tests
 
 </div>
 
+---
+
 ## 📌 Overview
 
-CloudGraph transforms cloud observability data into explainable incident
-intelligence.
+Large language models write fluent incident explanations. They also invent
+them. CloudGraph is a system and a study for telling the two apart.
 
-It continuously ingests:
+It ingests Prometheus metrics, Loki logs, Kubernetes objects and Git/Argo CD
+events into a **temporal property graph** (Neo4j), retrieves incident context
+by **k-hop traversal fused with dense vectors** (Qdrant), runs **five
+specialist agents** over that context, and then scores every atomic claim in
+the resulting narrative two independent ways:
 
-- Logs
-- Metrics
-- Kubernetes Events
-- Kubernetes Object State
-- Alerts
-- Runtime Security Events
-- Git Commits
-- Pull Requests
-- Deployment History
+- **GPCS** (Graph-Provenance Claim Scoring) — *evidence-grounded*: is this
+  claim supported by the incident graph?
+- **Self-consistency** — *model-internal*: does this claim recur when the model
+  is sampled again?
 
-and constructs a real-time knowledge graph that powers GraphRAG retrieval and
-multi-agent reasoning.
+Comparing those two verifiers, on real chaos-injected telemetry, is the
+experiment.
 
-CloudGraph is designed to collect this data from open-source observability and
-cloud-native tools such as OpenTelemetry, Prometheus, Grafana Loki,
-kube-state-metrics, node_exporter, Alertmanager, Argo CD, Falco, and
-GitHub/GitLab webhooks. What is actually wired versus planned is recorded in
-[`docs/README.md`](docs/README.md) and [`docs/project/STATUS.md`](docs/project/STATUS.md).
-
----
-
-# 🔬 Research Motivation
-
-Modern cloud-native systems generate massive volumes of logs, metrics,
-deployment events, and infrastructure changes.
-
-Existing AIOps solutions typically rely on:
-
-- Rule-based correlation
-- Keyword search
-- Traditional vector-based retrieval
-
-These approaches often struggle to:
-
-- Understand service dependencies
-- Correlate infrastructure and application failures
-- Explain reasoning paths
-- Investigate multi-hop incident chains
-
-CloudGraph explores whether GraphRAG-powered knowledge graph retrieval and
-multi-agent reasoning can improve root cause analysis accuracy, explainability,
-and incident resolution performance within Kubernetes environments.
-
----
-
-# 🎯 Research Questions
-
-### RQ1
-
-Can GraphRAG improve root cause analysis accuracy compared to traditional RAG?
-
-### RQ2
-
-Does multi-agent reasoning improve investigation quality compared to
-single-agent analysis?
-
-### RQ3
-
-Can knowledge graph retrieval reduce hallucinations during RCA generation?
-
-### RQ4
-
-Can GraphRAG-powered investigations reduce Mean Time To Resolution (MTTR)?
-
----
-
-# 🧪 Research Hypotheses
-
-### H1
-
-GraphRAG achieves significantly higher RCA accuracy than traditional RAG.
-
-### H2
-
-GraphRAG combined with Multi-Agent Systems outperforms GraphRAG alone.
-
-### H3
-
-Knowledge graph retrieval reduces hallucination rates during incident analysis.
-
-### H4
-
-Confidence-aware agent voting improves recommendation quality and trust.
-
----
-
-## 📐 What has actually been evaluated
-
-The questions and hypotheses above are the research agenda. What has been
-**measured** is narrower, and should not be conflated with them.
-
-**The evaluated task is fault-type diagnosis for a known affected service,
-not root-cause service localisation.** The benchmark supplies the faulted
-service to the system, so it is asked *why* the service failed, never
-*which* service failed. No result here shows that CloudGraph finds the
-culprit service.
-
-Completed: 36 chaos-injected RCAEval RE2 incidents across three systems and
-six fault types, 3,685 claims, single build, zero exclusions.
-
-| Question | Status |
+| | |
 |---|---|
-| Does neural/hybrid retrieval beat keyword retrieval? | **Yes** — +0.190 tag recall, 95% CI [+0.116, +0.269], p=0.0003. Keyword never recovered a complete tag set in 36 scenarios. |
-| Does the graph beat pure vector retrieval? | **No measurable difference** — identical on every retrieval metric. |
-| Does retrieval context change how much output is graph-grounded? | **No** — 0.9 pp spread across none/raw/hybrid. |
-| Are GPCS and self-consistency the same signal? | **No** — GPCS flags 11.9 pp more claims, CI [+0.073, +0.163]. |
-| Does either verifier detect *incorrect* claims? | **Not established.** On the claims that can be labelled automatically, neither discriminates. |
-
-H1–H4 as written are **not** tested by this evaluation. Full results:
-[`experiments/FINDINGS.html`](experiments/FINDINGS.html) ·
-[`experiments/README.md`](experiments/README.md).
+| **Evaluation** | 36 RCAEval RE2 scenarios · 3,685 claims · 0 exclusions |
+| **Build** | `9787fde`, image `sha256:81c4864130e8` |
+| **Tests** | 129 |
+| **Deployment** | Kubernetes via Helm — verified on kubeadm and OrbStack |
 
 ---
 
-## ✨ Core Features
+## 📊 Results
 
-- 🧠 GraphRAG-Powered Root Cause Analysis
-- ☸️ Kubernetes-Native Architecture
-- 🤖 Multi-Agent Investigation Workflow
-- 🖥️ Unified AIOps Dashboard & Visualization
-- 📊 Full Observability Integration
-- 🔍 Explainable AI Decisions
-- ⚡ Incident Correlation Engine
-- 📈 MTTR Reduction Analytics
-- 🔐 Security-Aware Investigations
-- 🌐 Multi-Cloud Ready
-- 📚 Incident Memory & Knowledge Base
+All three headline results come from one merged dataset
+([`experiments/results/`](experiments/results/)), with scenario-clustered
+paired bootstrap confidence intervals and Wilcoxon signed-rank tests.
 
----
+| Question | Answer | Effect | 95% CI | p |
+|---|---|---|---|---|
+| Does graph-grounded scoring differ from self-consistency? | **Yes** | +0.119 | [+0.073, +0.163] | <0.0001 |
+| Does neural/hybrid retrieval beat keyword? | **Yes** | +0.190 | [+0.116, +0.269] | 0.0003 |
+| Does structured context beat raw context? | **No** | +0.024 | [−0.028, +0.077] | 0.302 |
 
-# 🏆 Research Contributions
+Two further findings, reported because they went against the design's own
+predictions:
 
-CloudGraph contributes the following research innovations:
+- **Vector ≡ hybrid on every measure.** The graph contributes nothing to
+  *retrieval* on this benchmark. Its measurable contribution is to *claim
+  scoring* — a different mechanism.
+- **Neither verifier discriminates correct from incorrect claims.** On the
+  4.2% of claims carrying automatic correctness labels, both gaps are −0.8 pp
+  and both precision figures sit exactly on the base rate.
 
-## Contribution 1
+**→ [Full findings with figures](experiments/FINDINGS.html)** ·
+[Methodology](experiments/README.md) ·
+[Data provenance](experiments/DATA_PROVENANCE.md)
 
-### Temporal Incident Knowledge Graph
+### ⚠️ What these results do not establish
 
-A dynamic knowledge graph that captures infrastructure relationships, deployment
-history, service dependencies, and incident evolution over time.
+Stated once, plainly, because each is easy to assume away:
 
-## Contribution 2
-
-### GraphRAG-Powered Incident Retrieval
-
-Graph-based retrieval enables multi-hop reasoning across cloud resources,
-services, deployments, alerts, and traces.
-
-## Contribution 3
-
-### Confidence-Aware Multi-Agent Investigation
-
-Specialized agents independently investigate incidents and produce weighted
-evidence scores used for consensus-driven RCA generation.
-
-## Contribution 4
-
-### Explainable Root Cause Analysis
-
-Every recommendation can be traced back through graph relationships,
-observability evidence, and agent reasoning.
-
-## Contribution 5
-
-### Reproducible Cloud Incident Benchmark
-
-A benchmark dataset containing realistic Kubernetes incident scenarios for
-GraphRAG evaluation.
+1. **The primary measure is inter-method concordance, not accuracy.** It
+   measures whether two verifiers reached the *same* verdict. Both can be wrong
+   on the same claim and it counts as agreement.
+2. **GPCS is stricter, not demonstrably better aimed.** Flagging more claims is
+   not evidence of flagging the right ones.
+3. **The task is fault-type diagnosis for a known affected service.** The
+   benchmark supplies the faulted service, so the system is asked *why* it
+   failed, never *which* service failed. Nothing here demonstrates root-cause
+   service localisation.
+4. **Scope is resource and network faults in microservice systems.** RCAEval
+   RE2 contains no config errors, security events, deployment failures, DNS
+   faults or certificate expiry.
+5. **GPCS thresholds are fixed defaults** — 0.30 evidence floor, 0.50 trust cut
+   — set by inspecting live score distributions. No held-out fitting was
+   performed. They are **not calibrated**.
 
 ---
 
-# 🏗️ Architecture
-
-## What is actually built
-
-<p align="center">
-  <img src="docs/architecture/figures/current-architecture.svg" alt="CloudGraph evaluated pipeline: solid boxes are implemented and exercised by the 36-scenario evaluation, dashed boxes on the right are planned and not built" width="880">
-</p>
-
-Solid boxes are implemented and were exercised by the 36-scenario
-evaluation. Dashed boxes are planned and do not exist — including the
-cross-agent critique round, which is the difference between an ensemble
-and a collaborating multi-agent system.
-
-## Design history
-
-The original design targeted AWS (EKS, RDS, S3), seven agents including
-trace/RCA/recommendation roles, cross-agent collaboration, external alert
-integrations and a continuous-learning loop. None of that was built. The
-diagrams depicting it have been removed rather than captioned, because a
-diagram that has to be explained away is worse than no diagram.
-
-[`docs/architecture/design-evolution.md`](docs/architecture/design-evolution.md)
-records what changed and why; git history retains the original visuals.
-
----
-
-# 🧩 System Components
-
-## Cloud Layer
-
-> **Note:** CloudGraph is Kubernetes-native and runs on any Kubernetes distribution. **Current deployment uses Helm + kubeadm/Rancher** (not cloud-specific). Below is the full list of cloud-native services CloudGraph *can* integrate with, not all of which are actively deployed in the current implementation.
-
-- AWS EKS *(optional; Helm charts support any Kubernetes)*
-- EC2 *(not required; local nodes or any K8s worker)*
-- IAM *(integrable via Argo CD external secrets or external-secrets operator)*
-- S3 *(optional artifact storage)*
-- CloudWatch *(optional; currently using open-source Prometheus/Loki/OTel)*
-
-## Kubernetes Layer
-
-- Kubernetes
-- Helm
-- ArgoCD
-- Ingress NGINX
-
-## Observability Layer
-
-- Prometheus
-- Grafana
-- Loki
-- OpenTelemetry
-- Alertmanager
-- kube-state-metrics
-- node_exporter
-- Falco
-- Argo CD Notifications
-
-## Open-Source Data Collection Layer
-
-CloudGraph can collect both historical and live continuous data from
-open-source systems:
-
-| Data | Open-Source Source | Example Evidence |
-| --- | --- | --- |
-| Logs | OpenTelemetry Collector, Loki, Promtail / Alloy | Exceptions, warnings, retries, kubelet/container logs |
-| Metrics | Prometheus, kube-state-metrics, node_exporter | CPU, memory, pod status, restart count, latency, error rate |
-| Kubernetes Events | Kubernetes API/event stream | Scheduling failures, image pull errors, probe failures, restarts |
-| Alerts | Alertmanager | Fired/resolved alerts, severity, labels, affected service |
-| Deployments | Argo CD notifications/webhooks | Sync status, health state, degraded apps, rollbacks |
-| Git Activity | GitHub/GitLab webhooks | Commits, pull requests, changed files, release timestamps |
-| Security Events | Falco | Runtime anomalies, suspicious process/file/network activity |
-
-Live continuous ingestion can be implemented using a mix of pull, push, stream,
-and batch modes:
-
-- Pull: query Prometheus, Loki, Kubernetes API, and Git APIs on a
-  schedule.
-- Push: receive webhooks from Alertmanager, Argo CD, GitHub/GitLab, Falco, and
-  CI/CD systems.
-- Stream: forward telemetry through OpenTelemetry Collector and log collectors.
-- Batch: import historical incident datasets for repeatable dissertation
-  experiments.
-
-## Knowledge Graph Layer
-
-- Neo4j
-
-Nodes:
-
-- Services
-- Pods
-- Deployments
-- Databases
-- Nodes
-- Alerts
-- Metrics
-- Traces
-- Commits
-
-Relationships:
-
-- CALLS
-- DEPENDS_ON
-- AFFECTS
-- DEPLOYED_BY
-- GENERATES
-
-## Retrieval Layer
-
-- GraphRAG
-- Hybrid Search
-- Vector Search
-- Context Ranking
-
-Vector Database:
-
-- Qdrant
-
-## AI Layer
-
-- GPT-4 / Gemini / Claude
-- Custom HTTP Orchestration Layer
-
-## Frontend Layer
-
-A web-based dashboard that serves as the central interface for CloudGraph. It
-provides:
-
-- **Live Observability**: Visualizes incoming logs and metrics.
-- **Incident History**: Stores and displays past incidents and their
-  resolutions.
-- **Graph Visualization**: Shows the knowledge graph updating in real-time as
-  investigations proceed.
-- **Agent Monitoring**: Displays the status and findings of individual agents.
-
-- Static HTML/CSS/vanilla JavaScript (`services/ui/static`), served directly — no framework or build step
-- Topology graph rendered via hand-built SVG DOM manipulation (`topology.js`) — no charting/graph library
-
----
-
-# 🤖 Agent Architecture
-
-## Monitoring Agent
-
-Analyzes:
-
-- Metrics
-- Alerts
-- Resource Utilization
-
-## Log Agent
-
-Analyzes:
-
-- Application Logs
-- System Logs
-- Error Patterns
-
-## Investigation Agent
-
-Analyzes:
-
-- Latency Bottlenecks
-
-## Deployment Agent
-
-Analyzes:
-
-- Git Commits
-- CI/CD Events
-- Deployment Changes
-
-## Security Agent
-
-Analyzes:
-
-- RBAC
-- Security Policies
-- Cluster Events
-
-## Root Cause Agent
-
-Responsibilities:
-
-- Evidence Fusion
-- Root Cause Ranking
-- Hypothesis Validation
-- Confidence Estimation
-
-## Consensus Engine
-
-Aggregates findings from all agents using:
-
-- Weighted Voting
-- Confidence Scoring
-- Temporal Correlation
-
----
-
-# 🧪 Experimental Dataset
-
-CloudGraph is evaluated using a reproducible incident benchmark dataset.
-
-## Incident Categories
-
-### Kubernetes
-
-- CrashLoopBackOff
-- ImagePullBackOff
-- OOMKilled
-- Node Failures
-
-### Networking
-
-- DNS Failures
-- Service Discovery Issues
-- Network Partitions
-
-### Security
-
-- RBAC Misconfigurations
-- Secret Rotation Failures
-- IAM Errors
-
-### Deployments
-
-- Faulty Releases
-- Configuration Drift
-- Rollout Errors
-
-### Observability
-
-- Missing Metrics
-- Alert Storms
-- Telemetry Gaps
-
-Target Dataset Size:
-
-- 100+ Incidents
-- 500+ Services
-- 10,000+ Events
-- 100,000+ Graph Relationships
-- Evidence Correlation
-
-## Recommendation Agent
-
-Generates:
-
-- RCA Report
-- Confidence Score
-- Evidence Chain
-- Remediation Plan
-- Risk Assessment
-
----
-
-# 🕸️ GraphRAG Investigation Pipeline
-
-CloudGraph transforms raw observability telemetry into explainable root cause
-analysis through a multi-stage GraphRAG and multi-agent reasoning pipeline.
-
-<p align="center">
-  <img src="docs/architecture/figures/05-graphrag-pipeline.svg" alt="GraphRAG retrieval over the incident knowledge graph" width="760">
-</p>
-
-See [What is actually built](#what-is-actually-built) for the end-to-end
-pipeline, and
-[`docs/architecture/system-overview.md`](docs/architecture/system-overview.md)
-for the step-by-step walkthrough.
-
----
-
-## 🔄 Investigation Workflow
-
-### Stage 1 — Data Collection
-
-CloudGraph continuously ingests:
-
-- 📜 Application Logs
-- 📊 Metrics
-- � Metrics
-- 📜 Application Logs
-- ☸️ Kubernetes Events
-- 🚀 Deployment History
-- 📂 Git Activity
-- 🛠 Configuration Changes
-
----
-
-### Stage 2 — Knowledge Graph Construction
-
-Observability signals are transformed into graph entities.
-
-#### Nodes
-
-- Services
-- Pods
-- Deployments
-- Nodes
-- Databases
-- Metrics
-- Alerts
-- Logs
-- Commits
-- Incidents
-
-#### Relationships
-
-- CALLS
-- DEPENDS_ON
-- DEPLOYED_BY
-- GENERATES
-- AFFECTS
-- CONNECTS_TO
-- TRIGGERED_BY
-
----
-
-### Stage 3 — GraphRAG Retrieval
-
-Unlike traditional vector retrieval, GraphRAG enables:
-
-- 🔍 Multi-Hop Reasoning
-- 🕸 Dependency Traversal
-- 📚 Context Expansion
-- ⚡ Incident Correlation
-- 🔗 Relationship-Aware Retrieval
-
----
-
-### Stage 4 — Multi-Agent Investigation
-
-Specialized agents independently investigate incidents.
-
-| Agent               | Responsibility         |
-| ------------------- | ---------------------- |
-| 📈 Monitoring Agent | Metrics & Alerts       |
-| 📜 Log Agent        | Log Analysis           |
-|  Deployment Agent | Release Analysis       |
-| 🔐 Security Agent   | Security Investigation |
-
----
-
-### Stage 5 — Evidence Fusion
-
-Agent outputs are combined through a consensus engine.
-
-Evidence scoring considers:
-
-- Confidence
-- Source Reliability
-- Graph Evidence Strength
-- Temporal Correlation
-- Cross-Agent Agreement
-
----
-
-### Stage 6 — Root Cause Analysis
-
-The Root Cause Agent:
-
-- Correlates evidence
-- Ranks hypotheses
-- Computes confidence scores
-- Generates explainable RCA reports
-
----
-
-### Stage 7 — Recommendation Generation
-
-The Recommendation Agent produces:
-
-- Root Cause Summary
-- Confidence Score
-- Evidence Chain
-- Impact Assessment
-- Remediation Plan
-- Rollback Recommendations
-
----
-
-## 🏆 Key Research Innovations
-
-### 🧠 Temporal GraphRAG
-
-Captures infrastructure evolution and incident progression over time.
-
-### 🤖 Confidence-Aware Multi-Agent Reasoning
-
-Combines agent findings using weighted evidence aggregation.
-
-### 🔍 Explainable AI for AIOps
-
-Every RCA decision can be traced back to graph relationships, telemetry
-evidence, and agent reasoning.
-
-### 📊 Incident Intelligence Layer
-
-Transforms raw observability data into actionable operational knowledge.
-
----
-
-# 📂 Repository Structure
-
-```text
-cloudgraph/
-
-├── cmd/                       # cloudgraph CLI (Go)
-├── deployments/
-│   ├── kubernetes/
-│   └── helm/
-├── docs/
-│   ├── guides/                # INSTALLATION.md, QUICKSTART.md
-│   ├── architecture/          # System design docs + diagrams
-│   ├── design/                # GPCS_DESIGN.md, GCP_DESIGN.md (algorithm design)
-│   ├── images/                # Architecture diagrams (png/svg)
-│   ├── STATUS.md              # Current implementation status
-│   └── ROADMAP.md             # Forward-looking roadmap
-├── research/                  # Research questions, contributions, methods
-├── experiments/                # Reproducible evaluation: results, figures, scripts
-├── testing/                    # Incident-injection + reproduction scripts
-├── dissertation/                # Weekly progress log, literature review, references
-├── services/
-│   ├── api/                    # Python backend API
-│   ├── ui/                     # Web frontend
-│   ├── agent-orchestrator/     # Python Agent Orchestrator
-│   └── investigation-engine/   # Python Investigation Engine
-├── embedded.go                 # Embeds deployments/helm for the CLI binary
-├── README.md
-└── LICENSE
-```
-
----
-
-# 🚨 Example Investigation
-
-## Incident
-
-Checkout service unavailable.
-
-### Collected Evidence
-
-Logs:
-
-```text
-database connection timeout
-```
-
-Metrics:
-
-```text
-error_rate increased
-```
-
-Signal chain:
-
-```text
-checkout → payment → postgres
-```
-
-Deployment:
-
-```text
-payment-service deployed 10 minutes ago
-```
-
-### Knowledge Graph Correlation
-
-```text
-deployment-v14
-    ↓
-secret-change
-    ↓
-database-auth-failure
-    ↓
-payment-service-crash
-    ↓
-checkout-outage
-```
-
-### Generated RCA
-
-```json
-{
-  "root_cause": "Invalid database credentials",
-  "confidence": 0.94,
-  "recommendation": "Rollback deployment v14"
-}
-```
-
----
-
-# ⚡ Quick Start
-
-## Clone
+## ⚡ Quick Start
 
 ```bash
-git clone https://github.com/your-org/cloudgraph.git
-cd cloudgraph
-```
-
-## Docker
-
-```bash
-docker compose up -d
-```
-
-## Backend
-
-```bash
-cd services/api
-uvicorn app.main:app --reload
-```
-
-## Start Investigation Engine
-
-```bash
-python run_agents.py
-```
-
----
-
-# ☸️ Kubernetes Deployment
-
-```bash
-kubectl apply -f deployments/kubernetes/
-```
-
-Verify:
-
-```bash
-kubectl get pods -A
-kubectl get svc -n observability
-kubectl get svc -n cloudgraph
-```
-
-# Week 2 End-to-End Verification
-
-From the repository root, validate and verify the observability and deployment stack:
-
-```bash
-cd tests/observability
-go test -v -timeout 5m ./...
-```
-
-For a local deployment, install the CLI and deploy:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/shivamshashank/CloudGraph/main/install.sh | sudo bash
+git clone https://github.com/shivamshashank/CloudGraph.git
+cd CloudGraph
 sudo cloudgraph deploy
 ```
 
+Then open the UI, configure an LLM provider on the Settings page, and run a
+diagnosis.
+
+- 📖 **[Installation guide](docs/guides/INSTALLATION.md)** — prerequisites,
+  kubeadm + Helm provisioning, configuration, troubleshooting
+- 🏃 **[Quickstart](docs/guides/QUICKSTART.md)** — deploy in a few minutes
+- 🖥️ **[UI walkthrough](docs/guides/UI_WALKTHROUGH.md)** — every screen, tab and
+  button, with 14 screenshots from a live deployment against a real LLM
+
 ---
 
-# 🗄️ Neo4j Setup
+## 📚 Documentation
+
+| | Document | Describes |
+|---|---|---|
+| 🏗️ | [Architecture index](docs/README.md) | Every design doc, marked built vs planned |
+| 🗺️ | [System overview](docs/architecture/system-overview.md) | Lifecycle, install through investigation |
+| 🖼️ | [Current architecture](docs/architecture/figures/current-architecture.svg) | Evaluated pipeline — solid built, dashed planned |
+| 🔄 | [Design evolution](docs/architecture/design-evolution.md) | What changed from the original design, and why |
+| 🧮 | [GPCS design](docs/design/GPCS_DESIGN.md) | Graph-Provenance Claim Scoring — the contribution |
+| 📈 | [GCP design](docs/design/GCP_DESIGN.md) | Graph Confidence Propagation — Noisy-OR over the topology |
+| 🧪 | [Experiments](experiments/README.md) | Benchmark, results, integrity guarantees, limitations |
+| 📊 | [Findings](experiments/FINDINGS.html) | Eight findings with evidential status |
+| 🔖 | [Data provenance](experiments/DATA_PROVENANCE.md) | Corpus source, licence, selection, checksums |
+| 📚 | [Literature review](dissertation/LITERATURE_REVIEW.md) | RAG, GraphRAG, AIOps, multi-agent, hallucination detection |
+| 🔗 | [References](dissertation/REFERENCES.md) | Numbered bibliography |
+| ❓ | [Research questions](research/RESEARCH_QUESTIONS.md) | 18 candidates scored, with what the run settled |
+| 🕳️ | [Research gaps](research/RESEARCH_GAPS.md) | CloudGraph against the literature |
+| 💡 | [Novel contributions](research/NOVEL_CONTRIBUTIONS.md) | Five candidates with pre-registered falsification criteria |
+| ✅ | [Project status](docs/project/STATUS.md) | What is implemented and what is not |
+| 🚧 | [Roadmap](docs/project/ROADMAP.md) | v2 work in priority order |
+| 🎓 | [Dissertation pack](dissertation/README.md) | Chapter plan, progress log, submission checklist |
+
+---
+
+## 🏗️ Architecture
+
+```mermaid
+flowchart TB
+    subgraph SRC["📡 Telemetry sources"]
+        PROM["Prometheus<br/>metrics"]
+        LOKI["Loki<br/>logs"]
+        K8S["Kubernetes API<br/>pods · services · deployments"]
+        GIT["Git / Argo CD<br/>webhooks"]
+    end
+
+    subgraph STORE["🗄️ Stores"]
+        NEO[("Neo4j<br/>temporal property graph<br/>Pod · Service · Log · Incident")]
+        QD[("Qdrant<br/>384-dim embeddings<br/>all-MiniLM-L6-v2")]
+    end
+
+    subgraph RET["🔍 GraphRAG retrieval"]
+        TRAV["k-hop Cypher traversal<br/>bounded, time-windowed"]
+        RANK["Hybrid ranker<br/>0.50·vector + 0.30·graph + 0.20·recency"]
+    end
+
+    subgraph AGENTS["🤖 Investigation engine — 5 specialists"]
+        MON["Monitoring"]
+        LOG["Log"]
+        DEP["Deployment"]
+        TOP["Topology"]
+        SEC["Security"]
+    end
+
+    CONS["⚖️ ConsensusEngine<br/><i>static weighted aggregation</i>"]
+    GCP["📈 GCP<br/>Noisy-OR propagation"]
+    VERIFY["🛡️ Claim verification<br/>GPCS vs self-consistency"]
+    UI["🖥️ Web UI + Go CLI"]
+
+    PROM & LOKI & K8S & GIT --> NEO
+    LOKI --> QD
+    NEO --> TRAV --> RANK
+    QD --> RANK
+    RANK --> MON & LOG & DEP & TOP & SEC
+    MON & LOG & DEP & TOP & SEC --> CONS
+    CONS --> GCP --> VERIFY
+    NEO -.evidence.-> VERIFY
+    VERIFY --> UI
+
+    classDef store fill:#d1fae5,stroke:#047857,stroke-width:2px,color:#064e3b
+    classDef contrib fill:#fde68a,stroke:#b45309,stroke-width:3px,color:#451a03
+    class NEO,QD store
+    class VERIFY,GCP contrib
+```
+
+**The amber boxes are the research contribution.** Everything upstream is
+infrastructure that exists to make verification possible.
+
+### The verification step
+
+This is what the study measures — the same claims scored two independent ways:
+
+```mermaid
+flowchart TB
+    RCA["RCA narrative from consensus"] --> EX["Atomic claim extraction"]
+
+    EX --> G["<b>GPCS</b> — evidence-grounded<br/>0.45·semantic + 0.35·proximity<br/>+ 0.25·reliability − 0.15·(min_hop·0.05)"]
+    EX --> S["<b>Self-consistency</b> — model-internal<br/>3 samples @ T=0.8<br/>cosine recurrence ≥ 0.8"]
+
+    G --> GV["trust ≥ 0.50 → supported"]
+    S --> SV["recurrence ≥ 0.5 → supported"]
+
+    GV --> CMP{{"Concordance — same verdict?"}}
+    SV --> CMP
+    CMP --> R["<b>70.3% vs 57.9% flagged unsupported</b><br/>Δ +0.119, 95% CI [+0.073, +0.163], p&lt;0.0001"]
+
+    classDef contrib fill:#fde68a,stroke:#b45309,stroke-width:3px,color:#451a03
+    classDef result fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px,color:#172554
+    class G,S contrib
+    class R result
+```
+
+⚠️ **Concordance is not accuracy.** The comparison establishes that the two
+verifiers *differ*, not that either is *right* — see
+[what these results do not establish](#️-what-these-results-do-not-establish).
+
+**Ingestion.** Metrics, logs, Kubernetes objects and webhook events become a
+temporal property graph — `(:Pod)-[:RUNS_ON]->(:Node)`,
+`(:Pod)-[:BELONGS_TO]->(:Service)`, `(:Commit)-[:TRIGGERED_BY]->(:Deployment)`.
+Writes use `MERGE` on object UIDs, so repeated discovery is idempotent.
+
+**Retrieval.** Bounded k-hop Cypher traversal from an incident seed, fused with
+dense vectors (`all-MiniLM-L6-v2`, 384-dim) by a hybrid ranker:
+
+```text
+hybrid_score = 0.50·vector_similarity + 0.30·graph_proximity + 0.20·recency
+```
+
+Every result carries a `score_breakdown`, so any ranking can be explained term
+by term in the UI.
+
+**Verification.** The narrative is split into atomic claims, then scored by
+GPCS —
+
+```text
+trust = 0.45·semantic + 0.35·proximity + 0.25·reliability − 0.15·(min_hop·0.05)
+```
+
+— and independently by self-consistency (3 samples at temperature 0.8; a claim
+that fails to recur is flagged).
+
+---
+
+## 🤖 Agent Architecture
+
+Five specialists, each an independent LLM call over its own evidence slice,
+returning a finding and a confidence in `[0,1]`:
+
+| Agent | Interprets |
+|---|---|
+| 🔍 **Monitoring** | Metrics, alerts, resource saturation |
+| 📝 **Log** | Error signatures, repeated exceptions, warning bursts |
+| 🚢 **Deployment** | Commits, releases, configuration drift |
+| 🕸️ **Topology** | Service dependencies, blast radius, propagation paths |
+| 🔐 **Security** | RBAC, secrets, policy changes, authentication failures |
+
+A `ConsensusEngine` fuses them into one report. **The consensus step is a
+static weighted aggregation, not a reasoning agent** — an accurate description
+matters here, because "multi-agent" often implies debate or critique, and this
+system has neither.
+
+---
+
+## 📂 Repository Structure
+
+```text
+cmd/cloudgraph/          Go CLI — deploy, ingest, report, health
+services/
+  api/                   FastAPI: ingestion, retrieval, GPCS, GCP, evaluation
+  investigation-engine/  The five specialist agents
+  agent-orchestrator/    ConsensusEngine
+  ui/                    Static HTML/CSS/vanilla-JS (no framework, no build)
+deployments/helm/        Helm chart — API, agents, UI, Neo4j, Qdrant, OTel, RBAC
+graph/schema.cypher      Node labels, constraints, indexes
+experiments/             Benchmark, merged results, findings, provenance
+research/                Forward-looking research programme
+dissertation/            Chapter plan, progress log, literature review, references
+docs/                    Architecture, algorithm design, guides, project status
+testing/                 End-to-end runbook and reproduction scripts
+```
+
+---
+
+## 🔬 Reproducing the Evaluation
 
 ```bash
-docker run -d \
-  --name neo4j \
-  -p 7474:7474 \
-  -p 7687:7687 \
-  neo4j
+cd services/api && .venv/bin/python scripts/build_rcaeval_dataset.py --n-cases 36
 ```
 
----
-
-# 🔍 Qdrant Setup
+Case selection is deterministic — the same 36 cases reproduce exactly. Run the
+batches per [`testing/END_TO_END_RUNBOOK.md`](testing/END_TO_END_RUNBOOK.md),
+then merge and regenerate:
 
 ```bash
-docker run -d \
-  -p 6333:6333 \
-  qdrant/qdrant
+cd services/api && .venv/bin/python scripts/paired_bootstrap.py && .venv/bin/python scripts/make_figures.py
 ```
+
+**Expected divergence.** LLM sampling at temperature 0.8 is not seedable
+through these APIs. Per-condition concordance moved across a 12-point range
+over four isolated re-runs of identical scenarios, so a reproduction will land
+*near*, not *on*, the published figures. This is a stated limitation, not
+something worked around.
+
+### 🛡️ Evaluation Integrity
+
+Four defects each produced confident, invalid numbers before being caught. All
+are fixed and pinned by regression tests in
+`services/api/tests/test_evaluation_integrity.py`:
+
+| Defect | Consequence |
+|---|---|
+| Ground-truth leakage | Every condition received the answer as its input |
+| Index-based claim join | Scores attached to the wrong claims |
+| Unearned graph proximity | A missing path scored as hop distance 0 |
+| Cross-scenario contamination | Evidence from other scenarios stayed visible |
+
+`merge_reports.py` enforces gates that **abort** on duplicate claims, broken
+joins or ground-truth echo. Bootstrap is seeded (`seed=42`).
+
+> Anything citing `64.0% agreement`, `44.2% vs 31.5%`, or `n=25` refers to an
+> invalidated run and must not be reused.
 
 ---
 
-# 🌐 API Endpoints
-
-## Health
-
-```http
-GET /health
-```
-
-## Investigate Incident
-
-```http
-POST /api/v1/investigate
-```
-
-Request:
-
-```json
-{
-  "incident_id": "INC-001"
-}
-```
-
-## Graph Search
-
-```http
-POST /api/v1/graph/search
-```
-
-## Agent Status
-
-```http
-GET /api/v1/agents
-```
-
----
-
-# 📊 Evaluation Framework
-
-Metrics:
-
-- Root Cause Accuracy
-- Precision
-- Recall
-- F1 Score
-- MTTR Reduction
-- Hallucination Rate
-- Retrieval Quality
-
-Comparison Modes:
-
-1. Traditional RAG
-2. GraphRAG
-3. GraphRAG + Multi-Agent System
-
----
-
-# 🧪 Experimental Dataset
-
-CloudGraph is evaluated using a reproducible incident benchmark dataset.
-
-## Incident Categories
-
-### Kubernetes
-
-- CrashLoopBackOff
-- ImagePullBackOff
-- OOMKilled
-- Node Failures
-
-### Networking
-
-- DNS Failures
-- Service Discovery Issues
-- Network Partitions
-
-### Security
-
-- RBAC Misconfigurations
-- Secret Rotation Failures
-- IAM Errors
-
-### Deployments
-
-- Faulty Releases
-- Configuration Drift
-- Rollout Errors
-
-### Observability
-
-- Missing Metrics
-- Alert Storms
-- Telemetry Gaps
-
-Target Dataset Size:
-
-- 100+ Incidents
-- 500+ Services
-- 10,000+ Events
-- 100,000+ Graph Relationships
-
----
-
-# 🧪 Testing
+## 🧪 Testing
 
 ```bash
-pytest
+cd services/api && .venv/bin/python -m pytest tests/ -q -n auto
 ```
-
-Coverage:
 
 ```bash
-pytest --cov
+go build ./... && go test ./...
 ```
 
-Lint:
-
-```bash
-ruff check .
-```
-
-Type Check:
-
-```bash
-mypy .
-```
+129 Python tests plus the Go CLI suite. CI runs both, alongside pre-commit
+(ruff, black, flake8, pylint, markdownlint, shellcheck, gitleaks).
 
 ---
 
-# 🤝 Contributing
+## 🚧 v2 — What's Deferred
+
+v1 is complete. Everything below is explicitly out of scope and tracked in
+[`docs/project/ROADMAP.md`](docs/project/ROADMAP.md).
+
+| Item | Why it matters |
+|---|---|
+| **Human-labelled claim correctness** | The most valuable outstanding work. Automatic labels cover 4.2%; without human labels we can say GPCS is *stricter*, not better *aimed*. |
+| **Matched-compute control re-run** | Closes RQ2/H2 — whether five agents beat one LLM at equal cost. The existing run predates the integrity fixes. |
+| **Benchmark screen** | The six-baseline ladder is built but **hidden from the UI** and not citable: point estimates with no CIs, compute confounded with architecture. |
+| **Threshold calibration** | GPCS 0.30/0.50 and GCP edge weights are hand-set. Reliability diagrams and Brier score would make confidence outputs meaningful. |
+| **API authentication** | `/api/v1/settings` is unauthenticated and returns the stored provider key in cleartext. Fine on localhost; a real risk otherwise. |
+| **Qdrant collection bootstrap** | The `evidence` collection is not created on a fresh deploy, so the semantic store silently falls back to a local file. |
+| **RCAEval RE3** | Code-level faults, to widen beyond resource and network. |
+| **Trace ingestion** | The Tempo adapter is wired but Tempo was never deployed; `CALLS` edges fall back to naming heuristics. |
+
+---
+
+## 🤝 Contributing
 
 ```bash
 git checkout -b feature/new-feature
@@ -925,11 +394,20 @@ git commit -m "feat: add new feature"
 git push origin feature/new-feature
 ```
 
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) ·
+[`SECURITY.md`](SECURITY.md) ·
+[`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md)
+
 ---
 
-# 📄 License
+## 📄 License & Citation
 
-MIT License
+MIT — see [`LICENSE`](LICENSE).
+
+The benchmark corpus is **RCAEval** (MIT), Zenodo DOI
+[10.5281/zenodo.14590730](https://doi.org/10.5281/zenodo.14590730), arXiv
+[2412.17015](https://arxiv.org/abs/2412.17015). Full attribution in
+[`experiments/DATA_PROVENANCE.md`](experiments/DATA_PROVENANCE.md).
 
 ---
 

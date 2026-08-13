@@ -1,7 +1,13 @@
 # CloudGraph — Dissertation Completion & Future Roadmap
 
-**Goal:** Reach 95+ marks on the current dissertation (v1), then extend the work
-toward journal publication and PhD positioning (v2 / v3).
+**v1 is complete** — the system is built and the 36-scenario evaluation is
+final. What remains here is **v2 and beyond**: the work needed for journal
+submission and PhD positioning. v1 items are retained with their outcomes so
+the plan-versus-delivery record stays auditable, not because they are pending.
+
+The highest-value v2 item is **human-labelled claim correctness**: automatic
+labels cover only 4.2% of claims, and without human labels the project can say
+GPCS is *stricter* than self-consistency but not that it is better *aimed*.
 
 This file is the forward-looking plan. For current implementation status
 (what's actually done vs. not, verified against the code), see
@@ -50,7 +56,8 @@ common way dissertation time budgets fail.
         self-consistency, hybrid vs. raw-context, hybrid vs. keyword
         recall, real 5-agent vs. matched-compute single-LLM).
   - [x] Report p-values alongside raw deltas — implemented in
-        `scripts/paired_bootstrap.py`; output pending the re-run.
+        `scripts/paired_bootstrap.py`; output in
+        `experiments/results/significance_tests.md`.
         (Effect sizes/Cohen's d specifically not added — the paired
         bootstrap CI serves the same role of showing magnitude +
         uncertainty together.)
@@ -74,14 +81,15 @@ common way dissertation time budgets fail.
         exists; `scripts/generate_research_report.py` (local-checkout path,
         wrapped by `testing/report/run_report_batched.sh`) or `cloudgraph
         report` (primary, no-checkout path) are the current entry points.
-        An initial run produced real data but was invalidated by a
-        ground-truth leak (`dissertation/PROGRESS.md`, Week 9); the
-        comparison table is pending a re-run on the corrected pipeline.
+        An initial run was invalidated by a ground-truth leak
+        (`dissertation/PROGRESS.md`, Week 9); the corrected 36-scenario run
+        is **complete** — 3,685 claims, 0 exclusions, results in
+        `experiments/results/`.
 - [ ] Calibrate the GPCS `threshold` value on the held-out split — not done,
       see the train/held-out split item above (the same gap).
 - [x] Report hallucination rate **broken down by claim type** —
       implemented in `report_runner.py` (agreement cross-tab) and
-      `scripts/make_figures.py`; output pending the re-run. (Breakdown by
+      `scripts/make_figures.py`; figures in `experiments/figures/`. (Breakdown by
       incident *category* specifically, as opposed to claim type, not
       separately produced.)
 

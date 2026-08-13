@@ -54,8 +54,10 @@ baseline at all — a question about whether the multi-agent structure
 earns its complexity, independent of which orchestration framework
 implements it. An earlier run suggested it does not, but that result
 came from a pipeline since found to leak ground truth into its own
-inputs (`dissertation/PROGRESS.md`, Week 9) and has been withdrawn
-pending a re-run.
+inputs (`dissertation/PROGRESS.md`, Week 9) and has been withdrawn. The
+matched-compute control has **not** been re-run on the corrected
+pipeline, so this question is open — it is a v2 item, and until it is
+answered no claim should be made either way.
 
 ## 3. Frontend: planned SPA (React/Vue/Svelte) → static HTML/vanilla JS
 

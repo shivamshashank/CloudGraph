@@ -1,5 +1,10 @@
 # CloudGraph documentation
 
+**v1 is complete.** The system is built, deployed and evaluated; the results
+in [`../experiments/`](../experiments/) are final. Remaining work is scoped to
+v2 and listed in [`project/ROADMAP.md`](project/ROADMAP.md) and the
+[v2 section of the root README](../README.md#v2--whats-deferred).
+
 Every document here is marked with what it describes: **built** (implemented
 and, where relevant, exercised by the evaluation), or **planned** (design
 intent that does not exist in the code). Diagrams that could not be marked
@@ -30,6 +35,7 @@ defaults (GPCS: 0.30 evidence floor, 0.50 trust cut).
 |---|---|
 | [`guides/QUICKSTART.md`](guides/QUICKSTART.md) | Deploy in a few minutes |
 | [`guides/INSTALLATION.md`](guides/INSTALLATION.md) | Full install, prerequisites, configuration |
+| [`guides/UI_WALKTHROUGH.md`](guides/UI_WALKTHROUGH.md) | Every screen, tab and button, with screenshots from a live run |
 
 ## Project state
 

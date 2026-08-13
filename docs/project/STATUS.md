@@ -1,5 +1,10 @@
 # CloudGraph Project Status
 
+**v1 is complete.** Everything below marked as implemented is built,
+deployed and — where relevant — exercised by the 36-scenario evaluation.
+Anything still outstanding is deferred to v2 and listed in `ROADMAP.md`; none
+of it blocks the v1 results.
+
 This document is the single source of truth for the current implementation
 status of **CloudGraph**. `ROADMAP.md` is the forward-looking dissertation/PhD
 roadmap (what to do next); `dissertation/PROGRESS.md` is the week-by-week
@@ -108,8 +113,11 @@ Propagation (GCP) and Graph-Provenance Claim Scoring (GPCS).
   `ingest`, `deploy`, `report`, `uninstall`. Embeds the Helm chart
   manifests. Go test suite: passing (`deploy_test.go`, `uninstall_test.go`,
   `report_test.go`).
-- **UI**: 6 static HTML/CSS/vanilla-JS pages (Topology Map, AI Diagnosis,
-  Log Stream, Evidence & Search, Benchmark, LLM Settings) served with no
+- **UI**: 6 static HTML/CSS/vanilla-JS pages — 5 reachable from the sidebar
+  (Topology Map, AI Diagnosis, Log Stream, Evidence & Search, LLM Settings)
+  plus Benchmark, whose nav link is **commented out in this release** and
+  deferred to the next version (code retained in full; the page is still
+  reachable directly at `/benchmark.html`) — served with no
   framework and no build step — no page uses React/Vue/Svelte or a
   charting library; the topology graph is hand-built SVG DOM manipulation
   (`topology.js`). Fully wired to backend endpoints for real Neo4j-backed
