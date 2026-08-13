@@ -126,10 +126,13 @@ trust_score = w1 * semantic_alignment
   not a repurposed existing formula — it is new, and it is the strongest
   candidate for the dissertation's "novel mechanism" framing.
 
-Threshold: claims scoring below a calibrated cutoff (calibrate this on a
-held-out subset of the dataset per the 95+ checklist's generalization-split
-requirement — do not hand-pick the threshold on the full dataset) are
-labeled unsupported.
+Threshold: claims scoring below a cutoff are labeled unsupported.
+
+**Status: not calibrated.** The shipped default is 0.50, hand-set, with the
+semantic-evidence floor at 0.30 chosen by inspecting live query score
+distributions. Neither was fitted on a held-out split. The requirement below
+stands and is unmet — describe these as fixed defaults, never as calibrated,
+in any write-up.
 
 ### Step D — Report-level aggregation
 
@@ -140,7 +143,7 @@ labeled unsupported.
   per-category hallucination table.
 - Surface per-claim trust scores and supporting paths in the API response
   and UI evidence chain (the UI already has the rendering surface for this
-  — `evidence.js` / the evidence-chain components in `workbench.html` just
+  — `evidence.js` / the evidence-chain components in the investigation UI (`services/ui/static/`) just
   need the new per-claim data instead of the current coarse evidence list).
 
 ---
@@ -189,10 +192,10 @@ Given time constraints, be deliberate about depth vs. breadth here too:
 
 ## 5. Where this shows up in the dissertation
 
-- **Methodology chapter:** the GPCS formula, its justification (mirror the
-  existing style of `dissertation/week-4/README.md`'s hybrid ranking documentation
-  — you already have a good template for explaining a scoring formula
-  rigorously).
+- **Methodology chapter:** the GPCS formula and its justification — mirror the
+  style used for the hybrid ranker in
+  `services/api/app/retrieval/hybrid_ranker.py`, which documents a weighted
+  scoring formula component by component.
 - **Evaluation chapter:** unsupported-claim rate per baseline (keyword /
   vector / GraphRAG / GraphRAG+agents), per claim type, per incident
   category, plus the GPCS-vs-self-consistency comparison table.

@@ -140,8 +140,8 @@ helm lint ./cloudgraph
 
 - [CloudGraph Helm Chart README](./cloudgraph/README.md)
 - [Installation Guide](../../docs/guides/INSTALLATION.md)
-- [Implementation Summary](../../IMPLEMENTATION_SUMMARY.md)
-- [System Architecture](../../../docs/architecture/system-overview.md)
+- [Implementation Summary](../../docs/project/STATUS.md)
+- [System Architecture](../../docs/architecture/system-overview.md)
 
 ## Support
 

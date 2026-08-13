@@ -2,6 +2,25 @@
 
 Five candidate publishable contributions, each with what it is, why it is novel relative to existing work, and what would have to be true (evidence) for the claim to hold.
 
+**The "what would have to be true" criteria were written before any valid
+measurement, and are kept unedited below.** That makes them usable as stated
+falsification conditions rather than post-hoc rationalisation. Judged against
+those criteria, the 36-scenario RCAEval run (`experiments/`) settled two and
+left three untested:
+
+| # | Contribution | Verdict against its own stated criterion |
+|---|---|---|
+| 1 | Temporal Operational GraphRAG | **Untested.** The temporal-filtering ablation was never run. Recency was fixed from inert (spread 0.000) to real (0.251), so the term now *does* something — but no with/without comparison exists, and the "recent = relevant" confound the criterion demands be controlled has not been controlled. |
+| 2 | GPCS as a distinct family from self-consistency | **Not established.** The two methods do behave differently and significantly so (70.3% vs 57.9% flagged, p<0.0001). But the criterion asks whether GPCS is better *aimed*, and on the labelled subset neither verifier separates correct claims from incorrect ones — both precision figures sit exactly on the base rate. Difference is demonstrated; advantage is not. The claim-type-stratified blind-spot analysis, and a GPCS per-term ablation (semantic / proximity / reliability / path penalty), both remain undone. |
+| 3 | Neuro-symbolic ablation framing | **Falsified as stated.** The criterion was explicit: "If both ablations fail identically, the 'symbolic structure adds distinct value' claim is unsupported." Vector and hybrid retrieval scored identically on every measure across all 36 scenarios. The framing survives only for *claim scoring*, where the graph is genuinely load-bearing — not for retrieval. |
+| 4 | Calibrated GCP | **Untested.** No weight fitting, no reliability diagram, no Brier score. Unchanged from when this was written. |
+| 5 | Multi-agent interaction vs independent ensemble | **Untested on valid data.** The matched-compute control ran only under the pipeline later found to leak ground truth. Note the contribution already anticipates the negative result as publishable — that framing still holds. |
+
+Two of five landing negative or null is the honest state, and the negative on
+Contribution 3 is a real finding rather than an absence of one: it says the
+graph's value in this system is verification, not retrieval. That is a
+narrower and more defensible thesis than the original five combined.
+
 ---
 
 ## Contribution 1 — Temporal Operational GraphRAG

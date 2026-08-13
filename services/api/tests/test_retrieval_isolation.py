@@ -15,6 +15,7 @@ These tests pin the three properties that make that impossible to repeat.
 import types
 
 import pytest
+from neo4j.exceptions import ServiceUnavailable
 
 from app.demo import seeding
 from app.research import evaluation
@@ -96,6 +97,18 @@ def test_isolation_assertion_passes_on_clean_store(monkeypatch):
     monkeypatch.setattr(seeding.qdrant_client, "connect", lambda: True)
     monkeypatch.setattr(seeding.qdrant_client, "client", clean)
     monkeypatch.setattr(seeding.qdrant_client, "collection_names", ("evidence",))
+    # The vector check passing falls through to the graph check, which would
+    # otherwise open a real Bolt connection — the sibling test never reaches
+    # here because its vector check raises first.
+    #
+    # driver is pinned as well as execute_query: the neo4j driver is created
+    # lazily, so whether it is None depends on which tests ran first in the
+    # worker. Left unpinned this either short-circuits (passing for the wrong
+    # reason) or dials a real server, which is how this reached CI.
+    monkeypatch.setattr(seeding.neo4j_client, "driver", object())
+    monkeypatch.setattr(
+        seeding.neo4j_client, "execute_query", lambda *_a, **_k: [{"foreign": 0}]
+    )
 
     seeding.assert_semantic_store_isolated("rcaeval-01")
 
@@ -194,4 +207,33 @@ def test_graph_isolation_assertion_raises_on_foreign_benchmark_nodes(monkeypatch
         seeding.neo4j_client, "execute_query", lambda *_a, **_k: [{"foreign": 4}]
     )
     with pytest.raises(seeding.SemanticStoreNotIsolatedError, match="graph holds 4"):
+        seeding.assert_graph_isolated("rcaeval-01")
+
+
+def test_isolation_fails_loudly_when_the_graph_cannot_be_checked(monkeypatch):
+    """Being unable to verify isolation is not the same as being isolated.
+
+    A driver that exists but cannot reach the server raises ServiceUnavailable
+    out of session.run, which is not an OSError — narrow except clauses let it
+    escape as an unhandled traceback mid-run. It must surface as the same
+    fatal, explicable error as real contamination."""
+
+    def _unreachable(*_args, **_kwargs):
+        raise ServiceUnavailable("connection refused")
+
+    monkeypatch.setattr(seeding.neo4j_client, "driver", object())
+    monkeypatch.setattr(seeding.neo4j_client, "execute_query", _unreachable)
+
+    with pytest.raises(seeding.SemanticStoreNotIsolatedError, match="could not verify"):
+        seeding.assert_graph_isolated("rcaeval-01")
+
+
+def test_graph_isolation_raises_on_foreign_nodes(monkeypatch):
+    """Benchmark nodes belonging to another scenario must stop the run."""
+    monkeypatch.setattr(seeding.neo4j_client, "driver", object())
+    monkeypatch.setattr(
+        seeding.neo4j_client, "execute_query", lambda *_a, **_k: [{"foreign": 7}]
+    )
+
+    with pytest.raises(seeding.SemanticStoreNotIsolatedError, match="graph holds 7"):
         seeding.assert_graph_isolated("rcaeval-01")

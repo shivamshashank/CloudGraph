@@ -1,0 +1,247 @@
+{
+  "generated_utc": "2026-08-11T12:56:58.792088+00:00",
+  "n_scenarios": 36,
+  "n_expected_scenarios": 36,
+  "complete": true,
+  "n_claims": 3685,
+  "n_excluded_attempts": 0,
+  "n_investigation_requests": 329,
+  "n_specialist_agent_calls": 1645,
+  "n_consensus_calls": 329,
+  "n_agent_llm_calls": 1974,
+  "generation_source_counts": {
+    "llm": 324,
+    "rule_based_fallback": 5
+  },
+  "n_non_llm_generations": 5,
+  "non_llm_generations": [
+    {
+      "scenario_id": "rcaeval-02",
+      "batch": "batch-01",
+      "generation_source": "rule_based_fallback"
+    },
+    {
+      "scenario_id": "rcaeval-04",
+      "batch": "batch-01",
+      "generation_source": "rule_based_fallback"
+    },
+    {
+      "scenario_id": "rcaeval-05",
+      "batch": "batch-01",
+      "generation_source": "rule_based_fallback"
+    },
+    {
+      "scenario_id": "rcaeval-05",
+      "batch": "batch-01",
+      "generation_source": "rule_based_fallback"
+    },
+    {
+      "scenario_id": "rcaeval-36",
+      "batch": "batch-06",
+      "generation_source": "rule_based_fallback"
+    }
+  ],
+  "integrity_checks_passed": true,
+  "source_batches": [
+    {
+      "dir": "../../experiments/batches/batch-01",
+      "run_metadata": {
+        "started_utc": "2026-08-10T20:13:06.354635+00:00",
+        "git_commit": "9787fde7b2cfd98204cd1cc170c25a5949c550a9",
+        "python_version": "3.11.15",
+        "packages": {
+          "qdrant-client": "1.18.0",
+          "neo4j": "6.2.0",
+          "sentence-transformers": "5.6.0",
+          "pandas": "3.0.5",
+          "fastapi": "0.138.2"
+        },
+        "eval_collection": "evidence_eval",
+        "product_collections": [
+          "evidence"
+        ],
+        "dataset_file": "rcaeval_dataset_generated.json",
+        "dataset_sha256": "37a527d6558943211a847d0034a3bb71343fecfc86c91be5486fc2678fd53ed3",
+        "n_scenarios_in_dataset": 36
+      },
+      "image_digest": "sha256:81c4864130e8a4764173e14cd6a15c5470b521711bf2f883e4c4fe7224d90c6e",
+      "claims_sha256": "abd5583ff6c96ce7f07b256068f46318b53bba381d4b481710aa3a154607df68",
+      "scenarios": [
+        "rcaeval-01",
+        "rcaeval-02",
+        "rcaeval-03",
+        "rcaeval-04",
+        "rcaeval-05",
+        "rcaeval-06"
+      ]
+    },
+    {
+      "dir": "../../experiments/batches/batch-02",
+      "run_metadata": {
+        "started_utc": "2026-08-10T21:14:56.194732+00:00",
+        "git_commit": "9787fde7b2cfd98204cd1cc170c25a5949c550a9",
+        "python_version": "3.11.15",
+        "packages": {
+          "qdrant-client": "1.18.0",
+          "neo4j": "6.2.0",
+          "sentence-transformers": "5.6.0",
+          "pandas": "3.0.5",
+          "fastapi": "0.138.2"
+        },
+        "eval_collection": "evidence_eval",
+        "product_collections": [
+          "evidence"
+        ],
+        "dataset_file": "rcaeval_dataset_generated.json",
+        "dataset_sha256": "37a527d6558943211a847d0034a3bb71343fecfc86c91be5486fc2678fd53ed3",
+        "n_scenarios_in_dataset": 36
+      },
+      "image_digest": "sha256:81c4864130e8a4764173e14cd6a15c5470b521711bf2f883e4c4fe7224d90c6e",
+      "claims_sha256": "fdcfbc67a7460d43d3a3b1401a3c6dd1b60829f592f1f4e0192117257840e9a9",
+      "scenarios": [
+        "rcaeval-07",
+        "rcaeval-08",
+        "rcaeval-09",
+        "rcaeval-10",
+        "rcaeval-11",
+        "rcaeval-12"
+      ]
+    },
+    {
+      "dir": "../../experiments/batches/batch-03",
+      "run_metadata": {
+        "started_utc": "2026-08-11T07:59:16.895150+00:00",
+        "git_commit": "9787fde7b2cfd98204cd1cc170c25a5949c550a9",
+        "python_version": "3.11.15",
+        "packages": {
+          "qdrant-client": "1.18.0",
+          "neo4j": "6.2.0",
+          "sentence-transformers": "5.6.0",
+          "pandas": "3.0.5",
+          "fastapi": "0.138.2"
+        },
+        "eval_collection": "evidence_eval",
+        "product_collections": [
+          "evidence"
+        ],
+        "dataset_file": "rcaeval_dataset_generated.json",
+        "dataset_sha256": "37a527d6558943211a847d0034a3bb71343fecfc86c91be5486fc2678fd53ed3",
+        "n_scenarios_in_dataset": 36
+      },
+      "image_digest": "sha256:81c4864130e8a4764173e14cd6a15c5470b521711bf2f883e4c4fe7224d90c6e",
+      "claims_sha256": "f3aaa94382f6f42aba4e1d47012cba6e57009dd1e78e7167cd5f9dde40d88a22",
+      "scenarios": [
+        "rcaeval-13",
+        "rcaeval-14",
+        "rcaeval-15",
+        "rcaeval-16",
+        "rcaeval-17",
+        "rcaeval-18"
+      ]
+    },
+    {
+      "dir": "../../experiments/batches/batch-04",
+      "run_metadata": {
+        "started_utc": "2026-08-11T09:09:44.279491+00:00",
+        "git_commit": "9787fde7b2cfd98204cd1cc170c25a5949c550a9",
+        "python_version": "3.11.15",
+        "packages": {
+          "qdrant-client": "1.18.0",
+          "neo4j": "6.2.0",
+          "sentence-transformers": "5.6.0",
+          "pandas": "3.0.5",
+          "fastapi": "0.138.2"
+        },
+        "eval_collection": "evidence_eval",
+        "product_collections": [
+          "evidence"
+        ],
+        "dataset_file": "rcaeval_dataset_generated.json",
+        "dataset_sha256": "37a527d6558943211a847d0034a3bb71343fecfc86c91be5486fc2678fd53ed3",
+        "n_scenarios_in_dataset": 36
+      },
+      "image_digest": "sha256:81c4864130e8a4764173e14cd6a15c5470b521711bf2f883e4c4fe7224d90c6e",
+      "claims_sha256": "151c2bc64bf79c42e0306bc9815542fca88302e2b9073db0103b5c8e8e293e03",
+      "scenarios": [
+        "rcaeval-19",
+        "rcaeval-20",
+        "rcaeval-21",
+        "rcaeval-22",
+        "rcaeval-23",
+        "rcaeval-24"
+      ]
+    },
+    {
+      "dir": "../../experiments/batches/batch-05",
+      "run_metadata": {
+        "started_utc": "2026-08-11T10:22:33.437098+00:00",
+        "git_commit": "9787fde7b2cfd98204cd1cc170c25a5949c550a9",
+        "python_version": "3.11.15",
+        "packages": {
+          "qdrant-client": "1.18.0",
+          "neo4j": "6.2.0",
+          "sentence-transformers": "5.6.0",
+          "pandas": "3.0.5",
+          "fastapi": "0.138.2"
+        },
+        "eval_collection": "evidence_eval",
+        "product_collections": [
+          "evidence"
+        ],
+        "dataset_file": "rcaeval_dataset_generated.json",
+        "dataset_sha256": "37a527d6558943211a847d0034a3bb71343fecfc86c91be5486fc2678fd53ed3",
+        "n_scenarios_in_dataset": 36
+      },
+      "image_digest": "sha256:81c4864130e8a4764173e14cd6a15c5470b521711bf2f883e4c4fe7224d90c6e",
+      "claims_sha256": "66ebbc8958b52ef7687f2ad2cbe2957b4f6e71108566b0d4d5c890850be8ee97",
+      "scenarios": [
+        "rcaeval-25",
+        "rcaeval-26",
+        "rcaeval-27",
+        "rcaeval-28",
+        "rcaeval-29",
+        "rcaeval-30"
+      ]
+    },
+    {
+      "dir": "../../experiments/batches/batch-06",
+      "run_metadata": {
+        "started_utc": "2026-08-11T11:52:17.026830+00:00",
+        "git_commit": "9787fde7b2cfd98204cd1cc170c25a5949c550a9",
+        "python_version": "3.11.15",
+        "packages": {
+          "qdrant-client": "1.18.0",
+          "neo4j": "6.2.0",
+          "sentence-transformers": "5.6.0",
+          "pandas": "3.0.5",
+          "fastapi": "0.138.2"
+        },
+        "eval_collection": "evidence_eval",
+        "product_collections": [
+          "evidence"
+        ],
+        "dataset_file": "rcaeval_dataset_generated.json",
+        "dataset_sha256": "37a527d6558943211a847d0034a3bb71343fecfc86c91be5486fc2678fd53ed3",
+        "n_scenarios_in_dataset": 36
+      },
+      "image_digest": "sha256:81c4864130e8a4764173e14cd6a15c5470b521711bf2f883e4c4fe7224d90c6e",
+      "claims_sha256": "cef75f26e3b49ef86eec1ccde8173330cdff688f6fe75c27d0d09db8366da2ab",
+      "scenarios": [
+        "rcaeval-31",
+        "rcaeval-32",
+        "rcaeval-33",
+        "rcaeval-34",
+        "rcaeval-35",
+        "rcaeval-36"
+      ]
+    }
+  ],
+  "outputs": {
+    "claims.csv": "145eafd620c7a96c0959d539de1d17096e88efee664ea9477854d96c4aef4c91",
+    "agreement_crosstab.csv": "2500d592b7b296430d922f70117972bc600f3f36b82daf06750909774e184213",
+    "neurosymbolic_retrieval_detail.csv": "960b9a9c9a292703fa78d471f7809f6783253a70318af2572df3c545b91b4f7d",
+    "requests_log.jsonl": "1514df02e0820cb755bdf4d6d0d6a52f96f525cadfec72f5ec1c7547aad267f2",
+    "summary.txt": "8b77d75150d61b352e0c6aaaa12b45c6c8b859f99860f77704ffb356b6e31f0d"
+  },
+  "source_batches_note": "Batch directories were removed after merging; they are gitignored working artefacts. Every scenario, checksum and request they contributed is recorded here and in requests_log.jsonl.gz."
+}

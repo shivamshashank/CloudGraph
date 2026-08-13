@@ -219,7 +219,20 @@ def _ingest_pod_logs(v1, pod, ns, status):
                         },
                     )
     except K8S_ERRORS as log_ex:
-        logger.debug("Could not read logs for pod %s: %s", pod_name, log_ex)
+        # A 403 here means the ServiceAccount lacks the pods/log subresource,
+        # which silently produces an empty log corpus for every pod. That was
+        # invisible at debug level for the whole life of the project, so
+        # permission failures are reported loudly and the rest at debug.
+        if getattr(log_ex, "status", None) == 403:
+            logger.warning(
+                "Not permitted to read logs for pod %s: %s. The ServiceAccount "
+                "needs the 'pods/log' subresource; no log evidence will be "
+                "ingested until it is granted.",
+                pod_name,
+                log_ex.reason if hasattr(log_ex, "reason") else log_ex,
+            )
+        else:
+            logger.debug("Could not read logs for pod %s: %s", pod_name, log_ex)
 
 
 def _simulate_pod_metrics(pod, status):
@@ -288,22 +301,58 @@ def _get_pod_env_vars(pod) -> list:
     return env_vars
 
 
+# Waiting reasons that are a normal part of starting up, not a fault. Anything
+# else a container reports while waiting (ImagePullBackOff, CrashLoopBackOff,
+# CreateContainerConfigError, ...) is a real problem worth surfacing.
+_BENIGN_WAITING_REASONS = frozenset(
+    {
+        "ContainerCreating",
+        "PodInitializing",
+    }
+)
+
+
+def _is_container_fault(state) -> str | None:
+    """Return a failure reason for this container state, or None if healthy.
+
+    A container that terminated with exit code 0 succeeded. That is the normal
+    end state for every init container, and for the main container of a Job or
+    a Completed pod — it is not a fault and must not be reported as the pod's
+    status.
+    """
+    if not state:
+        return None
+    if state.waiting and state.waiting.reason not in _BENIGN_WAITING_REASONS:
+        return state.waiting.reason or "Waiting"
+    if state.terminated and state.terminated.exit_code:
+        return state.terminated.reason or "Error"
+    return None
+
+
 def _resolve_pod_status(pod) -> str:
-    """Resolve true pod status including container-level failures."""
-    status = pod.status.phase if pod.status else "Unknown"
+    """Resolve the pod's effective status, surfacing container-level failures.
+
+    The phase alone hides problems: a pod sits in `Running` while one of its
+    containers is stuck in `ImagePullBackOff`. But the converse matters just as
+    much — not every non-running container state is a fault.
+
+    This previously returned the first terminated reason across both the main
+    and init container lists without checking the exit code, so a pod whose
+    init container had finished successfully reported `Completed` instead of
+    `Running`. Healthy pods were drawn red in the topology, and the log view
+    (which keys off this status) invented crash and OOM lines for them.
+    """
     if not pod.status:
-        return status
-    all_statuses = (pod.status.container_statuses or []) + (
-        pod.status.init_container_statuses or []
-    )
-    for cs in all_statuses:
-        if not cs.state:
-            continue
-        if cs.state.waiting:
-            return cs.state.waiting.reason or "Waiting"
-        if cs.state.terminated:
-            return cs.state.terminated.reason or "Terminated"
-    return status
+        return "Unknown"
+
+    for cs in (pod.status.init_container_statuses or []) + (
+        pod.status.container_statuses or []
+    ):
+        fault = _is_container_fault(cs.state)
+        if fault:
+            return fault
+
+    return pod.status.phase or "Unknown"
 
 
 def _discover_pods(v1, namespace) -> list:

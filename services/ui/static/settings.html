@@ -152,6 +152,17 @@
             ></span>
             Evidence & Search
           </a>
+          <!-- Benchmark screen - hidden in this release, deferred to the next
+               version. The six-baseline ladder (Keyword > Vector > GraphRAG >
+               +Agents > +GCP > +GPCS) is fully implemented and its code is kept
+               intact (benchmark.html/.js, routers/benchmark.py, tests), but it is
+               not the source of any published result and is not citable as it
+               stands: point estimates with no confidence intervals, and each rung
+               adds LLM calls so any gain is confounded with compute. Answering
+               "does each layer earn its place" needs a matched-compute control and
+               repeat runs - a separate study. Still reachable directly at
+               /benchmark.html. Re-enable by restoring the anchor below on every
+               page that renders the sidebar.
           <a href="benchmark.html" class="nav-item">
             <span class="nav-icon"
               ><svg
@@ -168,6 +179,7 @@
             ></span>
             Benchmark
           </a>
+          -->
           <a href="settings.html" class="nav-item active" id="nav-settings">
             <span class="nav-icon"
               ><svg

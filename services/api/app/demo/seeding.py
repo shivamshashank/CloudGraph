@@ -15,7 +15,7 @@ from qdrant_client.models import (
     PointIdsList,
 )
 
-from app.database.neo4j_client import neo4j_client
+from app.database.neo4j_client import NEO4J_CONNECTION_ERRORS, neo4j_client
 from app.database.qdrant import qdrant_client
 from app.demo.datasets import scenario_incident_time
 from app.dependencies import semantic_store
@@ -392,9 +392,16 @@ def assert_graph_isolated(scenario_id: str) -> None:
             """,
             {"scenario_id": scenario_id},
         )
-    except (RuntimeError, OSError) as exc:
-        logger.error("Could not verify Neo4j isolation: %s", exc)
-        return
+    except NEO4J_CONNECTION_ERRORS as exc:
+        # Being unable to check is not the same as having checked. A driver
+        # that exists but cannot reach the server raises a raw
+        # ServiceUnavailable from session.run — narrower except clauses let
+        # that escape as an unhandled traceback mid-run. Failing here with a
+        # clear reason keeps the guarantee this assertion exists to provide:
+        # a run either verified its isolation or stopped.
+        raise SemanticStoreNotIsolatedError(
+            f"could not verify graph isolation for {scenario_id}: {exc}"
+        ) from exc
 
     foreign = records[0].get("foreign", 0) if records else 0
     if foreign:

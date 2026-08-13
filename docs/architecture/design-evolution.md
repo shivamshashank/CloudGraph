@@ -54,8 +54,10 @@ baseline at all — a question about whether the multi-agent structure
 earns its complexity, independent of which orchestration framework
 implements it. An earlier run suggested it does not, but that result
 came from a pipeline since found to leak ground truth into its own
-inputs (`dissertation/PROGRESS.md`, Week 9) and has been withdrawn
-pending a re-run.
+inputs (`dissertation/PROGRESS.md`, Week 9) and has been withdrawn. The
+matched-compute control has **not** been re-run on the corrected
+pipeline, so this question is open — it is a v2 item, and until it is
+answered no claim should be made either way.
 
 ## 3. Frontend: planned SPA (React/Vue/Svelte) → static HTML/vanilla JS
 
@@ -83,5 +85,5 @@ None of these three deviations weaken the research contributions
 comparison, and the neuro-symbolic retrieval ablation are all independent
 of which cloud provider, orchestration framework, or frontend stack
 implements the surrounding system. They're recorded here so a reviewer
-comparing this repo against earlier design docs (`dissertation/week-1/`)
+comparing this repo against the earlier design docs (in git history)
 sees engineering decisions with reasons, not unexplained drift.

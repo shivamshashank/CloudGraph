@@ -95,3 +95,27 @@ def test_gcp_propagation_noisy_or_math(monkeypatch):
     # = 1 - 0.01876875 = 0.98123125
     assert res["root_cause"] == pytest.approx(0.98, abs=0.01)
     assert res["recommendation"] == pytest.approx(0.98 * 0.90, abs=0.01)
+
+
+def test_propagation_ignores_neighbours_outside_the_scored_subgraph():
+    """Regression: adjacency can name nodes the node query never returned.
+
+    `run_propagation` builds `scores` from a node query but `adjacency` from an
+    edge query that reaches one hop further, so the edge list can reference a
+    node with no initial confidence. Indexing it raised KeyError and turned
+    every investigation into a 500.
+    """
+    propagator = GraphConfidencePropagator()
+    scores = {"a": 0.9, "b": 0.0}
+    init_scores = dict(scores)
+    # "z" is reachable from "a" but was never scored.
+    adjacency = {
+        "a": [("b", "BELONGS_TO"), ("z", "BELONGS_TO")],
+        "b": [("a", "BELONGS_TO")],
+        "z": [("a", "BELONGS_TO")],
+    }
+
+    result = propagator.propagate_confidence_scores(scores, init_scores, adjacency)
+
+    assert "z" not in result, "unscored neighbour must not be added to the result"
+    assert result["b"] > 0.0, "propagation to in-subgraph neighbours still happens"

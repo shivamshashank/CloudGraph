@@ -2,32 +2,113 @@
 
 ## Current state
 
-**No complete result exists yet.** One clean pilot batch (6 of 36
-scenarios) has been run and validated; batches 2-6 have not. Nothing
-here is reportable until all 36 are in.
+**The full 36-scenario run is complete.** All six batches ran on a single
+build (`9787fde`, image `sha256:81c4864130e8`) against a dedicated
+evaluation collection, with zero exclusions, zero cross-scenario
+contamination, zero ground-truth leakage, and zero join defects.
 
-A partial run is not simply a smaller one. Batch is confounded with
-fault type by construction — each batch of 6 covers only 2 of the 6
-fault types while staying balanced 2/2/2 across the 3 systems — so the
-pilot covers CPU and delay faults only, with a single replicate per
-system x fault cell. Two independent isolated runs of those same 6
-scenarios also moved per-condition concordance by up to 8 points on
-generation stochasticity alone, so no per-condition claim survives at
-n=6.
+### Findings
 
-Four integrity defects were found and fixed along the way, each of which
-had invalidated a full run: ground-truth leakage into the input
-observations, a GPCS/self-consistency join by positional id across two
-independent LLM extractions, evidence with no graph path receiving full
-graph-proximity credit, and cross-scenario contamination of the vector
-store. All are regression-tested; see `dissertation/PROGRESS.md` Week 9
-and `experiments/batches/_invalid_*/README.md` for the full account.
+**→ [`FINDINGS.html`](FINDINGS.html)** — eight findings with their
+evidential status, statistics, diagrams and charts. Open it in a browser.
 
-Anything citing "64.0% agreement", "44.2% vs 31.5%", or any figure from
-the archived `_invalid_*` batches is referring to an invalid run. Those
-numbers should not be reused. Note also that `agreement` measures
-whether GPCS and self-consistency reached the *same* verdict — it is
-inter-method concordance, not ground-truth accuracy.
+Headline results, all derived from `results/claims.csv`:
+
+| Result | Effect | 95% CI | p |
+|---|---|---|---|
+| GPCS flags more unsupported than self-consistency | +0.119 | [+0.073, +0.163] | <0.0001 |
+| Neural/hybrid retrieval beats keyword recall | +0.190 | [+0.116, +0.269] | 0.0003 |
+| Hybrid vs raw retrieval context (concordance) | +0.024 | [-0.028, +0.077] | 0.302 (null) |
+
+Keyword retrieval scored **0/36** under strict matching — it never once
+recovered a complete tag set. Vector and hybrid were **identical on every
+measure**, so the graph contributes nothing to retrieval here (it does
+contribute to scoring).
+
+### What these results do not establish
+
+`agreement` measures whether GPCS and self-consistency reached the *same*
+verdict. It is inter-method concordance, **not ground-truth accuracy** —
+both verifiers can be wrong on the same claim and it counts as agreement.
+
+An automatic correctness label (`scripts/label_claim_correctness.py`,
+output in `results/correctness_labels.md`) derives right/wrong from
+RCAEval's own case metadata for the causal claims where that is possible
+(4.2% of the corpus). On that subset **neither verifier discriminates**:
+GPCS flags 60.4% of incorrect claims and 61.2% of correct ones, a −0.8 pp
+gap; self-consistency 72.6% vs 73.5%, also −0.8 pp. Both precision figures
+(0.681) sit exactly on the 68.4% base rate, which is what flagging
+everything would score.
+
+So GPCS being *stricter* than self-consistency (a statistically supported
+result) is **not** evidence that it is better aimed. Settling that needs
+human-labelled correctness on a stratified sample — the most valuable
+outstanding piece of work.
+
+Results are scoped to this RCAEval RE2 subset and are not general claims
+about Kubernetes root-cause analysis.
+
+### Non-LLM generations in the corpus
+
+Five of the 329 logged investigations returned the deterministic
+rule-based fallback instead of reaching the LLM (`generation_source:
+"rule_based_fallback"`), in scenarios `rcaeval-02`, `-04`, `-05` (twice)
+and `-36`. They produce boilerplate — *"Unusual pattern detected in
+telemetry; pod is in state: Failed"*.
+
+None of that text reaches `results/claims.csv`: no claim in the dataset
+contains it, so every scored claim came from a real LLM generation. The
+fallbacks were secondary self-consistency samples, where they can still
+depress a recurrence rate.
+
+`scripts/paired_bootstrap.py` therefore reports the headline delta twice —
+once on all 36 scenarios, once with all four affected scenarios dropped:
+
+| | n | delta | 95% CI | p |
+|---|---|---|---|---|
+| All scenarios | 36 | +0.1185 | [+0.0729, +0.1632] | <0.0001 |
+| Excluding fallback-affected | 32 | +0.1255 | [+0.0801, +0.1724] | <0.0001 |
+
+The effect survives and is marginally larger without them, so the result
+does not depend on the affected scenarios. Counts and the affected-scenario
+list are recorded in `results/MANIFEST.json` under `non_llm_generations`,
+and the sensitivity section regenerates from it rather than from a
+hardcoded list.
+
+### Compute cost
+
+`MANIFEST.json` distinguishes what the request log actually counts, because
+an earlier manifest reported the record count as an LLM-call count and
+understated real compute by roughly 6x:
+
+| Field | Value | Meaning |
+|---|---|---|
+| `n_investigation_requests` | 329 | Logged records — one POST to the orchestrator each |
+| `n_specialist_agent_calls` | 1,645 | Five specialists per investigation |
+| `n_consensus_calls` | 329 | One consensus call per investigation |
+| `n_agent_llm_calls` | 1,974 | Specialist + consensus |
+
+GPCS claim extraction and scoring are additional and not counted in that
+total. Model: `muse-spark-1.2-contributor` (provider `meta`), temperature
+0.8, one model throughout — no cross-model comparison was run.
+
+### Known limitations in the current data
+
+- Per-condition concordance moved across a **12-point range** over four
+  isolated re-runs of the same six scenarios (temperature 0.8), so
+  single-batch condition comparisons are noise.
+- The shipped retrieval `correct` flag reads 36/36 for all three methods
+  and is saturated by construction; use `strict_correct` and `recall`
+  from the merged CSV instead.
+- Three fault types (`delay`, `loss`, `mem`) score 0/6 strict because
+  their expected tags use vocabulary absent from the seeded telemetry —
+  a benchmark-label mismatch, not a retrieval failure.
+
+Four integrity defects invalidated earlier runs — ground-truth leakage,
+an index-based claim join, unearned graph-proximity credit, and
+cross-scenario vector contamination. All are now regression-tested; see
+`dissertation/PROGRESS.md` Week 9. Anything citing "64.0% agreement" or
+"44.2% vs 31.5%" refers to an invalid run and must not be reused.
 
 ## Benchmark
 
@@ -91,8 +172,10 @@ unranked), `hybrid` (ranked GraphRAG retrieval) — and for each:
    primary one.
 2. Scores those claims two independent ways: **self-consistency** (does
    the claim recur across samples?) and **GPCS** (does the claim have
-   supporting evidence in the graph, above a calibrated relevance
-   floor?).
+   supporting evidence in the graph, above a **fixed** relevance floor of
+   0.30?). The floor is not calibrated: it was set by inspecting live
+   query score distributions, and no held-out fitting has been done. The
+   0.50 trust threshold is likewise a default, not a fitted cutoff.
 3. Separately runs a neuro-symbolic retrieval benchmark
    (keyword=symbolic, vector=neural, hybrid=neuro-symbolic).
 
@@ -133,5 +216,7 @@ Each of these was a live defect, fixed and pinned by regression tests
 |---|---|
 | `DATA_PROVENANCE.md` | Where the data came from, how it was selected and derived |
 | `rcaeval_data/` | Raw upstream parquet (gitignored; regenerate on demand) |
-| `results/` | Created by a run — currently absent, see "Current state" |
-| `figures/` | Created by `scripts/make_figures.py` — currently absent |
+| `FINDINGS.html` | Findings and conclusions — open in a browser |
+| `results/` | The merged 36-scenario dataset, `MANIFEST.json` carries per-batch provenance |
+| `results/significance_tests.md` | Paired bootstrap CIs + Wilcoxon, regenerated by `scripts/paired_bootstrap.py` |
+| `figures/` | Charts regenerated by `scripts/make_figures.py` |

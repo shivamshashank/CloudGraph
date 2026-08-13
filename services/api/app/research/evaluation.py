@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 # First-pass constant, matching GPCS's own default trust threshold
 # (see gpcs.py). Not yet calibrated on a held-out split — see
-# docs/ROADMAP.md's held-out-split calibration item.
+# docs/project/ROADMAP.md's held-out-split calibration item.
 GCP_CORRECTNESS_THRESHOLD = 0.50
 
 
