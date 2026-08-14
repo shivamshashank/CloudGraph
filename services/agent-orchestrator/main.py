@@ -23,9 +23,7 @@ _CHAT_COMPLETIONS_CONFIG = {
     ),
 }
 
-# Generous but not local-CPU-inference-generous — a hosted API replying in
-# over a minute is itself a real failure worth surfacing, not something to
-# wait out silently.
+# Generous, but a hosted API taking over a minute is itself a failure.
 _LLM_REQUEST_TIMEOUT = 60
 
 
@@ -225,9 +223,8 @@ class ConsensusEngine:
             )
             api_key = (llm_config.get("api_key") or "").strip()
 
-            # Don't require api_key here — call_llm() falls back to the
-            # provider's env-var key (OPENAI_API_KEY etc.) if this is empty,
-            # and raises a clear error itself if no key is available anywhere.
+            # api_key may be empty: call_llm() falls back to the env-var key and
+            # raises its own error if none exists.
             if provider:
                 agent_findings = "\n".join(
                     [
@@ -451,10 +448,8 @@ class OrchestratorHandler(http.server.BaseHTTPRequestHandler):
                     "llm_api_key": payload.get("llm_api_key"),
                     "llm_model": payload.get("llm_model"),
                 },
-                # investigation-engine runs 5 specialists sequentially, each
-                # with its own cloud LLM call (up to call_llm's own 60s
-                # timeout) — worst case 5 x 60s = 300s. This must exceed
-                # that worst case with real margin, not just approach it.
+                # 5 sequential specialists at up to 60s each is 300s worst case;
+                # this must clear that with margin.
                 timeout=360,
             )
 
@@ -481,8 +476,7 @@ class OrchestratorHandler(http.server.BaseHTTPRequestHandler):
                     },
                 )
         except (requests.RequestException, json.JSONDecodeError, ValueError) as exc:
-            # Fallback to local rule-based simulation inside orchestrator
-            # if engine is down
+            # Local rule-based fallback when the engine is down.
             fallback_agents = [
                 {
                     "name": "monitoring",

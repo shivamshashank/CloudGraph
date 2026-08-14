@@ -1,100 +1,178 @@
-# RESEARCH_QUESTIONS.md
+# Research Questions
 
-18 candidate research questions, each scored on Novelty (N), Feasibility with current codebase (F), Publication potential (P), and Implementation effort (E — lower is easier), each 1–5. Ranked by a composite of N + P weighted against E.
+**Status: CloudGraph v1 is complete.** Seven research questions define the
+project. Four were answered by the 36-scenario RCAEval RE2 evaluation
+(`experiments/`); three are deferred to v2 with the work they need stated
+explicitly.
 
-**Scoring is the pre-evaluation judgement, kept unedited.** The status column
-below records what the 36-scenario RCAEval run (`experiments/`) actually
-settled. Four of the Phase-1 shortlist are now closed; two of those closed
-*against* the hypothesis.
+Three of the four answers went **against** the design's predictions. They are reported as measured.
 
-| RQ | Status after the 36-scenario run |
+| RQ | Question | v1 status |
+|---|---|---|
+| **RQ1** | Does GPCS behave differently from a self-consistency baseline, and does either flag track claim correctness? | ✅ **Answered — partly against** |
+| **RQ2** | Is the measured result real end-to-end, rather than an artefact of a simulated scorer? | ✅ **Answered — yes** |
+| **RQ3** | Does graph-structured retrieval beat dumping all evidence into context? | ✅ **Answered — null** |
+| **RQ4** | Is the retrieval benefit symbolic-structural or neural-semantic? | ✅ **Answered — against** |
+| **RQ5** | Does the five-agent architecture beat a single LLM at matched compute? | ⏭ **Deferred to v2** |
+| **RQ6** | Are GCP/GPCS confidence scores calibrated, and would fitted weights beat hand-set ones? | ⏭ **Deferred to v2** |
+| **RQ7** | Which claim types are each verifier's blind spot? | ⏭ **Deferred to v2** |
+
+All figures below are from `experiments/results/significance_tests.md` and
+`experiments/results/correctness_labels.md`, over n = 36 scenarios and 3,685
+extracted claims. Confidence intervals are scenario-clustered paired bootstrap
+(10,000 resamples, seed 42); *p*-values are Wilcoxon signed-rank.
+
+---
+
+## Answered in v1
+
+### RQ1 — Does GPCS behave differently from self-consistency, and does either flag track correctness?
+
+**Answered, and the second half is the project's central negative result.**
+
+*Does it behave differently?* Yes, decisively. GPCS flags **70.3%** of claims
+unsupported against self-consistency's **57.9%** — Δ **+0.1185**,
+95% CI **[+0.0729, +0.1632]**, *p* < 0.0001. The effect survives dropping the
+four scenarios containing a rule-based-fallback generation
+(Δ +0.1255, CI [+0.0801, +0.1724], n = 32).
+
+*Does either flag track correctness?* **No.** On the 155 claims (4.2%) carrying
+automatic correctness labels:
+
+| Verifier | Flags an incorrect claim | Flags a correct claim | Gap |
+|---|---|---|---|
+| GPCS | 60.4% | 61.2% | **−0.8 pp** |
+| Self-consistency | 72.6% | 73.5% | **−0.8 pp** |
+
+Both gaps are negligible and point the wrong way. GPCS is **stricter, not
+sharper**. Its extra strictness is not evidence that it is better aimed.
+
+> This is why the project reports *concordance*, never *accuracy*. Two verifiers
+> agreeing means they reached the same verdict, not that either was right.
+
+The *which* claim types half of this question is not settled at 4.2% label
+coverage. It is carried forward as **RQ7**.
+
+### RQ2 — Is the measured result real end-to-end?
+
+**Answered: yes — and smaller than the earlier simulated numbers implied.**
+
+Every baseline now invokes the real pipeline: real retrieval, real agents, real
+GCP, real GPCS. The prior `_calc_kw` / `_calc_vector` fabricated-offset
+heuristics are gone.
+
+This was the stated non-negotiable prerequisite: every other RQ's evidence
+depends on it. Discharging it required finding and fixing integrity defects in
+the project's own pipeline first; earlier results were invalid and were
+discarded rather than reinterpreted. See `docs/project/STATUS.md`.
+
+### RQ3 — Does graph-structured retrieval beat a raw long-context dump?
+
+**Answered: null.**
+
+Hybrid (ranked) context vs. raw (unranked) evidence dump, on per-scenario
+claim-agreement rate: Δ **+0.0240**, 95% CI **[−0.0280, +0.0773]**,
+*p* = **0.302**.
+
+The interval spans zero. Ranked retrieval did not measurably beat handing the
+model everything. Reported as a null result rather than omitted.
+
+### RQ4 — Is the retrieval benefit symbolic-structural or neural-semantic?
+
+**Answered, and against the design: entirely neural.**
+
+Mean expected-tag recall across 36 scenarios:
+
+| Method | Mean recall |
 |---|---|
-| RQ1 GPCS vs self-consistency | **Partly answered.** GPCS flags 70.3% unsupported vs 57.9%, Δ +0.119 CI [+0.073, +0.163], p<0.0001. But on the 4.2% of claims with automatic correctness labels *neither* verifier discriminates correct from incorrect (both gaps −0.8 pp). The "which blind spot" half — claim-type-stratified — is still open and needs human labels. |
-| RQ2 Is the improvement real end-to-end | **Answered — yes, and smaller than the simulated numbers implied.** Every baseline now invokes the real pipeline. Four integrity defects had to be fixed first; earlier results were invalid. |
-| RQ3 Multi-agent vs single LLM at matched compute | **Open.** The matched-compute control has only ever run on the leaked pipeline. Re-running it is the cheapest remaining closure. |
-| RQ6 Graph retrieval vs raw context | **Answered — null.** hybrid vs raw context, Δ +0.024, CI [−0.028, +0.077], p=0.302. Structure did not beat dumping all evidence into context. |
-| RQ17 Neuro-symbolic ablation | **Answered — negative.** Vector and hybrid were *identical on every measure*; the symbolic component contributed nothing to retrieval on this benchmark. It does contribute to claim scoring, which is a different mechanism. |
-| RQ5, RQ9 GCP/GPCS calibration | **Not started.** Thresholds remain fixed defaults; no reliability diagram or Brier score exists. |
-| RQ4, RQ7, RQ8, RQ10–RQ16, RQ18 | **Open**, as scored. |
+| keyword | 0.4167 |
+| vector | **0.6065** |
+| hybrid | **0.6065** |
 
-RQ2 was the stated non-negotiable prerequisite and is now discharged, so the
-remaining shortlist is genuinely actionable rather than blocked.
+Hybrid beats keyword by Δ **+0.1898**, CI **[+0.1157, +0.2685]**, *p* = 0.0003 —
+the largest effect in the study. But **vector and hybrid are byte-identical on
+all 36 scenarios**: same expected tags, same hit tags, same recall. The graph
+component contributes **nothing** to retrieval on this benchmark.
 
----
+The reading is *embeddings work; the graph does not help retrieve*. The
+graph does contribute to claim **scoring** (GPCS proximity and hop-decay terms),
+which is a different mechanism and is not evidence for graph retrieval.
 
-## Tier 1 — Highest priority (novel, feasible, strong publication fit)
-
-**RQ1. Does graph-grounded claim verification (GPCS) reduce unsupported-claim rate more than a self-consistency baseline, and on which claim types does each method's blind spot lie?**
-N4 F5 P5 E2 — *Already specified in the repo's own design doc as the "must implement" comparison; this is the single highest ROI research question available.*
-
-**RQ2. Is CloudGraph's reported benchmark improvement real once retrieval, agents, GCP, and GPCS are actually invoked end-to-end (vs. the current simulated heuristic scorer)?**
-N2 F5 P5 E2 — *Not itself novel, but a mandatory prerequisite finding; every other RQ's evidence depends on this being answered first and honestly (including the possibility that real numbers look worse than simulated ones).*
-
-**RQ3. Does multi-agent specialist collaboration (independent scoring + static consensus) outperform a single LLM given the same retrieved evidence, and does the improvement come from specialization or from ensembling?**
-N3 F4 P4 E3 — *Directly testable: run current 5-agent pipeline vs. one LLM call with concatenated evidence vs. self-consistency ensembling of the single LLM (controls for "more LLM calls = better" confound).*
-
-**RQ4. Can inter-agent interaction (one round of cross-agent critique/evidence-sharing) outperform the current static independent-then-vote architecture?**
-N4 F3 P5 E4 — *Requires new orchestration logic but directly answers the "is this actually agentic" question that separates CloudGraph from an ensemble classifier.*
-
-**RQ5. Does calibrated (data-fit) GCP edge-weighting outperform the current hand-set weights, and how sensitive is root-cause accuracy to those weights?**
-N4 F4 P4 E3 — *A sensitivity/ablation study over `EDGE_WEIGHTS` plus a simple weight-fitting procedure (e.g. logistic regression on labeled root causes) is directly implementable over existing code.*
-
-**RQ6. Does graph-structured retrieval (hop-distance + traversal) provide reasoning benefit beyond what a sufficiently large context window given to an LLM directly (no retrieval) achieves?**
-N4 F4 P5 E2 — *Cheap, high-value control condition; directly tests whether "graph" is doing real work vs. retrieval simply surfacing text an LLM could reason over unaided.*
-
-## Tier 2 — Strong but requiring more new infrastructure
-
-**RQ7. Can a learned or heuristic query-adaptive retrieval policy (choosing among keyword/vector/graph/hybrid per query) outperform the fixed hybrid formula across incident categories?**
-N4 F3 P4 E4
-
-**RQ8. How does incident-graph topology (branching factor, hop depth to root cause) affect GCP propagation accuracy, and is there a topology regime where propagation systematically fails?**
-N4 F3 P4 E3 — *Requires synthetic topology generation but is a clean theoretical-empirical study using existing GCP code.*
-
-**RQ9. Are GCP/GPCS confidence scores well-calibrated (do 80%-confidence predictions turn out correct ~80% of the time), and does calibration correlate with human-perceived trust?**
-N3 F4 P4 E3
-
-**RQ10. Does allowing the orchestrator to select which of the five specialist agents to invoke (rather than always running all five) reduce cost/latency without reducing accuracy — i.e., can RCA investigation be framed as a planning problem?**
-N4 F3 P3 E4
-
-**RQ11. How does CloudGraph's accuracy/hallucination/latency profile compare to MetaRCA (Liang et al. 2026) and agentic structured graph traversal (Cui et al. 2025) on a shared or adapted incident set?**
-N3 F2 P5 E5 — *High publication value (positions CloudGraph against direct competitors) but high effort (requires reproducing or adapting external systems/datasets).*
-
-## Tier 3 — Valuable but secondary / longer-horizon
-
-**RQ12. Does a temporal knowledge graph (time-indexed edges, decay-weighted retrieval) outperform a static snapshot graph for RCA in systems where root causes are separated from symptoms by minutes-to-hours?**
-N3 F3 P3 E3
-
-**RQ13. Can reinforcement learning (or bandit-style online learning) improve the hybrid ranker's weights over time from operator feedback (accept/reject of RCA reports)?**
-N4 F2 P4 E5 — *Highest novelty in the list but requires a feedback-loop and online-learning infrastructure that does not exist.*
-
-**RQ14. Does explicit uncertainty propagation (GCP) improve human operator trust and decision speed compared to an unweighted evidence list, measured via a small human study?**
-N3 F2 P4 E4 — *Requires a human-subjects study, which is feasible but outside pure code changes.*
-
-**RQ15. Is CloudGraph's improvement robust across incident categories (K8s, networking, security, deployment, observability) or concentrated in a subset — i.e., does GraphRAG help uniformly or only for multi-hop dependency failures?**
-N3 F4 P4 E3 — *Directly testable once the dataset is scaled to 100+, category-stratified scenarios (already planned in `data-collection-strategy.md`).*
-
-**RQ16. How does CloudGraph scale (latency, accuracy) as the knowledge graph grows from hundreds to hundreds-of-thousands of nodes, and where does the current bounded k-hop traversal break down?**
-N2 F4 P3 E3 — *A systems-flavored scalability study; useful for MLSys/USENIX framing but lower ML novelty.*
-
-**RQ17. Can a neuro-symbolic ablation (remove the graph → pure vector RAG; remove the LLM → pure symbolic graph traversal) isolate how much of CloudGraph's benefit is symbolic-structural vs. neural-semantic?**
-N4 F4 P4 E2 — *Cheap: this is largely a re-run of the existing `keyword`/`vector`/`hybrid` methods with a clean ablation framing and write-up, not new code.*
-
-**RQ18. Does CloudGraph generalize beyond Kubernetes to a structurally different infrastructure domain (e.g., serverless/FaaS dependency graphs) without re-tuning GCP/GPCS weights?**
-N4 F1 P4 E5 — *Highest long-horizon novelty (this is explicitly the user's v3/PhD-track milestone), but currently entirely unimplemented and requires a second domain's dataset and graph schema.*
+> Recall, not F1: the saved data records hit/missed tags but no false-positive
+> count. Full F1 would require re-running retrieval with precision tracking.
 
 ---
 
-## Ranked shortlist for immediate research program (Phase-1 candidates)
+## Deferred to v2
 
-1. RQ2 (real evaluation loop) — **prerequisite, do first, non-negotiable**
-2. RQ1 (GPCS vs. self-consistency)
-3. RQ6 (graph retrieval vs. raw long-context control)
-4. RQ17 (neuro-symbolic ablation — largely free once RQ2 is done)
-5. RQ3 (multi-agent vs. single-LLM-with-same-evidence)
-6. RQ5 (GCP weight sensitivity/calibration)
-7. RQ9 (confidence calibration)
-8. RQ4 (inter-agent interaction)
-9. RQ15 (cross-category robustness, needs dataset scaling)
-10. RQ11 (comparison to MetaRCA / agentic graph traversal — needed before submission, not before first experiments)
+### RQ5 — Does the five-agent architecture beat a single LLM at matched compute?
 
-RQ13 and RQ18 are correctly positioned as PhD-track (v3) extensions rather than dissertation-scope work, consistent with the project's existing three-tier roadmap.
+**Not answered.** The matched-compute control has only ever run against the
+pre-fix pipeline, so its numbers are invalid and are not reported. No
+`matched_compute_raw.csv` ships with v1, and `paired_bootstrap.py` therefore
+emits no fourth section.
+
+**What v2 needs:** re-run `scripts/run_matched_compute_control.py` against the
+corrected pipeline — five specialists + consensus versus five independent
+single-LLM samples, both scored by the same GPCS instance on the same hybrid
+evidence. This isolates architecture from raw compute.
+
+**Cost:** the cheapest remaining closure. One evaluation run, no new code.
+
+### RQ6 — Are GCP/GPCS confidence scores calibrated?
+
+**Not started.** Every threshold and weight in the system is hand-set:
+
+- GPCS: `0.45·semantic + 0.35·proximity + 0.25·reliability − 0.15·(min_hop×0.05)`,
+  unsupported below `0.50`, evidence admitted at `MIN_SEMANTIC_EVIDENCE_SCORE = 0.30`
+- Hybrid ranker: `0.50·vector + 0.30·proximity + 0.20·recency`
+- GCP: typed `EDGE_WEIGHTS` with hop-decay
+
+No data was used to fit any of them. No reliability diagram and no Brier score
+exist. **The word "calibrated" must not appear anywhere describing v1.**
+
+**What v2 needs:** reliability diagrams and Brier scores over a labelled set;
+then a weight-fitting procedure (e.g. logistic regression on labelled root
+causes) compared against the hand-set defaults, plus a sensitivity sweep over
+`EDGE_WEIGHTS`.
+
+### RQ7 — Which claim types are each verifier's blind spot?
+
+**Not answered — blocked on labels.** Automatic labelling derives from RCAEval
+case metadata and reaches only causal claims: 155 of 3,685 (**4.2%**) are
+evaluable; the remaining 3,530 are `unverifiable` and excluded. Claim-type
+stratification at that coverage would produce cells too small to interpret.
+
+The five claim types are already tracked in `claims.csv` (`causal`, `state`,
+`temporal`, `entity_relationship`, `general`) and plotted in
+`experiments/figures/unsupported_rate_by_claim_type.png`, so the machinery
+exists — only labels are missing.
+
+**What v2 needs:** human annotation of a stratified sample, targeting enough
+labelled claims per type to give usable per-type intervals. This is the
+prerequisite for completing RQ1 and the single highest-value unblocking step.
+
+---
+
+## Why these seven
+
+The four answered questions form a closed argument: the pipeline is real
+(RQ2), so the comparison is meaningful (RQ1), and the two mechanisms the design
+bet on, graph retrieval (RQ3) and symbolic structure (RQ4), did not pay off,
+while the verifier that did behave distinctly cannot be shown to be better
+aimed (RQ1).
+
+The three deferred questions are exactly the three a reviewer asks on reading
+that argument: *is the architecture earning its complexity* (RQ5), *are the
+thresholds principled* (RQ6), and *where precisely does each verifier fail*
+(RQ7). None can be answered with the data v1 collected; each has a stated,
+planned path.
+
+Questions considered and dropped from earlier drafts: inter-agent critique,
+query-adaptive retrieval, topology effects on propagation, agent-selection as
+planning, competitor reproduction, temporal-graph ablation, RL-tuned ranking,
+operator trust studies, cross-category robustness, scale limits, and
+cross-domain transfer — are recorded in `docs/project/ROADMAP.md` as v3 and
+beyond. They were dropped from the research register because none is reachable
+without infrastructure v1 does not have, and listing them here would overstate
+the project's scope.

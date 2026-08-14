@@ -49,9 +49,8 @@ class SemanticVectorStore:
         self.embedder = embedder or SentenceTransformerEmbedder()
         self.fallback_embedder = HashedFallbackEmbedder()
         self.vector_client = vector_client or qdrant_client
-        # Which Qdrant collection this store reads and writes. Evaluation
-        # runs point it at a dedicated collection so their wholesale seeding
-        # and purging cannot reach the one serving real traffic.
+        # Eval runs point this at a dedicated collection so wholesale purges
+        # cannot reach real traffic.
         self.collection_name = os.getenv("QDRANT_COLLECTION", "evidence")
         self.documents: list[dict[str, Any]] = []
         self._load()
@@ -205,10 +204,8 @@ class SemanticVectorStore:
                     for point in points
                 ]
 
-        # Qdrant or the model is unavailable: search persisted local
-        # evidence. The scenario scope has to be applied here too, or the
-        # fallback path silently reintroduces the contamination the vector
-        # path now prevents.
+        # Qdrant or the model is down: search local evidence. Scenario scope
+        # applies here too, or the fallback reintroduces the contamination.
         scored = [
             (self._cosine_similarity(query_embedding, doc["embedding"]), doc)
             for doc in self.documents

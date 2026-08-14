@@ -163,10 +163,7 @@ spec:
 """
 
 
-# Registry of all named incidents beyond the original single scenario —
-# (name, category, builder). Category matches the 5-category taxonomy
-# used by the benchmark dataset (Kubernetes, Networking, Security,
-# Deployment, Observability) so these can be reasoned about the same way.
+# (name, category, builder). Categories match the benchmark's 5-way taxonomy.
 DEMO_INCIDENTS: dict[str, tuple[str, Callable[[], str]]] = {
     "image-pull-error": ("Deployment", build_demo_incident_manifest),
     "crashloop": ("Kubernetes", build_crashloop_incident_manifest),

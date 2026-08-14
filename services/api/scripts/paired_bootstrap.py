@@ -64,8 +64,7 @@ def _report(name: str, deltas: np.ndarray) -> str:
         wilcoxon_result = stats.wilcoxon(deltas)
         wilcoxon_stat, wilcoxon_p = wilcoxon_result.statistic, wilcoxon_result.pvalue
     except ValueError as exc:
-        # All-zero deltas (or n<1) — wilcoxon can't run on a degenerate
-        # input; report why instead of crashing the whole script.
+        # wilcoxon can't run on all-zero deltas; report why instead of crashing.
         wilcoxon_stat, wilcoxon_p = float("nan"), float("nan")
         print(f"  [{name}] Wilcoxon skipped: {exc}", file=sys.stderr)
 
@@ -124,10 +123,8 @@ def hybrid_vs_raw_agreement_deltas(claims: pd.DataFrame) -> np.ndarray:
     """Per scenario: hybrid's claim-agreement rate minus raw's, paired on
     scenario_id (only scenarios with both conditions present)."""
     scored = claims.dropna(subset=["gpcs_trust_score"])
-    # "agreement" is an object-dtype column of real bool/None values (same
-    # CSV round-trip as gpcs_unsupported above) — .mean() already treats
-    # True=1/False=0/None=skipped correctly, no need for an explicit
-    # comparison to True (which also trips flake8's E712).
+    # "agreement" is object-dtype bool/None; .mean() already handles
+    # True=1/False=0/None=skipped, and == True would trip flake8 E712.
     per_condition = scored.groupby(["scenario_id", "context_condition"])[
         "agreement"
     ].mean()
@@ -213,11 +210,9 @@ def main() -> None:
             )
         )
 
-    # Sensitivity: a handful of generations fell back to the deterministic
-    # rule-based path instead of the LLM. No fallback text reaches
-    # claims.csv, but a fallback sample can still depress a recurrence rate,
-    # so re-run the headline delta with every affected scenario dropped. If
-    # the effect only survives with them in, it was never real.
+    # Sensitivity: a few generations fell back to the rule-based path. No
+    # fallback text reaches claims.csv, but a fallback sample can still depress
+    # a recurrence rate, so re-run the headline delta without those scenarios.
     fallback_scenarios = non_llm_generation_scenarios(RESULTS_DIR)
     if fallback_scenarios:
         kept = claims[~claims["scenario_id"].isin(fallback_scenarios)]
@@ -231,9 +226,8 @@ def main() -> None:
             )
         )
 
-    # Derived from the data, never hardcoded: a stale scenario count in a
-    # generated results file is exactly the kind of unverifiable claim this
-    # pipeline exists to prevent.
+    # Derived from the data: a stale scenario count is exactly the kind of
+    # unverifiable claim this pipeline exists to prevent.
     n_scenarios = claims["scenario_id"].nunique()
     header = (
         "# Significance tests (paired bootstrap CI + Wilcoxon)\n\n"

@@ -43,12 +43,10 @@ type reportResult struct {
 	NeurosymbolicCSV        string            `json:"neurosymbolic_csv"`
 }
 
-// runReport implements `cloudgraph report [--limit N] [base-url]`: generates
-// CloudGraph's core research report (GPCS vs. self-consistency) by driving
-// the API's background-job endpoints over HTTP — no local source checkout
-// or Python environment needed. services/api/scripts/generate_research_report.py
-// runs the same underlying logic directly for local-dev use against a full
-// repo clone, if preferred.
+// runReport implements `cloudgraph report [--limit N] [base-url]`: generates the
+// GPCS vs. self-consistency report by driving the API's background-job endpoints
+// over HTTP, so no checkout or Python env is needed. scripts/
+// generate_research_report.py runs the same logic directly for local dev.
 func runReport(args []string) {
 	baseURL := "http://localhost:8000"
 	explicitBaseURL := false
@@ -91,10 +89,8 @@ func runReport(args []string) {
 
 	printHeader("Generate CloudGraph Research Report")
 
-	// "localhost:8000" only ever matches local dev — for a Kubernetes
-	// deployment, the API is exposed via Ingress on the node's own address
-	// instead. Only apply this when the caller didn't already give an
-	// explicit URL.
+	// "localhost:8000" only matches local dev; on Kubernetes the API is behind
+	// Ingress on the node's address. Skipped if the caller passed a URL.
 	if !explicitBaseURL && cloudgraphAPIDeploymentExists() {
 		if detected := detectClusterHostIP(); detected != "" {
 			baseURL = "http://" + detected
@@ -156,12 +152,10 @@ func runReport(args []string) {
 		os.Exit(1)
 	}
 
-	// Best-effort — pod logs are ephemeral (gone on restart) and this
-	// report directory is the one place we're already saving durable
-	// output, so pull each service's logs in here too, scoped to just
-	// this run. Not fatal if kubectl/the deployments aren't reachable
-	// (e.g. a non-Kubernetes local dev setup) — the report itself already
-	// succeeded and saved either way.
+	// Best-effort: pod logs are ephemeral and this directory is the one place
+	// already saving durable output. Not fatal if kubectl or the deployments
+	// are unreachable (e.g. non-Kubernetes local dev); the report itself has
+	// already saved.
 	if err := saveLLMLogs(savedDir, runStartTime); err != nil {
 		printWarning(fmt.Sprintf("Could not save LLM call logs: %v", err))
 	} else {
@@ -169,9 +163,8 @@ func runReport(args []string) {
 	}
 
 	printSuccess("Report generation complete.")
-	// n_excluded counts (scenario, context-condition) exclusion events, not
-	// excluded scenarios — each scenario runs 3 conditions (none/raw/hybrid),
-	// any of which can be excluded independently of the others.
+	// n_excluded counts (scenario, condition) events, not scenarios: each
+	// scenario runs 3 conditions that can be excluded independently.
 	totalAttempts := final.Result.NScenarios * len(contextConditions)
 	fmt.Printf("  Scenarios:           %d\n", final.Result.NScenarios)
 	fmt.Printf("  Excluded attempts:   %d/%d (scenario x context-condition)\n",
@@ -186,14 +179,12 @@ func runReport(args []string) {
 	fmt.Printf("  Saved to:            %s\n", savedDir)
 }
 
-// contextConditions mirrors report_runner.py's CONTEXT_CONDITIONS — kept in
-// sync manually since it's just used for display ordering/counting here,
-// not sent to the API (the server decides what to run).
+// Mirrors report_runner.py's CONTEXT_CONDITIONS. Display only; the server
+// decides what actually runs.
 var contextConditions = []string{"none", "raw", "hybrid"}
 
-// waitForReport polls until the run reaches a terminal state, printing each
-// new progress update as it appears — this is the "simplest" option (the
-// terminal stays tied up for the duration of the run, by design).
+// waitForReport polls to a terminal state, printing progress. The terminal
+// stays tied up for the run, by design.
 func waitForReport(baseURL string) *reportStatusResponse {
 	lastProgress := ""
 	for {
@@ -232,11 +223,8 @@ func fetchLLMSettings(baseURL string) (*reportSettings, error) {
 	return &parsed.Settings, nil
 }
 
-// detectClusterHostIP returns the current Kubernetes node's InternalIP —
-// for the single-node kubeadm clusters this project deploys, that's the
-// same address the Ingress controller is actually reachable on. Returns ""
-// if it can't be determined, so the caller can fall back to the existing
-// default.
+// detectClusterHostIP returns the node's InternalIP, which on the single-node
+// kubeadm clusters this deploys is where Ingress is reachable. "" if unknown.
 func detectClusterHostIP() string {
 	if !commandExists("kubectl") {
 		return ""
@@ -251,10 +239,8 @@ func detectClusterHostIP() string {
 	return strings.TrimSpace(out)
 }
 
-// cloudgraphAPIDeploymentExists reports whether an in-cluster CloudGraph
-// API Deployment is reachable via kubectl — used as a provider-agnostic
-// signal that this is a real Kubernetes deployment (not local dev), so
-// "localhost" is the wrong default base URL.
+// cloudgraphAPIDeploymentExists reports whether an in-cluster API Deployment is
+// reachable, signalling that "localhost" is the wrong default base URL.
 func cloudgraphAPIDeploymentExists() bool {
 	if !commandExists("kubectl") {
 		return false
@@ -266,19 +252,13 @@ func cloudgraphAPIDeploymentExists() bool {
 	return err == nil
 }
 
-// llmLoggingDeployments are the services whose call_llm() prints
-// [LLM REQUEST]/[LLM RESPONSE] lines — kept in sync manually with which
-// services actually call an LLM provider during a report run.
+// Services whose call_llm() prints [LLM REQUEST]/[LLM RESPONSE]. Manual list.
 var llmLoggingDeployments = []string{"agent-orchestrator", "investigation-engine", "cloudgraph-api"}
 
-// saveLLMLogs pulls each LLM-calling service's pod logs, scoped to this
-// run via --since-time, into the report directory — pod logs are
-// ephemeral (gone on restart), so this is the only durable copy. Not a
-// filtered extract of just the [LLM ...] lines: kubectl logs output is
-// saved as-is (a modest amount of health-check/access-log noise
-// interspersed) rather than risk a line-based filter mis-splitting a
-// multi-line JSON payload across concurrent requests now that these
-// servers are threaded.
+// saveLLMLogs copies each LLM-calling service's pod logs into the report dir,
+// scoped by --since-time. Pod logs are ephemeral, so this is the only durable
+// copy. Saved as-is rather than filtered to [LLM ...] lines: with threaded
+// servers a line-based filter can split a multi-line JSON payload.
 func saveLLMLogs(dir string, since time.Time) error {
 	if !commandExists("kubectl") {
 		return fmt.Errorf("kubectl not available")
@@ -349,8 +329,7 @@ func fetchReportStatus(baseURL string) (*reportStatusResponse, error) {
 	return &parsed, nil
 }
 
-// saveReport writes the completed report's contents to
-// ~/.cloudgraph/reports/report-<timestamp>/ and returns that directory.
+// saveReport writes to ~/.cloudgraph/reports/report-<timestamp>/ and returns it.
 func saveReport(result *reportResult) (string, error) {
 	if result == nil {
 		return "", fmt.Errorf("no result to save")

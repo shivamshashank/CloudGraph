@@ -33,11 +33,11 @@ common way dissertation time budgets fail.
 
 # 🎓 V1 — Dissertation Completion Plan (Target: 95+)
 
-## 1. Evaluation Rigor (Highest Priority — Do This First)
+## 1. Evaluation Rigor (Highest Priority: Do This First)
 
 - [x] Replace heuristic benchmark calculators (`_calc_kw`, `_calc_vector`,
       `_calc_graphrag`, `_calc_agents`, `_calc_gcp`, `_calc_gpcs` in
-      `routers/benchmark.py`) with **real pipeline invocations** — done;
+      `routers/benchmark.py`) with **real pipeline invocations**: done;
       `routers/benchmark.py` now calls the real `evaluate_scenario()`
       (`app/research/evaluation.py`) for all 6 baselines, no fabricated
       offsets remain.
@@ -51,14 +51,14 @@ common way dissertation time budgets fail.
       threshold (`MIN_SEMANTIC_EVIDENCE_SCORE = 0.30` in `gpcs.py`) was
       calibrated ad hoc against real live query examples, not a formal
       held-out split methodology.
-- [x] Add **statistical significance testing** — `scripts/paired_bootstrap.py`:
+- [x] Add **statistical significance testing**: `scripts/paired_bootstrap.py`:
   - [x] Wilcoxon signed-rank test between paired conditions (GPCS vs.
         self-consistency, hybrid vs. raw-context, hybrid vs. keyword
         recall, real 5-agent vs. matched-compute single-LLM).
-  - [x] Report p-values alongside raw deltas — implemented in
+  - [x] Report p-values alongside raw deltas: implemented in
         `scripts/paired_bootstrap.py`; output in
         `experiments/results/significance_tests.md`.
-        (Effect sizes/Cohen's d specifically not added — the paired
+        (Effect sizes/Cohen's d specifically not added: the paired
         bootstrap CI serves the same role of showing magnitude +
         uncertainty together.)
   - [x] Bootstrap confidence intervals (10000 resamples, seeded) on every
@@ -74,9 +74,9 @@ common way dissertation time budgets fail.
         uses, so the comparison is fair by construction).
   - [x] Flag claims as unsupported if they don't recur consistently across
         generations (cosine similarity ≥ 0.8 recurrence check).
-  - [x] **Produce the actual comparison table with real data** — done. Run
+  - [x] **Produce the actual comparison table with real data**: done. Run
         via `cloudgraph report` (batched, `--limit`/`--offset`, merged with
-        `scripts/merge_reports.py`) against Meta's Llama API — the old
+        `scripts/merge_reports.py`) against Meta's Llama API: the old
         `scripts/run_day2_self_consistency.py` reference above no longer
         exists; `scripts/generate_research_report.py` (local-checkout path,
         wrapped by `testing/report/run_report_batched.sh`) or `cloudgraph
@@ -85,7 +85,7 @@ common way dissertation time budgets fail.
         (`dissertation/PROGRESS.md`, Week 9); the corrected 36-scenario run
         is **complete** — 3,685 claims, 0 exclusions, results in
         `experiments/results/`.
-- [ ] Calibrate the GPCS `threshold` value on the held-out split — not done,
+- [ ] Calibrate the GPCS `threshold` value on the held-out split: not done,
       see the train/held-out split item above (the same gap).
 - [x] Report hallucination rate **broken down by claim type** —
       implemented in `report_runner.py` (agreement cross-tab) and
@@ -115,7 +115,7 @@ common way dissertation time budgets fail.
         (`services/ui/static/*`) — done in `README.md`; the topology graph
         is hand-built SVG DOM manipulation, no D3/charting library is
         actually used anywhere.
-  - [x] Reframe AWS EKS/IAM/S3 references as historical/superseded — README's
+  - [x] Reframe AWS EKS/IAM/S3 references as historical/superseded: README's
         architecture section already notes current deployment uses
         Helm+kubeadm, not AWS-specific; `docs/architecture/design-evolution.md` (new)
         covers the full reasoning.
@@ -126,7 +126,7 @@ common way dissertation time budgets fail.
       a standalone doc rather than inline in the dissertation chapters
       (which don't exist yet — Section 6 below) — ready to drop into a
       Methodology/Discussion subsection once that writing starts.
-- [ ] Reconcile `ROADMAP.md` checkboxes fully — some items already correctly
+- [ ] Reconcile `ROADMAP.md` checkboxes fully: some items already correctly
       marked `[~]` (partial); ensure Week 7 statistical analysis checkboxes
       reflect actual completion once Section 1 above is done.
 
@@ -163,9 +163,10 @@ common way dissertation time budgets fail.
       `build_service_dependency_map()` relies on the env-var/naming-convention
       fallback tiers in the current demo, and discuss the limitation.
 
-## 6. Dissertation Writing (Currently 0% Complete — Largest Remaining Time Cost)
+## 6. Dissertation Writing (Currently 0% Complete: Largest Remaining Time Cost)
 
-- [ ] **Introduction** — problem motivation, RQ1–RQ4, H1–H4 (definitions and
+- [ ] **Introduction** — problem motivation, the seven RQs (RQ1–RQ4 answered,
+      RQ5–RQ7 deferred), H1–H4 (definitions and
       per-question verdicts already tabulated in `dissertation/PROGRESS.md`).
 - [ ] **Literature Review** — expand `dissertation/LITERATURE_REVIEW.md` into
       full academic prose with citations in required format (reference list
@@ -174,15 +175,15 @@ common way dissertation time budgets fail.
 - [ ] **Methodology** — write from `experiments/README.md` and
       `experiments/DATA_PROVENANCE.md`, following
       `dissertation/DISSERTATION_OUTLINE.md` Chapter 5.
-- [ ] **System Design / Implementation** — write from `docs/architecture/` and
+- [ ] **System Design / Implementation**: write from `docs/architecture/` and
       actual code; include the Design Evolution subsection from Section 3.
 - [ ] **Evaluation** — cannot be credibly written until Section 1 is complete.
       This chapter receives the heaviest marker scrutiny.
 - [ ] **Discussion** — explicitly answer RQ1–RQ4 with evidence; include at least
       one place where results were weaker than expected (e.g., GPCS may
-      underperform on causal claims requiring multi-hop inference — test and
+      underperform on causal claims requiring multi-hop inference: test and
       report this honestly, as flagged in the GPCS design doc itself).
-- [ ] **Conclusion & Future Work** — list current "Still Left" items (real-time
+- [ ] **Conclusion & Future Work**: list current "Still Left" items (real-time
       push, SPA migration, multi-cluster, auth hardening) as legitimate future
       work.
 - [ ] **Appendices** — include the benchmark dataset, raw statistical test
@@ -206,6 +207,41 @@ common way dissertation time budgets fail.
 
 Scope: turn the dissertation's empirical work into a defensible, reproducible
 research artifact suitable for a peer-reviewed AIOps/MLSys/systems venue.
+
+## The three deferred research questions: do these first
+
+v1 answered four of the project's seven research questions. **RQ5, RQ6 and
+RQ7 are deferred here**, and they are not arbitrary leftovers: they are
+precisely the three questions a reviewer asks after reading v1's argument.
+Full statements in
+[`research/RESEARCH_QUESTIONS.md`](../../research/RESEARCH_QUESTIONS.md).
+
+- [ ] **RQ5 — Does the five-agent architecture beat a single LLM at matched
+      compute?** Re-run `scripts/run_matched_compute_control.py` against the
+      corrected pipeline: five specialists + consensus vs. five independent
+      single-LLM samples, both scored by the same GPCS instance on the same
+      hybrid evidence. The existing control ran only on the pre-fix pipeline,
+      so its numbers are invalid and unreported.
+      **Cost: one evaluation run, no new code: the cheapest closure available.**
+      *Answers: is the architecture earning its complexity?*
+
+- [ ] **RQ6 — Are GCP/GPCS confidence scores calibrated?** Produce reliability
+      diagrams and Brier scores over a labelled set, then fit weights (e.g.
+      logistic regression on labelled root causes) and compare against the
+      hand-set defaults, plus a sensitivity sweep over `EDGE_WEIGHTS`.
+      Every threshold in v1 is hand-set: GPCS `0.45/0.35/0.25/−0.15`,
+      unsupported below `0.50`, `MIN_SEMANTIC_EVIDENCE_SCORE = 0.30`, ranker
+      `0.50/0.30/0.20`. **The word "calibrated" must not describe v1.**
+      *Answers: are the thresholds principled or arbitrary?*
+
+- [ ] **RQ7 — Which claim types are each verifier's blind spot?** Blocked on
+      labels: automatic labelling reaches only 155 of 3,685 claims (**4.2%**),
+      too thin to stratify by claim type. Needs human annotation of a
+      stratified sample across the five types already tracked in `claims.csv`
+      (`causal`, `state`, `temporal`, `entity_relationship`, `general`).
+      **This is the highest-value unblocking step in the whole v2 programme** —
+      it is also the prerequisite for completing RQ1.
+      *Answers: where precisely does each verifier fail?*
 
 ## Evaluation Depth
 
@@ -258,10 +294,10 @@ research artifact suitable for a peer-reviewed AIOps/MLSys/systems venue.
 ## Writing for Publication
 
 - [ ] Condense the dissertation's Evaluation and Discussion chapters into a
-      standalone paper draft (8–10 pages, target venue format — e.g. NOMS,
+      standalone paper draft (8–10 pages, target venue format: e.g. NOMS,
       ICSE-SEIP, or an MLSys/AIOps workshop).
 - [ ] Reframe GPCS and GCP as the paper's core technical contributions with
-      dedicated formal descriptions (algorithm boxes, complexity analysis — the
+      dedicated formal descriptions (algorithm boxes, complexity analysis: the
       latter already partially exists in `docs/design/GCP_DESIGN.md`).
 - [ ] Get supervisor/co-author sign-off and identify 2–3 target venues before
       submission.
@@ -290,10 +326,10 @@ depth.
       Noisy-OR networks, with convergence/complexity proofs beyond the current
       empirical `O(V·b^d)` estimate in `docs/design/GCP_DESIGN.md`.
 - [ ] Investigate calibration properties of GPCS trust scores (are 0.7-trust
-      claims actually correct ~70% of the time? — formal calibration analysis,
+      claims actually correct ~70% of the time?: formal calibration analysis,
       reliability diagrams).
 - [ ] Explore theoretical bounds on hallucination reduction achievable via
-      graph-grounding vs. fundamental LLM hallucination rates — position this as
+      graph-grounding vs. fundamental LLM hallucination rates: position this as
       a broader contribution to grounded-generation research, not just AIOps.
 
 ## Multi-Agent Systems Research
@@ -314,7 +350,7 @@ depth.
       v1/v2.
 - [ ] Conduct a longitudinal study: does the growing temporal knowledge graph
       actually improve RCA quality over time, as the original data-collection
-      strategy claimed? This requires multi-month deployment data — a natural
+      strategy claimed? This requires multi-month deployment data: a natural
       PhD-length study.
 
 ## Systems Contributions

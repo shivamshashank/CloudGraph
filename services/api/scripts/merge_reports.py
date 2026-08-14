@@ -51,18 +51,14 @@ from app.research.report_runner import (
     _rows_to_csv,
 )
 
-# The stratum columns every merged row carries, plus the operational batch
-# label. Kept separate from report_runner's per-batch fieldnames so the
-# per-batch artefacts stay exactly as the API produced them.
+# Stratum columns plus the batch label, kept separate from report_runner's
+# fieldnames so per-batch artefacts stay as the API produced them.
 DEFAULT_OUT_DIR = _bootstrap.REPO_ROOT / "experiments" / "results"
 
 STRATUM_FIELDNAMES = ["source_system", "fault_type", "batch"]
 MERGED_CLAIM_FIELDNAMES = CLAIM_FIELDNAMES + STRATUM_FIELDNAMES
-# strict_correct re-scores retrieval as "every expected tag retrieved". The
-# shipped `correct` flag needs only half the tags, which on this benchmark
-# the service name alone satisfies, so it reads 100% for all three methods
-# and cannot distinguish them. Both are kept: `correct` is what the run
-# produced, `strict_correct` is what discriminates.
+# strict_correct requires every expected tag. The shipped `correct` needs only
+# half, which the service name satisfies, so it reads 100% for all methods.
 MERGED_NEUROSYMBOLIC_FIELDNAMES = (
     NEUROSYMBOLIC_FIELDNAMES
     + ["n_expected_tags", "n_hit_tags", "strict_correct", "recall", "precision", "f1"]
@@ -156,17 +152,10 @@ def _load_neurosymbolic(report_dir: Path) -> list[dict[str, Any]]:
         row["n_expected_tags"] = len(expected)
         row["n_hit_tags"] = len(hit)
         row["strict_correct"] = 1 if expected and len(hit) == len(expected) else 0
-        # Report these rather than the shipped `correct` flag, which needs
-        # only half the expected tags and is satisfied by the service name
-        # alone — it reads 6/6 for all three methods and cannot separate
-        # them, while strict matching gives keyword 0/6 vs vector and
-        # hybrid 3/6 on the same data.
-        #
-        # precision divides by the retrieval cutoff (n_results), so it is
-        # bounded above by n_expected_tags/n_results and is not comparable
-        # to a standard IR precision. It ranks the methods against each
-        # other on identical cutoffs; recall and strict accuracy are the
-        # figures to quote.
+        # Strict matching separates the methods (keyword 0/6, vector and hybrid
+        # 3/6) where the shipped `correct` flag reads 6/6 for all three.
+        # precision divides by the retrieval cutoff, so it is not standard IR
+        # precision; quote recall and strict accuracy.
         n_results = int(row.get("n_results") or 0)
         recall = len(hit) / len(expected) if expected else 0.0
         precision = len(hit) / n_results if n_results else 0.0
@@ -495,10 +484,8 @@ def merge(report_dirs: list[Path], out_dir: Path, expected_scenarios: int) -> No
         _rows_to_csv(collected["neurosymbolic"], MERGED_NEUROSYMBOLIC_FIELDNAMES),
         encoding="utf-8",
     )
-    # Gzipped: this is ~7MB of raw JSON per full run, and it is evidence
-    # rather than a convenience artefact — the ground-truth leakage checks
-    # run against it, so it has to stay in the repo rather than be
-    # regenerated. Compressed it is small enough to track honestly.
+    # Gzipped: ~7MB of raw JSON per run, and the leakage checks run against it,
+    # so it stays in the repo rather than being regenerated.
     with gzip.open(out_dir / "requests_log.jsonl.gz", "wt", encoding="utf-8") as fh:
         fh.write("\n".join(json.dumps(r) for r in collected["requests"]) + "\n")
 

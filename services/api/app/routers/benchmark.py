@@ -140,8 +140,7 @@ def _evaluate_scenarios_and_baselines(
     results = {}
     total_scenarios = len(scenarios)
 
-    # We evaluate all baselines scenario by scenario to minimize
-    # seeding/teardown cycles.
+    # Scenario by scenario, to minimise seeding/teardown cycles.
     for idx, scenario in enumerate(scenarios, 1):
         s_id = scenario["id"]
         _log_benchmark_step(
@@ -167,9 +166,8 @@ def _evaluate_scenarios_and_baselines(
             latency_ms = max(1, int((time.perf_counter() - t0) * 1000))
 
             if eval_res is None:
-                # Required live component (agent-orchestrator) was
-                # unreachable — exclude this cell rather than fabricate a
-                # result. Surfaced in aggregate metrics as excluded_count.
+                # Orchestrator unreachable: exclude the cell rather than
+                # fabricate a result. Reported as excluded_count.
                 results[s_id][baseline] = None
                 _log_benchmark_step(
                     execution_logs,

@@ -10,8 +10,7 @@ PORT = int(os.environ.get("PORT", 3000))
 # The target API url (e.g. from environment or default local)
 API_URL = os.environ.get("REACT_APP_API_URL", "http://localhost:8080").rstrip("/")
 
-# Endpoints that fan out to the LLM and legitimately take minutes. Everything
-# else keeps the short timeout so a genuinely hung backend still fails fast.
+# Endpoints that fan out to the LLM and take minutes; everything else fails fast.
 _LONG_RUNNING_TIMEOUT = int(os.environ.get("PROXY_LONG_TIMEOUT", "900"))
 _LONG_RUNNING_PREFIXES = (
     "/api/v1/investigations/",
@@ -84,11 +83,8 @@ class ProxyAndStaticHandler(http.server.SimpleHTTPRequestHandler):
             target_url, data=body, headers=headers, method=method
         )
 
-        # 15s is fine for graph reads and health polls, but an investigation
-        # fans out to five specialist agents plus a consensus call per pod —
-        # minutes of real LLM latency. The short ceiling turned every real
-        # diagnosis into a proxy 500 while the backend was still working, and
-        # the UI sat on its spinner with no error.
+        # 15s suits graph reads, but an investigation is minutes of LLM latency.
+        # The short ceiling turned every diagnosis into a proxy 500.
         timeout = _LONG_RUNNING_TIMEOUT if _is_long_running(self.path) else 15
 
         try:
@@ -119,8 +115,7 @@ class ProxyAndStaticHandler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(err_msg.encode("utf-8"))
 
 
-# Map helper handlers to standard HTTP method handlers expected by
-# BaseHTTPRequestHandler
+# Map helpers onto the method names BaseHTTPRequestHandler expects.
 ProxyAndStaticHandler.do_GET = ProxyAndStaticHandler.do_get
 ProxyAndStaticHandler.do_POST = ProxyAndStaticHandler.do_post
 ProxyAndStaticHandler.do_PUT = ProxyAndStaticHandler.do_put
@@ -130,10 +125,8 @@ ProxyAndStaticHandler.do_DELETE = ProxyAndStaticHandler.do_delete
 if __name__ == "__main__":
     # Unique setup layout to prevent duplicate block matches with other mock servers
     os.makedirs(STATIC_DIR, exist_ok=True)
-    # Threaded, not the plain TCPServer: a single-threaded server blocks every
-    # other request for the whole duration of a proxied call, so one multi-minute
-    # investigation froze health polls and static assets and the whole UI looked
-    # hung.
+    # Threaded: single-threaded, one multi-minute investigation blocked health
+    # polls and static assets and the UI looked hung.
     socketserver.ThreadingTCPServer.allow_reuse_address = True
     socketserver.ThreadingTCPServer.daemon_threads = True
     server_address = ("", PORT)

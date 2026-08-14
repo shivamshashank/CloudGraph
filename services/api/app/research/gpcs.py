@@ -27,15 +27,10 @@ SOURCE_RELIABILITY = {
     "node": 0.75,
 }
 
-# graphrag_search's "hybrid" ranking (vector similarity + graph proximity +
-# recency decay, see hybrid_ranker.HybridRanker.FORMULA) never returns an
-# empty result list for a live Qdrant collection — nearest-neighbor search
-# always returns its top-k regardless of true relevance, so an unfiltered
-# score check can't tell "closest available match" apart from "no real
-# match." Verified live against the real deployed store: genuinely vague/
-# generic claims ("Monitoring data is inconclusive") top out around
-# 0.16-0.30, while claims with a real semantic match in the graph score
-# 0.33-0.87. 0.30 sits just above that noise ceiling.
+# Nearest-neighbour search always returns its top-k, so an unfiltered score
+# can't tell "closest available match" from "no real match". Measured on the
+# live store: vague claims top out at 0.16-0.30, real matches score 0.33-0.87.
+# 0.30 sits just above that noise ceiling.
 MIN_SEMANTIC_EVIDENCE_SCORE = 0.30
 
 
@@ -188,9 +183,8 @@ def call_llm(
         IndexError,
         ValueError,
     ):
-        # Contract of this function is "never raise" — any failure to reach
-        # the provider or parse its response degrades to the heuristic,
-        # non-LLM claim extraction path in the caller.
+        # Never raises: any provider or parse failure degrades to the caller's
+        # heuristic extraction path.
         return None
 
     return None
@@ -212,16 +206,12 @@ class GraphProvenanceClaimScorer:
         self.reliability_weight = weights.get("reliability", 0.25)
         self.penalty_weight = weights.get("penalty", 0.15)
         self.threshold = threshold
-        # Scopes evidence retrieval to one benchmark scenario. Without it
-        # GPCS searches the whole vector store, so a claim can be
-        # "supported" by evidence seeded for a different incident — the
-        # same contamination that invalidated the retrieval ablation.
+        # Scopes retrieval to one scenario. Unscoped, a claim can be "supported"
+        # by another incident's evidence, which invalidated the ablation once.
         self.scenario_id = scenario_id
-        # Without these, _extract_claims_with_llm's call_llm() has no
-        # credentials to use (the pod carries none as env vars — the real
-        # key lives in Neo4j) and always falls back to the heuristic
-        # sentence-splitter, silently, every time. Verified live: this was
-        # happening on every report run, not just as an occasional fallback.
+        # Without these, call_llm() has no credentials (the pod carries none as
+        # env vars; the real key lives in Neo4j) and silently falls back to the
+        # heuristic sentence-splitter. This was happening on every report run.
         llm_settings = llm_settings or {}
         self.llm_settings = {
             "provider": llm_settings.get("provider", ""),
@@ -360,21 +350,13 @@ class GraphProvenanceClaimScorer:
     def extract_entities(self, claim: str) -> list[str]:
         """Return the resource identifiers (pod/service/deployment/node
         names) mentioned in a claim, for evidence retrieval."""
-        # Must capture the FULL identifier (e.g. "payment-service-pod-7f"),
-        # not just up through "pod" — graph_traversal_retriever.retrieve()
-        # matches seed.name by exact equality, so a truncated search term
-        # (dropping the "-7f"/"-deploy" suffix real k8s resource names
-        # always have) silently finds zero evidence for almost every
-        # claim. Verified live: this was the actual root cause of GPCS's
-        # trust_score being hard-zero for ~98% of claims in a real 25-
-        # scenario run, not a hypothetical edge case.
-        #
-        # The leading group must allow zero chars, not just one-or-more:
-        # a Node identifier like "node-worker-01" starts with the keyword
-        # itself, so a "must have a prefix char" leading class never
-        # matches it — this silently dropped every claim about a worker
-        # node (noisy-neighbor, node-level contention, topology) from
-        # ever attempting evidence retrieval at all.
+        # Capture the full identifier ("payment-service-pod-7f"), not just up
+        # through "pod": retrieve() matches seed.name exactly, so a truncated
+        # term finds nothing. This made trust_score hard-zero for ~98% of claims
+        # in a real 25-scenario run.
+        # The leading group allows zero chars because "node-worker-01" starts
+        # with the keyword itself; requiring a prefix char dropped every
+        # node-level claim before retrieval was even attempted.
         names = re.findall(
             r"([A-Za-z0-9_-]*(?:"
             + "|".join(self._ENTITY_KEYWORDS)
@@ -490,16 +472,12 @@ class GraphProvenanceClaimScorer:
             self._aggregate_evidence_metrics(evidence)
         )
 
-        # hop_distance is None when evidence came from semantic search with
-        # no path back to the claim's entities in the graph. That is the
-        # *absence* of graph provenance, not proximity at zero hops, and it
-        # must not earn the proximity term: treating None as min_hop = 0
-        # gave such evidence the maximum graph score — full credit for
-        # provenance it never had — for 29.5% of the claims that retrieved
-        # any evidence at all (measured over batch 1's 607 claims). It also
-        # floored every scored claim near 0.485, collapsing the trust score
-        # into a near-binary evidence-presence test and leaving the 0.50
-        # decision threshold adjudicating 1 claim in 616.
+        # hop_distance is None when evidence came from semantic search with no
+        # path back into the graph. That is absent provenance, not zero hops, so
+        # it must not earn the proximity term. Treating None as min_hop=0 gave
+        # full graph credit to 29.5% of claims that retrieved anything (batch 1,
+        # 607 claims) and floored every score near 0.485, leaving the 0.50
+        # threshold to adjudicate 1 claim in 616.
         if min_hop_distance is None:
             proximity = 0.0
             penalty = 0.0

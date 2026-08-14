@@ -22,10 +22,8 @@ from app.dependencies import semantic_store
 
 logger = logging.getLogger(__name__)
 
-# Spacing between consecutive seeded log lines, stepping back from the
-# incident time. With the ranker's default one-hour recency half-life,
-# 60s steps give a real but not exaggerated spread in recency score
-# across a scenario's evidence.
+# Spacing between seeded log lines. Against the ranker's one-hour half-life,
+# 60s gives a real but not exaggerated recency spread.
 LOG_INTERVAL_SECONDS = 60
 
 
@@ -82,9 +80,7 @@ def seed_scenario_data(scenario: Dict[str, Any]) -> None:
                 },
             )
 
-            # Create Git Commit linked to Deployment — deliberately does
-            # not name the root cause; a real commit message wouldn't
-            # announce the incident it's about to trigger.
+            # Commit message does not name the root cause; a real one wouldn't.
             neo4j_client.execute_query(
                 """
                 MERGE (c:Commit {sha: $commit_sha})
@@ -103,17 +99,9 @@ def seed_scenario_data(scenario: Dict[str, Any]) -> None:
                 },
             )
 
-            # Create Logs linked to Pod, from the raw observed symptoms —
-            # not the ground-truth claims (see module docstring).
-            #
-            # Timestamps step back from the incident time rather than all
-            # sharing one value. Identical timestamps make the hybrid
-            # ranker's recency term a constant across every candidate,
-            # silently reducing a three-signal score to two — the seeded
-            # data would then decide the outcome of a retrieval ablation
-            # by construction. Stepping them also matches how real
-            # evidence arrives: the newest line is the closest to the
-            # incident.
+            # Logs come from observed symptoms, not ground truth (see module
+            # docstring). Timestamps step back: identical ones make the ranker's
+            # recency term constant and skew a retrieval ablation.
             for idx, symptom in enumerate(symptoms):
                 age = (len(symptoms) - 1 - idx) * LOG_INTERVAL_SECONDS
                 neo4j_client.execute_query(
@@ -180,8 +168,7 @@ def seed_scenario_data(scenario: Dict[str, Any]) -> None:
             },
         )
 
-        # Index Logs from the raw observed symptoms — not the
-        # ground-truth claims (see module docstring).
+        # Index logs from observed symptoms, not ground truth (module docstring).
         for idx, symptom in enumerate(symptoms):
             semantic_store.index_document(
                 doc_id=f"log-{scenario_id}-{idx}",
@@ -299,9 +286,7 @@ def purge_semantic_store() -> int:
         logger.warning("Qdrant unavailable; purged local fallback documents only")
         return removed
 
-    # Only ever the evaluation collection. This deletes every point it
-    # touches, so pointing it at the collection serving real traffic would
-    # destroy production evidence to set up a benchmark run.
+    # Eval collection only: this deletes every point it touches.
     collection = qdrant_client.eval_collection_name
     if collection in _protected_collections():
         raise RuntimeError(
@@ -393,12 +378,9 @@ def assert_graph_isolated(scenario_id: str) -> None:
             {"scenario_id": scenario_id},
         )
     except NEO4J_CONNECTION_ERRORS as exc:
-        # Being unable to check is not the same as having checked. A driver
-        # that exists but cannot reach the server raises a raw
-        # ServiceUnavailable from session.run — narrower except clauses let
-        # that escape as an unhandled traceback mid-run. Failing here with a
-        # clear reason keeps the guarantee this assertion exists to provide:
-        # a run either verified its isolation or stopped.
+        # Being unable to check is not the same as having checked. A reachable-
+        # but-dead driver raises ServiceUnavailable from session.run, so failing
+        # loudly keeps the guarantee: a run either verified isolation or stopped.
         raise SemanticStoreNotIsolatedError(
             f"could not verify graph isolation for {scenario_id}: {exc}"
         ) from exc

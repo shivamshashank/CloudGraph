@@ -30,12 +30,9 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_N_SAMPLES = 3
 DEFAULT_TEMPERATURE = 0.8
-# Same threshold GPCS's own design doc and the rest of this sprint uses for
-# semantic-equivalence checks between two claim strings.
+# Same semantic-equivalence threshold GPCS's design doc uses.
 RECURRENCE_SIMILARITY_THRESHOLD = 0.8
-# A small breather between samples — cloud providers enforce per-minute
-# rate limits that vary by provider and account tier, and this reduces the
-# odds of bursting past them when generating N samples back-to-back.
+# Breather between samples to avoid bursting past per-minute rate limits.
 INTER_SAMPLE_DELAY_SECONDS = 2.0
 
 
@@ -60,10 +57,8 @@ class SelfConsistencyUnavailableError(RuntimeError):
         self.retryable = retryable
 
 
-# Substrings observed directly in real provider error bodies (Groq's
-# "tokens per day (TPD)" 429, and the generic OpenAI-style
-# "rate_limit_exceeded" code) that indicate a hard quota ceiling rather
-# than a transient burst — confirmed via a live reproduction, not guessed.
+# Substrings seen in real provider error bodies (Groq's TPD 429, OpenAI's
+# rate_limit_exceeded) that mean a hard quota, not a transient burst.
 _QUOTA_EXHAUSTED_MARKERS = (
     "tokens per day",
     "rate_limit_exceeded",
@@ -81,11 +76,10 @@ def _is_quota_exhausted_reason(reason: Optional[str]) -> bool:
 
 MAX_ATTEMPTS_PER_SAMPLE = 3
 
-# Called once per HTTP attempt to /orchestrate (success or failure) with a
-# JSON-serializable record: {timestamp, scenario_id, request, status_code,
-# response, error}. The request's llm_api_key is always redacted before the
-# logger ever sees it — this exists purely for experiment auditability
-# ("what did we actually send/receive"), never to persist a credential.
+# Called once per /orchestrate attempt, success or failure, with a JSON record:
+# {timestamp, scenario_id, request, status_code, response, error}. llm_api_key is
+# redacted before the logger sees it. This is for experiment auditability, never
+# to persist a credential.
 RequestLogger = Callable[[Dict[str, Any]], None]
 
 
@@ -135,11 +129,10 @@ def _request_one_sample(
             {
                 "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 "scenario_id": scenario["id"],
-                # Retrieval size and provenance, recorded per call so
-                # cross-scenario contamination is auditable directly from
-                # the log. Previously this could only be reconstructed by
-                # string-matching other scenarios' entity names after the
-                # fact, which is how a full invalid run went unnoticed.
+                # Retrieval size and provenance per call, so cross-scenario
+                # contamination is auditable from the log. Previously it could
+                # only be reconstructed by string-matching other scenarios'
+                # entity names, which is how a full invalid run went unnoticed.
                 "n_retrieval_results": len(retrieval_results or []),
                 "retrieval_scenario_ids": sorted(
                     {
@@ -160,9 +153,7 @@ def _request_one_sample(
         response = requests.post(
             f"{orch_addr.rstrip('/')}/orchestrate",
             json=request_payload,
-            # Must exceed the orchestrator's own wait for investigation-engine
-            # (360s) plus its own consensus LLM call (up to 60s) — see the
-            # timeout comment in agent-orchestrator/main.py for why.
+            # Must exceed the orchestrator's 360s wait plus 60s for consensus.
             timeout=600,
         )
     except requests.RequestException as exc:
@@ -246,9 +237,8 @@ def _generate_one_sample(
                 exc,
             )
             if not exc.retryable:
-                # A hard provider quota (e.g. Groq's daily-tokens cap) —
-                # retrying cannot help and only spends more of an already-
-                # exhausted budget on a request guaranteed to fail again.
+                # Hard provider quota: retrying only spends more of an
+                # already-exhausted budget.
                 logger.warning(
                     "Non-retryable quota failure for scenario '%s' — "
                     "stopping after 1 attempt instead of %d.",

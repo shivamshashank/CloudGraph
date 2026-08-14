@@ -24,11 +24,27 @@ consensus engine. The platform is deployed cluster-agnostically via a custom
 Go CLI and Helm charts, and contains mathematical layers for Graph Confidence
 Propagation (GCP) and Graph-Provenance Claim Scoring (GPCS).
 
-> **No experimental results exist right now.** The previous run was
-> invalidated by a ground-truth leak and its outputs were removed; the
-> re-run on the corrected pipeline has not been executed. The
-> *machinery* below is built and tested — the *numbers* are pending.
-> See `experiments/README.md` and `dissertation/PROGRESS.md` (Week 9).
+> **The evaluation is complete.** The corrected pipeline was run over
+> **36 RCAEval RE2 scenarios**, producing **3,685 scored claims** across
+> 3 context conditions × 3 retrieval methods, with **0 scenarios excluded**
+> and `integrity_checks_passed: true`. An earlier run was invalidated by a
+> ground-truth leak; its outputs were deleted rather than reinterpreted, and
+> the dataset was rebuilt from RCAEval before re-running.
+>
+> Four of the project's seven research questions are answered: **three of
+> them against the design's predictions**:
+>
+> | RQ | Result |
+> |---|---|
+> | **RQ1** GPCS vs self-consistency | Stricter (Δ +0.1185, p<0.0001) but **neither verifier tracks correctness** (both gaps −0.8 pp) |
+> | **RQ2** Is the result real end-to-end | **Yes**: every baseline invokes the real pipeline |
+> | **RQ3** Graph retrieval vs raw context | **Null** (Δ +0.024, CI [−0.028, +0.077], p=0.302) |
+> | **RQ4** Symbolic vs neural retrieval | **Negative**: vector ≡ hybrid on all 36 scenarios |
+>
+> RQ5–RQ7 are deferred to v2. Full detail:
+> [`research/RESEARCH_QUESTIONS.md`](../../research/RESEARCH_QUESTIONS.md),
+> [`experiments/README.md`](../../experiments/README.md),
+> `dissertation/PROGRESS.md`.
 
 ---
 
@@ -37,7 +53,7 @@ Propagation (GCP) and Graph-Provenance Claim Scoring (GPCS).
 - **Cloud LLM provider integration**: `call_llm` in
   `services/agent-orchestrator/main.py`, `services/investigation-engine/main.py`,
   and `services/api/app/research/gpcs.py` supports three OpenAI-compatible
-  cloud providers — OpenAI, Gemini, and Meta's official Llama API — selected
+  cloud providers (OpenAI, Gemini, and Meta's official Llama API), selected
   per-request via stored settings, not an env var. The Settings UI page
   (`services/ui/static/settings.html`/`.js`) lets users enter a provider,
   API key, and optional model name, which is saved through
@@ -59,7 +75,7 @@ Propagation (GCP) and Graph-Provenance Claim Scoring (GPCS).
   (Monitoring, Log, Deployment, Topology, Security) in
   `investigation-engine`, aggregated by a `ConsensusEngine` in
   `agent-orchestrator`. Each falls back to deterministic rule-based
-  parsing only if no LLM provider is connected — the fallback gate checks
+  parsing only if no LLM provider is connected: the fallback gate checks
   `if provider` alone, letting `call_llm`'s own env-var key fallback and
   error handling do the rest.
 - **GCP & GPCS**: Graph Confidence Propagation (`gcp.py`, BFS + Noisy-OR edge
@@ -73,7 +89,7 @@ Propagation (GCP) and Graph-Provenance Claim Scoring (GPCS).
   Vector, GraphRAG, +Agents, +GCP, +GPCS) run real retrieval /
   orchestration / scoring.
 - **Real-telemetry benchmark (36 scenarios)**: scenarios are derived
-  from chaos-injected failures in RCAEval RE2 — real faults in real
+  from chaos-injected failures in RCAEval RE2: real faults in real
   running Kubernetes systems — via `scripts/build_rcaeval_dataset.py`,
   balanced 2 per (system × fault-type) cell. Provenance, licence,
   citation and per-case table in `experiments/DATA_PROVENANCE.md`. The
@@ -90,7 +106,7 @@ Propagation (GCP) and Graph-Provenance Claim Scoring (GPCS).
   direct call, background HTTP job (`POST`/`GET
   /api/v1/research/report`, driven by `cloudgraph report`), or
   `scripts/generate_research_report.py`.
-- **Evaluation-integrity fixes (Week 9)** — four defects found and
+- **Evaluation-integrity fixes (Week 9)**: four defects found and
   fixed, each pinned by regression tests
   (`tests/test_evaluation_integrity.py`, `tests/test_rcaeval_dataset.py`):
   ground-truth claims leaking into the system's own input; an inert
@@ -113,18 +129,18 @@ Propagation (GCP) and Graph-Provenance Claim Scoring (GPCS).
   `ingest`, `deploy`, `report`, `uninstall`. Embeds the Helm chart
   manifests. Go test suite: passing (`deploy_test.go`, `uninstall_test.go`,
   `report_test.go`).
-- **UI**: 6 static HTML/CSS/vanilla-JS pages — 5 reachable from the sidebar
+- **UI**: 6 static HTML/CSS/vanilla-JS pages: 5 reachable from the sidebar
   (Topology Map, AI Diagnosis, Log Stream, Evidence & Search, LLM Settings)
   plus Benchmark, whose nav link is **commented out in this release** and
   deferred to the next version (code retained in full; the page is still
   reachable directly at `/benchmark.html`) — served with no
-  framework and no build step — no page uses React/Vue/Svelte or a
+  framework and no build step: no page uses React/Vue/Svelte or a
   charting library; the topology graph is hand-built SVG DOM manipulation
   (`topology.js`). Fully wired to backend endpoints for real Neo4j-backed
   persistence.
 - **Helm & Kubernetes Deployments**: production Helm chart with Neo4j/Qdrant
   subcharts, validated via `validate_helm.sh`. Redis fully removed from
-  chart dependencies. No in-cluster LLM component — the API,
+  chart dependencies. No in-cluster LLM component: the API,
   agent-orchestrator, and investigation-engine Deployments call out to
   whichever cloud provider is configured via the Settings API; no LLM
   env vars are wired into the chart.
@@ -157,13 +173,17 @@ Propagation (GCP) and Graph-Provenance Claim Scoring (GPCS).
   `~/.cloudgraph/reports/report-<timestamp>/`. `--offset` (added this pass)
   enables the batched-run workflow above; `scripts/merge_reports.py`
   combines multiple batch directories into one dataset.
-- **Automated Test Coverage**: Python test suite 88/88 passing
-  (`services/api/tests`, full run verified this pass — one test,
+- **Automated Test Coverage**: Python test suite **129/129 passing**
+  (`services/api/tests`, full run verified). Note the runner needs
+  `-n auto --dist loadfile`: plain `-n auto` fails non-deterministically
+  because tests sharing module-level store state get split across workers,
+  and `loadfile` pins each file to one worker. `.github/workflows/ci.yml`
+  carries this flag with the measured evidence in a comment. One test,
   `test_benchmark_export_endpoint_supports_json_and_csv`, needs a live
   `agent-orchestrator` reachable and is environment-dependent rather than
-  always-on, but passed when actually run against the deployed stack). Go
-  CLI tests passing, including tests for `cloudgraph report`'s
-  `--limit`/`--offset`.
+  always-on, but passed when run against the deployed stack. Go CLI tests
+  passing, including tests for `cloudgraph report`'s `--limit`/`--offset`.
+  All 22 pre-commit hooks pass.
 
 ---
 
@@ -175,14 +195,20 @@ Propagation (GCP) and Graph-Provenance Claim Scoring (GPCS).
   naming-convention heuristics rather than live trace data.
 - **Benchmark data hygiene**: over a long real session, CloudGraph's own
   operational incidents (pod restarts, a kubelet/swap crash and recovery —
-  see `testing/END_TO_END_RUNBOOK.md`'s troubleshooting section) have
-  accumulated as genuine `Incident` nodes in Neo4j alongside the seeded
-  demo scenarios, since keyword/vector/hybrid retrieval have no
-  demo-vs-real scoping filter. Confirmed live: this measurably degrades
-  retrieval quality over time (`scripts/compute_retrieval_f1.py`'s
-  docstring has the specifics). Not yet fixed — the current figures/
-  results use the original report run's saved data, from before this
-  accumulated, rather than a contaminated fresh re-query.
+  see `testing/END_TO_END_RUNBOOK.md`'s troubleshooting section) accumulate
+  as genuine `Incident` nodes in Neo4j alongside the seeded demo scenarios.
+  Confirmed live: this measurably degrades *ad-hoc* retrieval quality over
+  time (`scripts/compute_retrieval_f1.py`'s docstring has the specifics).
+
+  **Resolved for evaluation runs, still open for interactive use.** The
+  vector collection is a single global namespace that outlives any one
+  process, so an unscoped search returns evidence from every scenario ever
+  seeded — including runs from previous deployments whose points teardown
+  can no longer reach. `scenario_id` is now **mandatory for evaluation
+  runs** (`semantic_store.py`'s `_scenario_filter`), which is what makes
+  each scenario an isolated trial and what makes the shipped results valid.
+  Interactive UI retrieval remains unscoped by design and can still surface
+  CloudGraph's own incidents. Cleaning that up is a v2 item.
 
 ---
 
@@ -193,7 +219,7 @@ Propagation (GCP) and Graph-Provenance Claim Scoring (GPCS).
   accurately documented as, static vanilla HTML/JS. Not currently planned
   (the vanilla UI works and isn't a priority versus the research/evaluation
   work below). See `docs/architecture/design-evolution.md`.
-- **Multi-cluster / native cloud provider discovery** — `k8s_discovery.py`
+- **Multi-cluster / native cloud provider discovery**: `k8s_discovery.py`
   is limited to local kubeconfig; no AWS EKS/GCP GKE/Azure AKS SDK
   integration or multi-cluster federation.
 - **Calibration analysis** (Brier score, reliability diagrams for GCP/GPCS
@@ -203,7 +229,7 @@ Propagation (GCP) and Graph-Provenance Claim Scoring (GPCS).
   4's note in `dissertation/PROGRESS.md` (Week 8) for the reasoning).
 - **GPCS claim-extraction determinism**: `GraphProvenanceClaimScorer.
   extract_claims()` is called independently by both `self_consistency.py`
-  and the GPCS scoring path — two separate LLM calls on the same
+  and the GPCS scoring path: two separate LLM calls on the same
   generation text, which can re-segment claims differently at nonzero
   temperature. Affects 2.7%-9.1% of claims per batch in the real run
   (`experiments/README.md`'s Known Limitations) — not a correctness bug
@@ -214,7 +240,7 @@ Propagation (GCP) and Graph-Provenance Claim Scoring (GPCS).
 - **API authentication** — `/api/v1/settings` and other routes have no auth
   layer (`allow_origins=["*"]`, no API-key check). `/api/v1/settings` now
   stores a real cloud provider API key, so this endpoint being unauthenticated
-  is a genuine credential-exposure risk, not a theoretical one — worth
+  is a genuine credential-exposure risk, not a theoretical one: worth
   prioritizing before this is exposed beyond a trusted network.
 - **Dissertation chapter writing** — 0% complete; the chapter plan and
   evidence map are in `dissertation/DISSERTATION_OUTLINE.md`.
@@ -224,11 +250,11 @@ Propagation (GCP) and Graph-Provenance Claim Scoring (GPCS).
 ## 📝 Notes
 
 1. **LangGraph**: historical documentation claims about LangGraph
-   orchestration have already been corrected — the actual orchestrator is a
+   orchestration have already been corrected: the actual orchestrator is a
    custom Python `http.server`-based JSON pipeline
    (`agent-orchestrator/main.py`, `investigation-engine/main.py`).
 2. **Redis**: fully removed from chart dependencies, configs, and docs.
-3. **Frontend framework claims**: corrected — README's frontend section
+3. **Frontend framework claims**: corrected: README's frontend section
    accurately describes the static HTML/CSS/vanilla-JS stack, no
    React/Vue/Svelte claim remains. See `docs/architecture/design-evolution.md`
    for this and the other two documented design deviations

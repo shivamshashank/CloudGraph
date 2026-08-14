@@ -877,22 +877,13 @@ func getPublicIP() string {
 	return "localhost"
 }
 
-// resolveAccessIP picks the address to show the operator for reaching the
-// cluster's Ingress. getPublicIP() (an external IP-lookup service) is
-// correct on a real cloud VM like AWS EC2 — the instance's own network
-// interface only has a private VPC address, and the public IP is what's
-// actually reachable from outside. But on a local hypervisor VM (OrbStack,
-// and similar setups), the "public IP" an external lookup returns is the
-// *host machine's* internet-facing address, not the VM's — actively wrong,
-// since the operator's browser reaches the VM directly via its own LAN
-// address instead. There's no fully general way to distinguish these from
-// inside the cluster alone, so this uses a pragmatic, explicitly-scoped
-// heuristic: if the node's own InternalIP falls in the 192.168.0.0/16
-// range (OrbStack's and most home-router/hypervisor defaults, but
-// deliberately not AWS's default 172.31.0.0/16 VPC range), prefer it over
-// the external lookup. Verified live against a real OrbStack deployment,
-// where this was concretely wrong before (showed the Mac's home-network
-// public IP instead of the VM's own reachable address).
+// resolveAccessIP picks the address to show the operator for reaching Ingress.
+// An external IP lookup is right on a cloud VM (EC2's own interface only has a
+// private VPC address) but wrong on a local hypervisor, where it returns the
+// host's address rather than the VM's. No general way to tell from inside the
+// cluster, so: prefer the node's InternalIP when it is in 192.168.0.0/16
+// (OrbStack and most home routers, deliberately not AWS's 172.31.0.0/16).
+// Before this, an OrbStack deploy showed the Mac's public IP.
 func resolveAccessIP() string {
 	if hostIP := detectClusterHostIP(); hostIP != "" && strings.HasPrefix(hostIP, "192.168.") {
 		return hostIP

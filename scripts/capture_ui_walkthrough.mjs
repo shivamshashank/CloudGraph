@@ -1,25 +1,18 @@
 // Drives the CloudGraph UI and captures the walkthrough screenshots.
 //
-// Written as a script rather than clicked by hand so the image set in
-// docs/guides/UI_WALKTHROUGH.md can be regenerated after any UI change and
-// stays consistent (same viewport, same order, same waits).
+// Scripted so the image set in docs/guides/UI_WALKTHROUGH.md can be regenerated
+// after a UI change with the same viewport, order and waits.
 //
 //   node scripts/capture_ui_walkthrough.mjs [baseUrl] [outDir]
 //
-// Requires the UI reachable at baseUrl (default http://localhost:3000):
-//   kubectl port-forward -n cloudgraph-system svc/cloudgraph-ui 3000:3000
+// Needs the UI on baseUrl (default http://localhost:3000), and for shots 12-15
+// the two data stores, each via kubectl port-forward -n cloudgraph-system:
+//   svc/cloudgraph-ui 3000:3000 | svc/cloudgraph 7474:7474 7687:7687 |
+//   svc/cloudgraph-qdrant 6333:6333
 //
-// Shots 12-15 cover the two data stores and need their own port-forwards:
-//   kubectl port-forward -n cloudgraph-system svc/cloudgraph 7474:7474 7687:7687
-//   kubectl port-forward -n cloudgraph-system svc/cloudgraph-qdrant 6333:6333
-//
-// The Neo4j password is read from NEO4J_PASSWORD and never hardcoded. Fetch it
-// from the release secret:
-//   kubectl get secret -n cloudgraph-system cloudgraph-neo4j-auth \
-//     -o jsonpath='{.data.NEO4J_AUTH}' | base64 -d
-//
-// Either data-store section is skipped with a warning if its endpoint is
-// unreachable or the password is unset, so a UI-only run still succeeds.
+// NEO4J_PASSWORD is read from the environment, never hardcoded (get it from the
+// cloudgraph-neo4j-auth secret). Either data-store section is skipped with a
+// warning if unreachable, so a UI-only run still succeeds.
 
 import { chromium } from "playwright";
 import { mkdir } from "node:fs/promises";

@@ -67,8 +67,7 @@ SYSTEM_NAMES = {
     "re2tt": "Train Ticket",
 }
 
-# How RCAEval's fault codes map onto a human-readable cause description.
-# Used only to build the held-out ground_truth_claims, never the inputs.
+# Fault code -> cause text. Used only for held-out ground truth, never inputs.
 FAULT_DESCRIPTIONS = {
     "cpu": ("cpu_exhaustion", "CPU resource exhaustion"),
     "mem": ("memory_exhaustion", "memory resource exhaustion"),
@@ -78,19 +77,14 @@ FAULT_DESCRIPTIONS = {
     "socket": ("socket_exhaustion", "socket/connection exhaustion"),
 }
 
-# Number of metric observations to include per case. Covers every service
-# in the system (see leakage note above), ranked by magnitude of change
-# the way a monitoring dashboard would surface them.
+# Metric observations per case, across all services, ranked by change
+# magnitude the way a dashboard would.
 N_METRIC_OBSERVATIONS = 14
 N_LOG_OBSERVATIONS = 12
 
-# Some upstream logs (notably Train Ticket's auth service) contain issued
-# JWTs and session UUIDs. They are from a public demo system rather than
-# real users, but credential-shaped strings should not be committed into
-# this repository: they trip secret scanners for everyone who works on it
-# and they carry no diagnostic signal for a resource/network fault. The
-# structure of the line is what matters — that a token was issued — not
-# the token body, so the value is replaced and the line kept.
+# Some upstream logs carry demo JWTs and session UUIDs. Credential-shaped
+# strings trip secret scanners and carry no diagnostic signal, so the line is
+# kept and the value replaced.
 _REDACTIONS = (
     (
         re.compile(r"eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}(?:\.[A-Za-z0-9_-]+)?"),
@@ -226,8 +220,7 @@ def _log_observations(logs_df, inject_time):
     if window.empty:
         window = logs_df
 
-    # Spread across containers rather than taking the first N rows, which
-    # would over-represent whichever service is chattiest.
+    # Spread across containers; first-N would over-represent the chattiest.
     observations, seen = [], set()
     for _idx, row in window.iterrows():
         key = (row["container_name"], str(row["message"])[:120])

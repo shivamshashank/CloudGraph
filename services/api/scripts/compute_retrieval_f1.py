@@ -51,10 +51,8 @@ _SEARCH_FUNCS = {
 
 
 def _f1_row(scenario: dict[str, Any], method_key: str) -> dict[str, Any]:
-    # Same retrieval + tag-matching logic evaluate_scenario()/
-    # retrieval_detail_for_scenario() use, so tp/fn here are identical to
-    # what's already in neurosymbolic_retrieval_detail.csv — this only
-    # adds the false-positive count that data never tracked.
+    # Same logic as evaluate_scenario(), so tp/fn match the shipped CSV; this
+    # only adds the false-positive count it never tracked.
     results = _SEARCH_FUNCS[method_key](scenario["query"])
     expected_tags = scenario["expected_tags"]
     retrieved_text = extract_text_from_results(results, method_key).lower()

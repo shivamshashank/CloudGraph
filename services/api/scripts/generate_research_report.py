@@ -20,9 +20,7 @@ Usage (from services/api, with the full stack running):
     .venv/bin/python scripts/generate_research_report.py
     REPORT_SCENARIO_LIMIT=10 .venv/bin/python scripts/generate_research_report.py
 
-    # Batched run (see testing/report/run_report_batched.sh) — writes to a
-    # separate directory per batch so consecutive batches don't clobber
-    # each other; combine with scripts/merge_reports.py afterward.
+    # Batched run: one directory per batch, combined later by merge_reports.py.
     REPORT_SCENARIO_LIMIT=5 REPORT_SCENARIO_OFFSET=5 REPORT_RESULTS_DIR=/tmp/batch2 \\
       .venv/bin/python scripts/generate_research_report.py
 

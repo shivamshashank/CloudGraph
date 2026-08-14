@@ -1,14 +1,23 @@
-# Graph-Provenance Claim Scoring (GPCS) — Design Doc
+# Graph-Provenance Claim Scoring (GPCS): Design Doc
 
-**Purpose:** This is the design for CloudGraph's RQ3/H3 contribution — the
+**Purpose:** This is the design for CloudGraph's **RQ1/H3** contribution: the
 mechanism that makes "we reduce hallucinations" a measured, named, citable
-claim instead of an assertion. It reuses primitives that already exist in
+claim instead of an assertion.
+
+> **Outcome (v1):** RQ1 is answered, and only half in this design's favour.
+> GPCS does behave distinctly from self-consistency: it flags 70.3% of claims
+> unsupported against 57.9% (p<0.0001). But on the 4.2% of claims carrying
+> correctness labels, **neither verifier separates correct claims from
+> incorrect ones** (both gaps −0.8 pp). GPCS is *stricter, not sharper*. The
+> weights and thresholds below remain **hand-set and uncalibrated**: fitting
+> them is RQ6, deferred to v2. See
+> [`research/RESEARCH_QUESTIONS.md`](../../research/RESEARCH_QUESTIONS.md). It reuses primitives that already exist in
 the codebase (`hybrid_ranker.py`'s distance-decay scoring, `graph_traversal.py`'s
 hop-distance retrieval, `semantic_store.py`'s embedding search) repurposed
 for claim verification instead of evidence retrieval.
 
 **Name:** Graph-Provenance Claim Scoring (GPCS). Use this name consistently
-in the dissertation, code, and docs — a named, specified mechanism is what
+in the dissertation, code, and docs: a named, specified mechanism is what
 turns a feature into a citable artifact.
 
 ---
@@ -24,7 +33,7 @@ CloudGraph retrieved. GPCS's job: for each claim, decide how well-grounded it
 is in the actual evidence graph, and produce a report-level unsupported-claim
 rate as the H3 metric.
 
-This is deliberately narrower than general hallucination detection — it is
+This is deliberately narrower than general hallucination detection: it is
 not asking "is this claim true," it is asking "is this claim supported by
 the specific evidence CloudGraph retrieved for this incident." That framing
 is both more tractable and more relevant to the dissertation's actual claim
@@ -69,10 +78,10 @@ unsupported_claim_rate, per-claim annotations for UI/evidence chain
   produced by the agent/consensus layer).
 - Method: one LLM call with a structured-output prompt asking for a JSON list
   of atomic factual claims, each claim being a single verifiable assertion
-  (not an opinion or recommendation — recommendations are explicitly
+  (not an opinion or recommendation: recommendations are explicitly
   excluded from scoring, since they are prescriptive, not factual).
 - Output schema per claim: `{claim_id, text, claim_type}` where
-  `claim_type ∈ {temporal, causal, entity_relationship, state}` — typing
+  `claim_type ∈ {temporal, causal, entity_relationship, state}`: typing
   claims lets you report hallucination rate broken down by claim type in
   the results chapter (e.g., "causal claims were more prone to
   unsupported assertions than entity-relationship claims"), which is
@@ -84,12 +93,12 @@ For each claim, retrieve the top-k candidate evidence items that could
 support it:
 
 - Embed the claim text using the existing `SentenceTransformerEmbedder`
-  and run it through `semantic_store.search()` — reuses infrastructure
+  and run it through `semantic_store.search()`: reuses infrastructure
   as-is.
 - Separately, extract any named entities in the claim (pod/service/
   deployment names) and run `graph_traversal_retriever.retrieve()` seeded
   from those entities if they exist as graph nodes.
-- Merge both candidate sets, deduplicated by source ID — same pattern as
+- Merge both candidate sets, deduplicated by source ID: same pattern as
   `hybrid_ranker.py`'s candidate merging logic, reused directly.
 
 ### Step C — Graph-provenance trust scoring (the core contribution)
@@ -108,22 +117,22 @@ trust_score = w1 * semantic_alignment
   the best-matching evidence document embedding (same primitive as
   `HybridRanker._unit_score`, reused).
 - **graph_proximity**: `1 / (1 + hop_distance)` from the incident seed node
-  to the evidence node supporting the claim — identical formula to
+  to the evidence node supporting the claim: identical formula to
   `hybrid_ranker.py`'s existing `graph_proximity`, reused directly since it
   is already justified and documented.
 - **source_reliability**: a fixed weight per evidence type reflecting how
   directly it constitutes ground truth (e.g., a Kubernetes event or metric
   reading is more reliable evidence than a free-text log line, which is
-  more reliable than another LLM-generated artifact). This is new — define
+  more reliable than another LLM-generated artifact). This is new: define
   a small lookup table and justify each weight in the writeup; this is
   where genuine methodological judgment is visible to an examiner.
 - **path_length_penalty**: unlike retrieval ranking (where a longer path is
   just "less relevant"), for claim *verification* a long inferential chain
   between claim and evidence is grounds for lower trust even if the final
-  hop is a strong match — a claim resting on a 4-hop chain of weak
+  hop is a strong match: a claim resting on a 4-hop chain of weak
   intermediate relationships is less trustworthy than one directly backed
   by a 1-hop metric reading. This penalty is the one piece of GPCS that is
-  not a repurposed existing formula — it is new, and it is the strongest
+  not a repurposed existing formula: it is new, and it is the strongest
   candidate for the dissertation's "novel mechanism" framing.
 
 Threshold: claims scoring below a cutoff are labeled unsupported.
@@ -179,20 +188,20 @@ Given time constraints, be deliberate about depth vs. breadth here too:
 - [ ] **Must implement:** threshold calibration on a held-out split, not
       hand-tuned on the full set.
 - [ ] **Can be simpler than production-grade:** the source-reliability
-      lookup table does not need to be exhaustively researched — a
+      lookup table does not need to be exhaustively researched: a
       justified, reasonable set of weights with the reasoning documented is
       sufficient for a dissertation; it does not need to be empirically
       optimized via grid search unless time allows.
 - [ ] **Explicitly out of scope, and say so:** general factuality checking
       against external knowledge, multi-incident cross-referencing, and
-      automatic threshold adaptation per incident category — name these as
+      automatic threshold adaptation per incident category: name these as
       future work in the discussion chapter rather than attempting them.
 
 ---
 
 ## 5. Where this shows up in the dissertation
 
-- **Methodology chapter:** the GPCS formula and its justification — mirror the
+- **Methodology chapter:** the GPCS formula and its justification: mirror the
   style used for the hybrid ranker in
   `services/api/app/retrieval/hybrid_ranker.py`, which documents a weighted
   scoring formula component by component.
@@ -201,7 +210,7 @@ Given time constraints, be deliberate about depth vs. breadth here too:
   category, plus the GPCS-vs-self-consistency comparison table.
 - **Discussion chapter:** where GPCS's graph-grounding advantage held vs.
   where it didn't (e.g., likely weaker on causal claims requiring
-  multi-hop inference than on simple entity-relationship claims — state
-  this as a hypothesis to test, not an assumption) — this is exactly the
+  multi-hop inference than on simple entity-relationship claims: state
+  this as a hypothesis to test, not an assumption): this is exactly the
   kind of "one place where the result was weaker than expected" that the
   95+ checklist calls for.

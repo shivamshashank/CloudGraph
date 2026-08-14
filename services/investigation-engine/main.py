@@ -100,14 +100,8 @@ def call_llm(
         return json.loads(content)
 
     if provider == "meta":
-        # Request shape verified against a real example from the account
-        # owner (api.meta.ai/v1/responses, not the chat-completions shape
-        # originally assumed here). "instructions" for the system prompt
-        # and the exact response-parsing shape below are inferred from
-        # that one example plus the OpenAI Responses API this endpoint
-        # appears to mirror — not independently confirmed against Meta's
-        # own docs, so treat a parsing failure here as a signal to check
-        # the real response shape, not necessarily a bug elsewhere.
+        # Shape taken from one real api.meta.ai/v1/responses example plus the
+        # OpenAI Responses API it mirrors, not from Meta's docs.
         url = "https://api.meta.ai/v1/responses"
         model = model or os.getenv("LLM_MODEL", "muse-spark-1.2")
         payload = {
@@ -231,9 +225,8 @@ def _call_llm_agent(
         provider = (llm_provider or os.getenv("LLM_PROVIDER", "openai")).strip().lower()
         api_key = (llm_api_key or "").strip()
 
-        # Don't require api_key here — call_llm() falls back to the
-        # provider's env-var key (OPENAI_API_KEY etc.) if this is empty,
-        # and raises a clear error itself if no key is available anywhere.
+        # api_key may be empty: call_llm() falls back to the env-var key and
+        # raises its own error if none exists.
         if provider:
             return call_llm(
                 prompt=prompt,
@@ -904,10 +897,8 @@ class InvestigationHandler(http.server.BaseHTTPRequestHandler):
             "model": payload.get("llm_model"),
         }
 
-        # Execute all 5 specialized agents sequentially. No inter-agent
-        # pacing added here — if a provider's rate limit becomes a real
-        # problem in practice, add backoff at that point rather than
-        # guessing at limits that vary by provider and account tier.
+        # All 5 specialists, sequentially. No inter-agent pacing: add backoff if
+        # a real rate limit shows up rather than guessing at per-tier limits.
         monitoring_res = run_monitoring_agent(
             pod_name,
             llm_config=llm_config,

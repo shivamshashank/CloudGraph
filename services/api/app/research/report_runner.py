@@ -135,9 +135,7 @@ NEUROSYMBOLIC_FIELDNAMES = [
     "retrieved_text_preview",
 ]
 
-# Context conditions run per scenario, in this order — "none" first since
-# it's the original Day-2 condition and the one most likely to succeed
-# (matches the retrieval mode most tested so far).
+# Conditions run per scenario, "none" first as the most-tested path.
 CONTEXT_CONDITIONS = ("none", "raw", "hybrid")
 
 _lock = threading.Lock()
@@ -187,11 +185,8 @@ def _set_progress(text: str) -> None:
 
 
 def _run(scenario_limit: int | None, scenario_offset: int = 0) -> None:
-    # Broad except is intentional: this runs unattended in a background
-    # thread with no caller to propagate an exception to — if anything
-    # unexpected happens, it must be recorded in _state (status: "failed",
-    # with the reason) rather than left silently stuck on "running"
-    # forever with no way for a polling client to ever find out why.
+    # Broad except on purpose: unattended background thread with no caller, so a
+    # failure must land in _state rather than leave the job stuck on "running".
     try:
         result = generate_report(scenario_limit, scenario_offset)
         with _lock:
@@ -257,8 +252,7 @@ def _claim_row(
         "context_condition": condition,
         "claim_id": sc_claim["claim_id"],
         "claim_text": sc_claim["text"],
-        # Exported so a bad join is auditable in the CSV itself rather than
-        # invisible: this must equal claim_text on every row.
+        # Exported so a bad join is auditable: must equal claim_text on every row.
         "gpcs_claim_text": gpcs_claim["text"] if gpcs_claim else None,
         "claim_type": sc_claim["claim_type"],
         "gpcs_trust_score": gpcs_claim["trust_score"] if gpcs_claim else None,
@@ -306,21 +300,14 @@ def _run_condition(
         }
 
     primary_generation = sc_result["generations"][0]
-    # score_claims' search_func contract is (GraphRAGSearchPayload, method) ->
-    # {"results": [...]} (see gpcs.ClaimSearchFunc / _retrieve_supporting_
-    # evidence) — run_hybrid_search takes a bare str and returns a list, so
-    # passing it here silently raised TypeError on every call (caught by
-    # _retrieve_supporting_evidence's broad except) and the semantic/keyword
-    # search evidence path never contributed anything to GPCS scoring.
-    # graphrag_search (imported at module scope, from app.services.
-    # graphrag_search — not app.main, which would cycle back through
-    # app.routers.report) is the function that actually matches the contract.
-    # Score the *same* segmentation self-consistency scored, rather than
-    # letting GPCS re-extract: extract_claims is an LLM call, so a second
-    # invocation returns a different claim count and different text under
-    # the same "claim-N" id, and _claim_row's id-based join then pairs
-    # unrelated claims (silently where the counts happen to match, and as a
-    # blank GPCS column where they don't).
+    # search_func's contract is (GraphRAGSearchPayload, method) -> {"results":
+    # [...]}. run_hybrid_search takes a bare str, so passing it raised TypeError
+    # on every call, swallowed by a broad except, and search evidence never
+    # reached GPCS. graphrag_search matches the contract (imported from
+    # app.services, not app.main, which would cycle via app.routers.report).
+    # Score the same segmentation self-consistency scored: extract_claims is an
+    # LLM call, so re-extracting yields different text under the same claim-N
+    # ids and the id-based join then pairs unrelated claims.
     gpcs_result = scorer.score_claims(
         primary_generation, graphrag_search, claims=sc_result["extracted_claims"]
     )
@@ -343,13 +330,10 @@ def _run_scenario(
     seed_scenario_data(scenario)
     try:
         # Fail loudly rather than score against another incident's evidence:
-        # residue is invisible in the results and only shows up afterwards
-        # in the request logs (it already invalidated one full run).
-        #
-        # Inside the try, not before it: raising here still leaves this
-        # scenario's freshly seeded evidence in the store, so an isolation
-        # failure would otherwise strand exactly the data it is complaining
-        # about and contaminate whatever ran next.
+        # residue is invisible in the results and only shows up later in the
+        # request logs (it already invalidated one full run). Raised inside the
+        # try so the teardown still clears this scenario's evidence, which would
+        # otherwise contaminate whatever runs next.
         assert_semantic_store_isolated(scenario["id"])
         scorer.scenario_id = scenario["id"]
 
@@ -436,14 +420,11 @@ def _prepare_run() -> dict[str, Any]:
     provenance. Returns the run metadata recorded with the results."""
     run_metadata = _run_metadata()
     logger.info("Run metadata: %s", run_metadata)
-    # Everything below reads and writes the dedicated evaluation
-    # collection, never the one serving real traffic: this run seeds and
-    # purges wholesale, which would destroy production evidence.
+    # Uses the dedicated eval collection only: this run purges wholesale.
     semantic_store.collection_name = qdrant_client.eval_collection_name
     qdrant_client.ensure_collections()
-    # Start from an empty collection. Per-scenario teardown cannot remove
-    # points written by an earlier process, so without this a run inherits
-    # every scenario ever seeded on this cluster.
+    # Start empty: teardown cannot remove points written by an earlier process,
+    # so a run would otherwise inherit every scenario ever seeded here.
     purged = purge_semantic_store()
     logger.info("Purged %s residual vector points before the run", purged)
     return run_metadata

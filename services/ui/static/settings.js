@@ -16,8 +16,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 5000);
   }
 
-  // API key and model are both required — Save stays disabled until both
-  // are filled in, so a save can never silently store a blank model.
+  // Both required: Save stays disabled so a blank model can never be stored.
   function updateSaveButtonState() {
     saveButton.disabled = !apiKeyInput.value.trim() || !modelInput.value.trim();
   }

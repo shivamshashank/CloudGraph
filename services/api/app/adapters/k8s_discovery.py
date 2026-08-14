@@ -219,10 +219,8 @@ def _ingest_pod_logs(v1, pod, ns, status):
                         },
                     )
     except K8S_ERRORS as log_ex:
-        # A 403 here means the ServiceAccount lacks the pods/log subresource,
-        # which silently produces an empty log corpus for every pod. That was
-        # invisible at debug level for the whole life of the project, so
-        # permission failures are reported loudly and the rest at debug.
+        # A 403 means the ServiceAccount lacks pods/log, which silently empties
+        # the log corpus. Invisible at debug for months, so it is warned.
         if getattr(log_ex, "status", None) == 403:
             logger.warning(
                 "Not permitted to read logs for pod %s: %s. The ServiceAccount "
@@ -301,9 +299,8 @@ def _get_pod_env_vars(pod) -> list:
     return env_vars
 
 
-# Waiting reasons that are a normal part of starting up, not a fault. Anything
-# else a container reports while waiting (ImagePullBackOff, CrashLoopBackOff,
-# CreateContainerConfigError, ...) is a real problem worth surfacing.
+# Normal start-up waits. Anything else (ImagePullBackOff, CrashLoopBackOff, ...)
+# is a real fault worth surfacing.
 _BENIGN_WAITING_REASONS = frozenset(
     {
         "ContainerCreating",

@@ -303,14 +303,8 @@ def _investigate_pod(
                 "llm_api_key": llm_api_key,
                 "llm_model": llm_model,
             },
-            # Must accommodate a real LLM-backed orchestrator chain, same as
-            # self_consistency.py's and evaluation.py's calls to this same
-            # /orchestrate endpoint — see the timeout comment in
-            # agent-orchestrator/main.py. This was previously 12s, which
-            # meant the live "Run AI Diagnosis" flow almost certainly timed
-            # out and silently used the rule-based fallback below on every
-            # real request, never the LLM path — verified as a real bug,
-            # not a hypothetical one.
+            # At the previous 12s, live diagnosis timed out and silently took
+            # the rule-based fallback on every request.
             timeout=1200,
         )
         if response.status_code == 200:
@@ -323,9 +317,8 @@ def _investigate_pod(
                     "recommendation": rdata["consensus"]["recommendation"],
                     "severity": rdata["consensus"]["severity"],
                     "evidence": rdata["consensus"]["evidence"],
-                    # Defaults to the fallback assumption, not "llm" — if the
-                    # orchestrator ever omits this field, treat it as
-                    # unverified rather than silently claiming success.
+                    # Defaults to the fallback, not "llm": a missing field means
+                    # unverified, not success.
                     "generation_source": rdata["consensus"].get(
                         "generation_source", "rule_based_fallback"
                     ),
@@ -339,10 +332,8 @@ def _investigate_pod(
             pod_status=pod["status"],
             error_msgs=error_msgs,
         )
-        # Orchestrator was unreachable entirely — this is a local,
-        # non-LLM-backed fallback, same class of result as the
-        # orchestrator's own internal rule_based_fallback, just from a
-        # different code path.
+        # Orchestrator unreachable: same class of result as its own
+        # rule_based_fallback, from a different code path.
         analysis["generation_source"] = "rule_based_fallback"
     evidence_context = build_relevant_evidence(
         pod_name=pod["name"], namespace=namespace
@@ -474,12 +465,8 @@ def trigger_investigation(payload: InvestigationTrigger):
             LIMIT 5
             """
             anomalous_pods = neo4j_client.execute_query(log_anomaly_query)
-        # The UI posts only a namespace and expects the server to use whatever
-        # provider was saved on the Settings page. Without this fallback the
-        # per-request fields stay None and the downstream consensus call
-        # defaults to the `openai` env value — so the five specialists ran on
-        # the configured provider while consensus 401'd against OpenAI and
-        # silently degraded to the rule-based path.
+        # The UI posts only a namespace. Without this fallback consensus reads
+        # the `openai` env value, 401s, and degrades to rule-based.
         stored = load_stored_llm_settings() or {}
         llm_provider = payload.llm_provider or stored.get("provider")
         llm_api_key = payload.llm_api_key or stored.get("api_key")

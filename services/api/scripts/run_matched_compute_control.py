@@ -89,9 +89,8 @@ def run_one_scenario(scenario: dict[str, Any], request_logger) -> dict[str, Any]
             scenario["query"], reference_time=scenario_incident_time(scenario)
         )
 
-        # Pass the already-fetched evidence rather than letting this arm
-        # re-query: the control only isolates architecture if both arms
-        # demonstrably saw the same evidence.
+        # Reuse the fetched evidence: the control only isolates architecture if
+        # both arms saw the same evidence.
         agents_result = evaluate_scenario(
             scenario, "Agents", retrieval_results=hybrid_results
         )

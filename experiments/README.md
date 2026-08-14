@@ -20,7 +20,7 @@ Headline results, all derived from `results/claims.csv`:
 | Neural/hybrid retrieval beats keyword recall | +0.190 | [+0.116, +0.269] | 0.0003 |
 | Hybrid vs raw retrieval context (concordance) | +0.024 | [-0.028, +0.077] | 0.302 (null) |
 
-Keyword retrieval scored **0/36** under strict matching — it never once
+Keyword retrieval scored **0/36** under strict matching: it never once
 recovered a complete tag set. Vector and hybrid were **identical on every
 measure**, so the graph contributes nothing to retrieval here (it does
 contribute to scoring).
@@ -42,7 +42,7 @@ everything would score.
 
 So GPCS being *stricter* than self-consistency (a statistically supported
 result) is **not** evidence that it is better aimed. Settling that needs
-human-labelled correctness on a stratified sample — the most valuable
+human-labelled correctness on a stratified sample: the most valuable
 outstanding piece of work.
 
 Results are scoped to this RCAEval RE2 subset and are not general claims
@@ -53,7 +53,7 @@ about Kubernetes root-cause analysis.
 Five of the 329 logged investigations returned the deterministic
 rule-based fallback instead of reaching the LLM (`generation_source:
 "rule_based_fallback"`), in scenarios `rcaeval-02`, `-04`, `-05` (twice)
-and `-36`. They produce boilerplate — *"Unusual pattern detected in
+and `-36`. They produce boilerplate: *"Unusual pattern detected in
 telemetry; pod is in state: Failed"*.
 
 None of that text reaches `results/claims.csv`: no claim in the dataset
@@ -104,7 +104,7 @@ total. Model: `muse-spark-1.2-contributor` (provider `meta`), temperature
   their expected tags use vocabulary absent from the seeded telemetry —
   a benchmark-label mismatch, not a retrieval failure.
 
-Four integrity defects invalidated earlier runs — ground-truth leakage,
+Four integrity defects invalidated earlier runs: ground-truth leakage,
 an index-based claim join, unearned graph-proximity credit, and
 cross-scenario vector contamination. All are now regression-tested; see
 `dissertation/PROGRESS.md` Week 9. Anything citing "64.0% agreement" or
@@ -166,7 +166,7 @@ the benchmark reproduces without vendoring the source corpus.
 
 `cloudgraph report` runs each scenario under three retrieval-context
 conditions — `none` (no retrieved context), `raw` (all seeded evidence,
-unranked), `hybrid` (ranked GraphRAG retrieval) — and for each:
+unranked), `hybrid` (ranked GraphRAG retrieval). For each condition:
 
 1. Generates 3 sampled RCA analyses and extracts atomic claims from the
    primary one.
@@ -200,7 +200,7 @@ Each of these was a live defect, fixed and pinned by regression tests
 
 ## Reproducibility
 
-- Selection is deterministic, not sampled — the same 36 cases reproduce
+- Selection is deterministic, not sampled: the same 36 cases reproduce
   exactly.
 - Bootstrap resampling is seeded (`seed=42` in
   `scripts/paired_bootstrap.py`).

@@ -97,14 +97,11 @@ def test_isolation_assertion_passes_on_clean_store(monkeypatch):
     monkeypatch.setattr(seeding.qdrant_client, "connect", lambda: True)
     monkeypatch.setattr(seeding.qdrant_client, "client", clean)
     monkeypatch.setattr(seeding.qdrant_client, "collection_names", ("evidence",))
-    # The vector check passing falls through to the graph check, which would
-    # otherwise open a real Bolt connection — the sibling test never reaches
-    # here because its vector check raises first.
-    #
-    # driver is pinned as well as execute_query: the neo4j driver is created
-    # lazily, so whether it is None depends on which tests ran first in the
-    # worker. Left unpinned this either short-circuits (passing for the wrong
-    # reason) or dials a real server, which is how this reached CI.
+    # Passing the vector check falls through to the graph check, which would
+    # open a real Bolt connection. driver is pinned as well as execute_query:
+    # it is created lazily, so whether it is None depends on test order in the
+    # worker. Unpinned, this either passes for the wrong reason or dials a real
+    # server, which is how it reached CI.
     monkeypatch.setattr(seeding.neo4j_client, "driver", object())
     monkeypatch.setattr(
         seeding.neo4j_client, "execute_query", lambda *_a, **_k: [{"foreign": 0}]

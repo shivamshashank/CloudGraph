@@ -19,9 +19,7 @@ from app.services.graphrag_search import graphrag_search
 
 logger = logging.getLogger(__name__)
 
-# First-pass constant, matching GPCS's own default trust threshold
-# (see gpcs.py). Not yet calibrated on a held-out split — see
-# docs/project/ROADMAP.md's held-out-split calibration item.
+# Matches GPCS's default trust threshold (gpcs.py). Not calibrated; see ROADMAP.
 GCP_CORRECTNESS_THRESHOLD = 0.50
 
 
@@ -148,9 +146,8 @@ def run_raw_context_search(
             logger.error("Raw-context Neo4j query failed: %s", exc)
 
     try:
-        # limit=50: comfortably above any single scenario's seeded doc
-        # count (a handful) — see docstring above on why this stands in
-        # for "fetch everything" without a scroll API.
+        # limit=50 is well above any scenario's seeded doc count; stands in for
+        # "fetch everything" without a scroll API (see docstring).
         semantic_hits = semantic_store.search(query, limit=50, scenario_id=scenario_id)
         raw_results.extend(semantic_hits)
     except (RuntimeError, ValueError) as exc:
@@ -204,10 +201,8 @@ def run_hybrid_search(
         )
         if label in {"Incident", "Pod"}:
             try:
-                # retrieve() returns a plain list[dict], not a
-                # {"nodes": [...]} envelope — .get("nodes") on a list
-                # would raise AttributeError (previously masked because
-                # raw_results was always empty; see run_keyword_search).
+                # retrieve() returns list[dict], not a {"nodes": [...]} envelope;
+                # .get() on a list raises AttributeError.
                 graph_context = graph_traversal_retriever.retrieve(
                     record.get("id"), depth=2
                 )
@@ -228,14 +223,8 @@ def run_hybrid_search(
                 )
 
     semantic_hits = run_vector_search(query, scenario_id=scenario_id)
-    # HybridRanker.rank()'s vector_hits contract expects "text" (flat) and
-    # "metadata" (nested dict) — semantic_hits (semantic_store.search()'s
-    # raw output) already has exactly that shape. The previous code
-    # reshaped this into a "detail"/flat-name/flat-status dict that the
-    # ranker's field names don't match, silently dropping all vector
-    # content before scoring (ranker read hit.get("text","") -> "" and
-    # hit.get("metadata") -> {} for every candidate). Pass semantic_hits
-    # straight through instead of re-inventing its shape.
+    # rank() wants "text" flat and "metadata" nested, which is already search()'s
+    # shape. Reshaping it made the ranker read "" for every candidate.
     try:
         ranked = hybrid_ranker.rank(
             semantic_hits,
@@ -270,11 +259,8 @@ def extract_text_from_results(results: List[Dict[str, Any]], method_key: str) ->
             parts.append(props.get("message") or "")
             parts.append(props.get("detail") or "")
     else:  # hybrid
-        # HybridRanker.rank() candidates carry "text" (preserved verbatim
-        # from vector hits) and nested "properties"/"metadata" (from graph
-        # hits) — there is no top-level "detail"/"status" key. Reading
-        # "detail" here previously always returned "", silently discarding
-        # every vector-sourced match's content.
+        # Candidates carry "text" and nested "properties"/"metadata". There is no
+        # top-level "detail", so reading it discarded every vector match.
         for hit in results:
             parts.append(hit.get("name") or "")
             parts.append(hit.get("text") or "")
@@ -378,11 +364,7 @@ def _request_agents_step(
                 "llm_api_key": llm_settings.get("api_key"),
                 "llm_model": llm_settings.get("model"),
             },
-            # Must accommodate a real LLM-backed orchestrator chain (5
-            # sequential specialist calls + 1 consensus call) — must exceed
-            # the orchestrator's own wait for investigation-engine (360s)
-            # plus its own consensus call (up to 60s); see the timeout
-            # comment in agent-orchestrator/main.py.
+            # Must exceed the orchestrator's 360s wait plus 60s for consensus.
             timeout=600,
         )
     except requests.RequestException as exc:
@@ -427,14 +409,8 @@ def run_gcp_step(target_entity: str) -> float:
 def _run_gpcs_step(analysis: Any) -> Optional[float]:
     """Score hallucination rate using GPCS; return unsupported-claim rate,
     or None if scoring failed (never a fabricated placeholder rate)."""
-    # score_claims' search_func contract is (GraphRAGSearchPayload, method) ->
-    # {"results": [...]} (see gpcs.ClaimSearchFunc) — run_hybrid_search takes
-    # a bare str and returns a list, so passing it here silently raised
-    # TypeError on every call (caught by _retrieve_supporting_evidence's
-    # broad except), the same dead-search-function bug fixed in
-    # report_runner.py — graphrag_search (imported at module scope, from
-    # app.services.graphrag_search) is the function that actually matches
-    # the contract.
+    # search_func takes (payload, method); run_hybrid_search takes a bare str, so
+    # passing it raised TypeError on every call. graphrag_search fits.
     try:
         llm_settings = load_stored_llm_settings()
         scorer = GraphProvenanceClaimScorer(
@@ -510,18 +486,13 @@ def evaluate_scenario(
 
     if "GCP" in baseline_name:
         gcp_confidence = run_gcp_step(scenario["target_entity"])
-        # GCP-tier baselines must also clear a confidence bar to count as
-        # correct, not just pass the tag-overlap check — otherwise this
-        # tier is indistinguishable from "Agents" alone.
+        # GCP tiers must clear a confidence bar too, or they read the same as
+        # "Agents" alone.
         correct = 1 if (correct and gcp_confidence >= GCP_CORRECTNESS_THRESHOLD) else 0
 
     if analysis is not None:
-        # Any baseline that produced real generated text gets a real,
-        # measured hallucination rate via GPCS — the only claim-scoring
-        # mechanism this system has. This may legitimately come out close
-        # to (or identical to) later tiers' numbers, since GPCS here is a
-        # measurement instrument, not yet a remediation step — report that
-        # honestly rather than adjusting the harness.
+        # GPCS is the only claim-scoring mechanism here, so it measures rather
+        # than remediates. Tiers may score identically; report that as measured.
         unsupported_rate = _run_gpcs_step(analysis)
     else:
         unsupported_rate = None
@@ -535,11 +506,8 @@ def evaluate_scenario(
     return tp, fp, fn, correct, unsupported_claims_count
 
 
-# Neuro-symbolic ablation (see dissertation/PROGRESS.md Week 8,
-# NOVEL_CONTRIBUTIONS.md Contribution 3): keyword = near-pure
-# symbolic/lexical, vector = near-pure neural/semantic, hybrid =
-# neuro-symbolic. This mapping is data, not logic — it's how the three
-# existing retrieval modes get framed for the ablation, nothing new to run.
+# Neuro-symbolic ablation framing (RQ4): keyword is lexical, vector is semantic,
+# hybrid is both. Data, not logic; nothing new runs.
 NEUROSYMBOLIC_METHOD_LABELS = {
     "keyword": "symbolic",
     "vector": "neural",

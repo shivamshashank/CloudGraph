@@ -120,11 +120,9 @@ def test_score_claims_returns_expected_structure(monkeypatch):
     }
 
     def fake_search(_payload: GraphRAGSearchPayload, method: str | None = None):
-        # Asserted rather than ignored: naming this parameter with a
-        # leading underscore to silence the unused-argument warning is
-        # exactly what made these fakes reject the real
-        # search_func(payload, method="hybrid") call, swallow the
-        # TypeError, and pass with no evidence at all.
+        # Asserted, not ignored: underscoring this parameter to silence the
+        # unused-argument warning is what made these fakes reject the real
+        # search_func(payload, method="hybrid") call and pass with no evidence.
         assert method == "hybrid"
         return fake_search_results
 

@@ -46,9 +46,8 @@ from app.demo.datasets import load_scenarios
 
 DEFAULT_RESULTS = _bootstrap.REPO_ROOT / "experiments" / "results"
 
-# A fault's mechanism as it would be *named as a cause*. Bare effect words
-# are excluded on purpose: "latency" and "slow" follow from every fault
-# type, so matching them would attribute a delay fault to most CPU cases.
+# Mechanisms as named causes. Bare effect words are excluded: "latency" follows
+# from every fault type and would attribute delay faults to most CPU cases.
 MECHANISM_PATTERNS: dict[str, list[str]] = {
     "cpu": [
         r"cpu (?:saturation|exhaustion|pressure|starvation|spin|contention|throttl)",
@@ -87,11 +86,9 @@ MECHANISM_PATTERNS: dict[str, list[str]] = {
     ],
 }
 
-# A claim is treated as asserting a cause when it is typed causal or uses
-# explicitly causal language; only these are labelled. "originated from" is
-# deliberately absent: it is overwhelmingly used for log provenance
-# ("log lines originated from ts-travel-service"), which is a descriptive
-# statement about where text came from, not a causal attribution.
+# Only claims typed causal or using explicitly causal language are labelled.
+# "originated from" is excluded: it is nearly always log provenance ("log lines
+# originated from ts-travel-service"), which is descriptive, not causal.
 CAUSAL_MARKERS = re.compile(
     r"\b(caused|causing|due to|because|root cause|led to|leads to|"
     r"resulted in|resulting in|triggered by|triggered|stems from|"
@@ -99,9 +96,8 @@ CAUSAL_MARKERS = re.compile(
     re.IGNORECASE,
 )
 
-# A mechanism named inside a negation is being *ruled out*, which on a
-# different fault type is correct reasoning rather than a wrong answer:
-# "the pattern is not caused by CPU exhaustion" on a delay fault is right.
+# A negated mechanism is being ruled out, which on another fault type is
+# correct reasoning, not a wrong answer.
 NEGATION_NEAR = re.compile(
     r"\b(not|no|never|without|rather than|instead of|rules? out|ruled out|"
     r"excludes?|excluding|absent|unlikely|refutes?|contradicts?|"
@@ -109,10 +105,8 @@ NEGATION_NEAR = re.compile(
     re.IGNORECASE,
 )
 
-# A foreign service only indicts the claim when it sits in a *cause*
-# position. Naming a neighbour as the thing harmed ("cascaded to orders",
-# "downstream impact on front-end") is an effect statement and frequently
-# true — the injected fault really does propagate.
+# A foreign service only indicts the claim in a cause position; naming a
+# neighbour as harmed is an effect statement and often true.
 FOREIGN_AS_CAUSE = (
     r"(?:caused by|due to|because of|root cause (?:is|was)?|"
     r"originates? (?:from|in)|stems from|attributable to)\s+"
@@ -177,10 +171,8 @@ def label_claim(
 
     def mentioned_affirmatively(patterns: list[str]) -> bool:
         """True when a pattern matches outside a negation."""
-        # Scope is the whole claim, not the text preceding the match: these
-        # are single short sentences, and "stable CPU rules out CPU
-        # saturation" negates a mechanism it names twice — checking only
-        # what comes before the first mention reads it as an assertion.
+        # Scope is the whole claim: "stable CPU rules out CPU saturation" names
+        # the mechanism twice, so checking only the prefix reads it as asserted.
         if NEGATION_NEAR.search(claim_text):
             return False
         return any(re.search(pattern, claim_text, re.I) for pattern in patterns)
@@ -199,9 +191,7 @@ def label_claim(
         and re.search(FOREIGN_AS_CAUSE.format(service=re.escape(s)), claim_text, re.I)
     ]
 
-    # Correct mechanism wins: "CPU spike caused degradation in orders" on a
-    # CPU fault is right about the cause and merely describes where the
-    # effect landed.
+    # Correct mechanism wins: naming where the effect landed is not an error.
     if names_correct_mechanism:
         return "consistent", f"names the injected mechanism ({fault})"
 

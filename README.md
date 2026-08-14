@@ -6,7 +6,7 @@
 
 CloudGraph builds a temporal knowledge graph from live cluster telemetry,
 retrieves incident context over it, has five specialist LLM agents diagnose the
-incident, and then — the part this project is actually about — **checks every
+incident, and then — the part this project is actually about: **checks every
 claim in the generated explanation against graph evidence.**
 
 The research question is not *"can an LLM write a plausible root cause?"*
@@ -56,7 +56,7 @@ by **k-hop traversal fused with dense vectors** (Qdrant), runs **five
 specialist agents** over that context, and then scores every atomic claim in
 the resulting narrative two independent ways:
 
-- **GPCS** (Graph-Provenance Claim Scoring) — *evidence-grounded*: is this
+- **GPCS** (Graph-Provenance Claim Scoring): *evidence-grounded*: is this
   claim supported by the incident graph?
 - **Self-consistency** — *model-internal*: does this claim recur when the model
   is sampled again?
@@ -79,11 +79,16 @@ All three headline results come from one merged dataset
 ([`experiments/results/`](experiments/results/)), with scenario-clustered
 paired bootstrap confidence intervals and Wilcoxon signed-rank tests.
 
-| Question | Answer | Effect | 95% CI | p |
-|---|---|---|---|---|
-| Does graph-grounded scoring differ from self-consistency? | **Yes** | +0.119 | [+0.073, +0.163] | <0.0001 |
-| Does neural/hybrid retrieval beat keyword? | **Yes** | +0.190 | [+0.116, +0.269] | 0.0003 |
-| Does structured context beat raw context? | **No** | +0.024 | [−0.028, +0.077] | 0.302 |
+| RQ | Question | Answer | Effect | 95% CI | p |
+|---|---|---|---|---|---|
+| **RQ1** | Does graph-grounded scoring differ from self-consistency? | **Yes** | +0.119 | [+0.073, +0.163] | <0.0001 |
+| **RQ4** | Does neural/hybrid retrieval beat keyword? | **Yes** | +0.190 | [+0.116, +0.269] | 0.0003 |
+| **RQ3** | Does structured context beat raw context? | **No** | +0.024 | [−0.028, +0.077] | 0.302 |
+
+**RQ2**, *is this real end-to-end rather than a simulated scorer?*, is answered
+**yes**: every baseline invokes the real pipeline. It was the prerequisite for
+all of the above, and discharging it meant finding and fixing integrity defects
+in this project's own pipeline first.
 
 Two further findings, reported because they went against the design's own
 predictions:
@@ -115,7 +120,7 @@ Stated once, plainly, because each is easy to assume away:
 4. **Scope is resource and network faults in microservice systems.** RCAEval
    RE2 contains no config errors, security events, deployment failures, DNS
    faults or certificate expiry.
-5. **GPCS thresholds are fixed defaults** — 0.30 evidence floor, 0.50 trust cut
+5. **GPCS thresholds are fixed defaults**: 0.30 evidence floor, 0.50 trust cut
    — set by inspecting live score distributions. No held-out fitting was
    performed. They are **not calibrated**.
 
@@ -155,7 +160,7 @@ diagnosis.
 | 🔖 | [Data provenance](experiments/DATA_PROVENANCE.md) | Corpus source, licence, selection, checksums |
 | 📚 | [Literature review](dissertation/LITERATURE_REVIEW.md) | RAG, GraphRAG, AIOps, multi-agent, hallucination detection |
 | 🔗 | [References](dissertation/REFERENCES.md) | Numbered bibliography |
-| ❓ | [Research questions](research/RESEARCH_QUESTIONS.md) | 18 candidates scored, with what the run settled |
+| ❓ | [Research questions](research/RESEARCH_QUESTIONS.md) | The seven RQs — four answered in v1, three deferred to v2 |
 | 🕳️ | [Research gaps](research/RESEARCH_GAPS.md) | CloudGraph against the literature |
 | 💡 | [Novel contributions](research/NOVEL_CONTRIBUTIONS.md) | Five candidates with pre-registered falsification criteria |
 | ✅ | [Project status](docs/project/STATUS.md) | What is implemented and what is not |
@@ -219,7 +224,7 @@ infrastructure that exists to make verification possible.
 
 ### The verification step
 
-This is what the study measures — the same claims scored two independent ways:
+This is what the study measures: the same claims scored two independent ways:
 
 ```mermaid
 flowchart TB
@@ -242,7 +247,7 @@ flowchart TB
 ```
 
 ⚠️ **Concordance is not accuracy.** The comparison establishes that the two
-verifiers *differ*, not that either is *right* — see
+verifiers *differ*, not that either is *right*: see
 [what these results do not establish](#️-what-these-results-do-not-establish).
 
 **Ingestion.** Metrics, logs, Kubernetes objects and webhook events become a
@@ -286,7 +291,7 @@ returning a finding and a confidence in `[0,1]`:
 | 🔐 **Security** | RBAC, secrets, policy changes, authentication failures |
 
 A `ConsensusEngine` fuses them into one report. **The consensus step is a
-static weighted aggregation, not a reasoning agent** — an accurate description
+static weighted aggregation, not a reasoning agent**: an accurate description
 matters here, because "multi-agent" often implies debate or critique, and this
 system has neither.
 
@@ -375,10 +380,10 @@ v1 is complete. Everything below is explicitly out of scope and tracked in
 
 | Item | Why it matters |
 |---|---|
-| **Human-labelled claim correctness** | The most valuable outstanding work. Automatic labels cover 4.2%; without human labels we can say GPCS is *stricter*, not better *aimed*. |
-| **Matched-compute control re-run** | Closes RQ2/H2 — whether five agents beat one LLM at equal cost. The existing run predates the integrity fixes. |
+| **Human-labelled claim correctness** (RQ7) | The most valuable outstanding work. Automatic labels cover 4.2%; without human labels we can say GPCS is *stricter*, not better *aimed*. Also the prerequisite for completing RQ1. |
+| **Matched-compute control re-run** (RQ5) | Whether five agents beat one LLM at equal cost. The existing run predates the integrity fixes, so its numbers are invalid and unreported. One run, no new code. |
 | **Benchmark screen** | The six-baseline ladder is built but **hidden from the UI** and not citable: point estimates with no CIs, compute confounded with architecture. |
-| **Threshold calibration** | GPCS 0.30/0.50 and GCP edge weights are hand-set. Reliability diagrams and Brier score would make confidence outputs meaningful. |
+| **Threshold calibration** (RQ6) | GPCS 0.30/0.50 and GCP edge weights are hand-set. Reliability diagrams and Brier score would make confidence outputs meaningful. **Nothing in v1 is calibrated.** |
 | **API authentication** | `/api/v1/settings` is unauthenticated and returns the stored provider key in cleartext. Fine on localhost; a real risk otherwise. |
 | **Qdrant collection bootstrap** | The `evidence` collection is not created on a fresh deploy, so the semantic store silently falls back to a local file. |
 | **RCAEval RE3** | Code-level faults, to widen beyond resource and network. |

@@ -16,8 +16,8 @@ such corrections are marked **Revised** below.
 A single cloud-native incident spans application logs, service metrics,
 distributed traces, Kubernetes events, deployment history, and source-control
 changes. Each of these lives in a different store with a different query
-language and a different notion of time. The engineering problem — correlating
-heterogeneous evidence rather than searching each source in isolation — is what
+language and a different notion of time. The engineering problem: correlating
+heterogeneous evidence rather than searching each source in isolation: is what
 motivates automated root cause analysis (RCA), and it is the problem
 CloudGraph addresses.
 
@@ -112,7 +112,7 @@ evaluation is RCAEval [8], a benchmark of microservice RCA cases in which the
 authors deployed three open-source systems (Online Boutique, Sock Shop, Train
 Ticket) to Kubernetes and injected faults with chaos tooling, capturing
 metrics, logs, and traces through each incident window. CloudGraph's entire
-citable evaluation uses 36 cases from its RE2 suite — 3 systems × 6 fault
+citable evaluation uses 36 cases from its RE2 suite: 3 systems × 6 fault
 types × 2 replicates — under the MIT licence, with full provenance recorded in
 [`experiments/DATA_PROVENANCE.md`](../experiments/DATA_PROVENANCE.md).
 
@@ -125,7 +125,7 @@ this dissertation can make:
    microservice systems*, not to Kubernetes incidents in general.
 2. RCAEval labels which service was faulted, and the adapter passes that
    service to the system as `target_entity`. CloudGraph is therefore evaluated
-   on **fault-type diagnosis for a known affected service** — it is asked
+   on **fault-type diagnosis for a known affected service**: it is asked
    *why* a service failed, never *which* service failed. No result in this
    project demonstrates root-cause service localisation.
 
@@ -165,7 +165,7 @@ represented in the original Week 1 review.
 
 Ji et al. [9] survey hallucination in natural language generation and
 establish the vocabulary — intrinsic versus extrinsic hallucination, and the
-distinction between fluency and faithfulness — that makes "unsupported claim"
+distinction between fluency and faithfulness: that makes "unsupported claim"
 a measurable quantity rather than a complaint.
 
 Two verification strategies bound the design space:
@@ -173,7 +173,7 @@ Two verification strategies bound the design space:
 - **Sampling-based, zero-resource.** Wang et al. [10] observe that sampling a
   model repeatedly and looking for agreement improves reasoning reliability;
   Manakul et al. [11] turn the same observation into a hallucination detector
-  (SelfCheckGPT) that needs no external knowledge base — a claim that does not
+  (SelfCheckGPT) that needs no external knowledge base: a claim that does not
   recur across samples is likely fabricated. This is CloudGraph's **baseline**
   verifier: three samples at temperature 0.8, cosine recurrence ≥ 0.8, a claim
   flagged unsupported when its recurrence rate falls below 0.5.
@@ -201,13 +201,13 @@ same verdict. Both can be wrong on the same claim and it counts as agreement.
 
 ## 8. Observability foundation
 
-OpenTelemetry [16] defines the signal model — traces, metrics, logs — that the
+OpenTelemetry [16] defines the signal model (traces, metrics, logs) that the
 graph schema is built from, and Kubernetes [12] supplies the entity model
 (services, pods, deployments, nodes, events). Prometheus [15] and Loki [17]
 are the concrete metric and log sources; kube-state-metrics [18] and
 node_exporter [19] extend that to object state and host metrics; Falco [20]
 supplies runtime security events and Argo CD [21, 22] deployment and GitOps
-events. These are not implementation trivia — they define the evidence model
+events. These are not implementation trivia: they define the evidence model
 that the knowledge graph and every experiment are built on.
 
 ## 9. Research gap
@@ -233,15 +233,23 @@ The gap this dissertation addresses is the last of these:
 
 | RQ | Literature basis | How CloudGraph tests it | Outcome |
 |---|---|---|---|
-| RQ1 — Can GraphRAG improve RCA over traditional RAG? | [1], [2] | keyword vs vector vs hybrid retrieval over 36 RCAEval cases | Partially answered; hybrid beats keyword on recall, but vector ≡ hybrid |
-| RQ2 — Does multi-agent reasoning improve investigation quality? | [3] | Matched-compute control: 5 agents vs 1 LLM sampled 5× | **Not answered** — only run on the leaked pipeline |
-| RQ3 — Can graph retrieval reduce hallucination? | [9], [10], [11] | GPCS vs self-consistency on 3,685 claims | Partially answered; GPCS is stricter, not demonstrably better aimed |
-| RQ4 — Can this reduce MTTR? | [4] | — | **Not attempted.** No timing or human-workflow measurement exists. RQ4 should be withdrawn or restated as future work. |
+| RQ1 — Does GPCS behave differently from self-consistency, and does either flag track correctness? | [9], [10], [11] | GPCS vs self-consistency on 3,685 claims | ✅ **Answered, partly against.** GPCS is stricter (p<0.0001); neither verifier tracks correctness (both gaps −0.8 pp) |
+| RQ2 — Is the measured result real end-to-end? | — | Every baseline re-run on the corrected pipeline | ✅ **Answered — yes**, and smaller than the simulated numbers implied |
+| RQ3 — Does graph retrieval beat a raw long-context dump? | [1], [2], [4] | hybrid vs raw context over 36 RCAEval cases | ✅ **Answered — null** (Δ +0.024, CI [−0.028, +0.077], p=0.302) |
+| RQ4 — Is the retrieval gain symbolic or neural? | [1], [2] | keyword vs vector vs hybrid retrieval over 36 RCAEval cases | ✅ **Answered — against.** Hybrid beats keyword, but vector ≡ hybrid on all 36 scenarios |
+| RQ5 — Do five agents beat one LLM at matched compute? | [3] | Matched-compute control: 5 agents vs 1 LLM sampled 5× | ⏭ **v2** — only ever run on the leaked pipeline |
+| RQ6 — Are GCP/GPCS scores calibrated? | [9] | Reliability diagrams, Brier score, weight fitting | ⏭ **v2** — not started; all thresholds hand-set |
+| RQ7 — Which claim types are each verifier's blind spot? | [10], [11] | Claim-type-stratified analysis over human labels | ⏭ **v2** — blocked on labels (4.2% automatic coverage) |
+
+> An earlier draft carried a question on **MTTR reduction** [4]. No timing or
+> human-workflow measurement exists anywhere in the project, so it was never
+> answerable; it is withdrawn rather than left standing. The MTTR literature
+> remains cited above as motivation, not as a claim CloudGraph tests.
 
 ## 11. Summary
 
-The literature supports the design premise — cloud incident RCA needs both
-semantic retrieval and explicit topology-aware reasoning — but the evaluation
+The literature supports the design premise: cloud incident RCA needs both
+semantic retrieval and explicit topology-aware reasoning, but the evaluation
 supports a narrower conclusion than the premise predicted. On this benchmark,
 the graph did not improve *retrieval*; its measurable contribution was to
 *claim verification*, where graph-grounded scoring behaves materially

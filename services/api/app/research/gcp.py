@@ -106,13 +106,11 @@ class GraphConfidencePropagator:
                 continue
 
             for neighbor, rel_type in adjacency.get(curr_id, []):
-                # The adjacency map is built from an edge query that reaches one
-                # hop further than the node query that produced `scores`, so it
-                # can name nodes outside the modelled subgraph. Those have no
-                # initial confidence, and writing one back would assign a score
-                # to a node the algorithm never actually modelled — so skip
-                # them. Indexing them directly used to raise KeyError and fail
-                # the whole investigation with a 500.
+                # The edge query reaches one hop further than the node query that
+                # produced `scores`, so adjacency can name nodes outside the
+                # modelled subgraph. They have no initial confidence and must be
+                # skipped; indexing them raised KeyError and 500'd the whole
+                # investigation.
                 if neighbor not in scores:
                     continue
 
@@ -165,9 +163,8 @@ class GraphConfidencePropagator:
         )
 
         if not nodes:
-            # Same reasoning as the unavailable-driver case above: finding
-            # no topology around the pod means nothing was propagated, so
-            # there is no confidence to report.
+            # No topology around the pod means nothing propagated, so there is
+            # no confidence to report.
             raise GraphUnavailableError(
                 f"No graph topology found around pod {pod_name!r}; "
                 "nothing to propagate confidence over"
@@ -194,10 +191,8 @@ class GraphConfidencePropagator:
                 {"id": nid, "score": round(final_score, 3)},
             )
 
-        # 0.0, not 0.80, when the target pod isn't among the propagated
-        # nodes: an absent target means no confidence was computed for it,
-        # and a confident-looking default would clear the correctness
-        # threshold on a scenario the algorithm never actually scored.
+        # 0.0, not 0.80, when the target is absent: a confident default would
+        # clear the correctness threshold on a scenario never scored.
         root_cause = round(scores.get(target_id, 0.0), 2)
         return {
             "root_cause": root_cause,

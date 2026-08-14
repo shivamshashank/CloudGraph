@@ -35,7 +35,7 @@ faults only; the primary measure is inter-method concordance, not accuracy.
 |---|---|---|
 | 1.1 Motivation | Incident evidence is fragmented across logs, metrics, traces, deployments, and commits | [`LITERATURE_REVIEW.md`](LITERATURE_REVIEW.md) §1 |
 | 1.2 Problem statement | LLM-generated root-cause explanations are fluent but unverifiable | Lit review §7 |
-| 1.3 Research questions | RQ1–RQ4, with RQ4 explicitly withdrawn as unmeasured | [`PROGRESS.md`](PROGRESS.md) — RQ and hypothesis tables |
+| 1.3 Research questions | The seven RQs: RQ1–RQ4 answered in v1 (three against prediction), RQ5–RQ7 deferred to v2. Note the withdrawn MTTR question explicitly. | [`research/RESEARCH_QUESTIONS.md`](../research/RESEARCH_QUESTIONS.md); [`PROGRESS.md`](PROGRESS.md) — RQ and hypothesis tables |
 | 1.4 Contributions | GPCS; a real-telemetry verification comparison; three documented negative/null results; a reproducible harness with integrity gates | [`experiments/FINDINGS.html`](../experiments/FINDINGS.html) |
 | 1.5 Scope and non-claims | State the three boundaries from the abstract, once, explicitly | [`experiments/README.md`](../experiments/README.md) |
 | 1.6 Dissertation structure | — | — |
@@ -123,11 +123,11 @@ retype.
 
 ## Chapter 7 — Discussion (~1,500 words)
 
-- 7.1 What the significant result does and does not mean — strictness is not aim.
+- 7.1 What the significant result does and does not mean: strictness is not aim.
 - 7.2 Why the graph helped scoring but not retrieval.
 - 7.3 The lexical retrieval failure as a benchmark-label mismatch rather than a system failure.
 - 7.4 What the null and negative results are worth: three pre-registered-style comparisons that could have gone either way and were reported as they landed.
-- 7.5 Threats to validity — see below.
+- 7.5 Threats to validity: see below.
 
 ### Threats to validity (write this section in full; the material is real)
 
@@ -165,11 +165,11 @@ a limitation rather than worked around.
 ## Chapter 8 — Conclusion and Future Work (~1,000 words)
 
 - 8.1 Contributions restated at their real size.
-- 8.2 Answers to RQ1–RQ4, including the two that are not answered.
+- 8.2 Answers to RQ1–RQ4, noting that three of the four went **against** the design's predictions, and why RQ5–RQ7 could not be answered with the data v1 collected.
 - 8.3 Future work, in priority order:
-  1. Human-labelled correctness on a stratified claim sample — the only way to settle whether GPCS is better *aimed* rather than merely stricter.
-  2. Re-run the matched-compute control on the corrected pipeline, closing RQ2/H2.
-  3. Calibrate GPCS thresholds on held-out data; report Brier score and reliability diagrams.
+  1. **RQ7** — human-labelled correctness on a stratified claim sample. The only way to settle whether GPCS is better *aimed* rather than merely stricter, and the prerequisite for completing RQ1.
+  2. **RQ5** — re-run the matched-compute control on the corrected pipeline. One run, no new code; the cheapest closure available.
+  3. **RQ6** — calibrate GPCS thresholds and GCP edge weights on held-out data; report Brier score and reliability diagrams.
   4. Extend to RCAEval RE3 (code-level faults) to widen beyond resource and network faults.
   5. API authentication before any deployment that stores a live provider key.
 

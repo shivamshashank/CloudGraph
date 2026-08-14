@@ -87,9 +87,8 @@ document.addEventListener("DOMContentLoaded", () => {
       logsFeed.innerHTML = "";
     }
 
-    // Built as text nodes, never innerHTML: `message` is now real container
-    // output, so a pod that logs "<img src=x onerror=...>" would otherwise
-    // execute it in the operator's browser.
+    // Text nodes, never innerHTML: `message` is real container output, so a pod
+    // logging "<img src=x onerror=...>" would otherwise run it in the browser.
     const entry = document.createElement("div");
     entry.className = "log-entry";
 
@@ -122,8 +121,8 @@ document.addEventListener("DOMContentLoaded", () => {
     renderLogEntry({ timestamp, source, level, message }, true);
   }
 
-  // Every line already rendered, so a poll that re-reads the same tail does
-  // not duplicate it. Keyed on timestamp+source+message.
+  // Lines already rendered, keyed on timestamp+source+message, so re-polling
+  // the same tail does not duplicate.
   const seenLines = new Set();
 
   // ── Public: poll the cluster for real pod stdout/stderr ──────────────────
@@ -162,9 +161,8 @@ document.addEventListener("DOMContentLoaded", () => {
             level: (e.level || "INFO").toLowerCase(),
             message: e.message,
           },
-          // Not persisted: these lines already live in the cluster and are
-          // re-read on every poll. Saving them would grow LiveLog without
-          // bound and duplicate the feed after a reload.
+          // Not persisted: re-read on every poll, so saving would grow LiveLog
+          // without bound and duplicate the feed after a reload.
           false,
         ),
       );

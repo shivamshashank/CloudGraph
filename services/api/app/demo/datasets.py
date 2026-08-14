@@ -22,9 +22,7 @@ from typing import Any, Dict, List
 
 from app.demo.rcaeval_dataset import load_rcaeval_scenarios
 
-# Reference timestamp for scenarios that carry no real injection time.
-# Every RCAEval case does carry one, so this is a defensive fallback
-# rather than a normal path.
+# Fallback injection time. Every RCAEval case carries a real one, so unused.
 DEFAULT_INCIDENT_TIME = 1_600_000_000
 
 

@@ -106,3 +106,11 @@ node_modules/
 yarn.lock
 package-lock.json
 yarn.lock
+
+# =============================================================================
+# Understand-Anything
+# =============================================================================
+# Generated codebase knowledge graph and its scratch dirs. Derived entirely
+# from the tracked source, so it is rebuildable and does not belong in git.
+.ua/
+.understand-anything/
