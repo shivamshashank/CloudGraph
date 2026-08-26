@@ -1,0 +1,20 @@
+version: "2"
+
+linters:
+  settings:
+    errcheck:
+      # Deferred Close() on a reader, writer or response body has no useful
+      # error to act on at that point; the operation that mattered has already
+      # been checked.
+      exclude-functions:
+        - (io.Closer).Close
+        - (*os.File).Close
+        - (io.ReadCloser).Close
+
+  exclusions:
+    rules:
+      # Test helpers legitimately ignore cleanup errors — a failed os.Remove in
+      # teardown should not fail the lint run.
+      - path: _test\.go
+        linters:
+          - errcheck

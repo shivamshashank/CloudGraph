@@ -1,0 +1,82 @@
+{
+ "title": "CloudGraph Experiment-1 — six-scenario empirical evaluation",
+ "status": "PILOT — 6 scenarios, one sample per cell. No inferential statistics; see EXPERIMENT1_FINAL_RESULTS.md limitations.",
+ "generated_at": "2026-08-20T18:38:39Z",
+ "scenarios": [
+  {
+   "dir": "01-rcaeval-03",
+   "id": "rcaeval-03",
+   "system": "Train Ticket",
+   "target": "ts-order-service",
+   "fault": "cpu_exhaustion"
+  },
+  {
+   "dir": "02-rcaeval-14",
+   "id": "rcaeval-14",
+   "system": "Sock Shop",
+   "target": "carts",
+   "fault": "memory_exhaustion"
+  },
+  {
+   "dir": "03-rcaeval-07",
+   "id": "rcaeval-07",
+   "system": "Online Boutique",
+   "target": "checkoutservice",
+   "fault": "disk_saturation"
+  },
+  {
+   "dir": "04-rcaeval-04",
+   "id": "rcaeval-04",
+   "system": "Online Boutique",
+   "target": "checkoutservice",
+   "fault": "network_delay"
+  },
+  {
+   "dir": "05-rcaeval-29",
+   "id": "rcaeval-29",
+   "system": "Sock Shop",
+   "target": "catalogue",
+   "fault": "packet_loss"
+  },
+  {
+   "dir": "06-rcaeval-18",
+   "id": "rcaeval-18",
+   "system": "Train Ticket",
+   "target": "ts-auth-service",
+   "fault": "socket_exhaustion"
+  }
+ ],
+ "conditions": [
+  "none",
+  "raw",
+  "hybrid"
+ ],
+ "total_execution_runs": 18,
+ "total_claims_scored": 661,
+ "evaluable_claims": 22,
+ "evaluable_coverage_pct": 3.3,
+ "total_wall_clock_seconds": 5014.8,
+ "total_llm_calls": 353,
+ "fallbacks_or_timeouts": 0,
+ "pipeline_fixes_live": [
+  "retrieval_context delivery (_retrieval_items / _retrieval_envelope)",
+  "Commit re-dated 3-10 days pre-incident, neutral message",
+  "root_cause key read; hardcoded metric templates removed",
+  "PYTHONUNBUFFERED=1 (ends cross-scenario pod-log carryover)",
+  "duplicate Metric vector no longer indexed",
+  "labelling = v1 + D-1/D-2 negation fixes; v2 withdrawn (D-4)"
+ ],
+ "known_limitations": [
+  "rcaeval-07 fault metric has a NaN baseline and is dropped before sampling; its ground truth is not observable in the input",
+  "evaluable coverage 3.3%: 76.6% of claims excluded as 'not a causal claim', 20.1% as 'no mechanism identifiable' -- both are labeller decisions, not data gaps",
+  "GPCS emits 6 distinct trust values with 80.8%% at exactly 0.000; it cannot rank or be threshold-tuned",
+  "run-to-run variance on an identical configuration measured at ~15 percentage points"
+ ],
+ "canonical_files": [
+  "EXPERIMENT_FINAL_RESULTS.md",
+  "EXPERIMENT_JOINT_VERIFIER_COMPARISON.md",
+  "claims.csv"
+ ],
+ "removed_2026_08_20": "six 3-scenario files (EXECUTIVE_CONCLUSIONS.md, correctness_labels.md, significance_tests.md, summary.md, summary.txt, summary_table.csv) predated scenarios 5-6 and carried superseded figures",
+ "claims_csv_boolean_encoding": "gpcs_unsupported, sc_unsupported, verifiers_agree and evaluable use TRUE/FALSE. Changed from 1/0 on 2026-08-21; values unchanged."
+}

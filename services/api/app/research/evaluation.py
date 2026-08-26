@@ -15,6 +15,7 @@ from app.retrieval.hybrid_ranker import hybrid_ranker
 from app.research.gcp import GraphConfidencePropagator
 from app.research.gpcs import GraphProvenanceClaimScorer
 from app.research.llm_settings import load_stored_llm_settings
+from app.research.self_consistency import _retrieval_envelope
 from app.services.graphrag_search import graphrag_search
 
 logger = logging.getLogger(__name__)
@@ -91,7 +92,7 @@ def run_vector_search(
 def run_raw_context_search(
     query: str, scenario_id: str | None = None
 ) -> List[Dict[str, Any]]:
-    """Raw-context control (see dissertation/PROGRESS.md Week 8): pull
+    """Raw-context control: pull
     *all* evidence seeded for the current scenario, unranked and
     unfiltered — no graph traversal, no hop-limit, no top-k cutoff. Answers
     "does structured retrieval earn its complexity, or is dumping
@@ -359,7 +360,7 @@ def _request_agents_step(
                 "namespace": "cloudgraph-system",
                 "error_logs": scenario["observed_symptoms"],
                 "evidence_context": [],
-                "retrieval_context": {"results": results},
+                "retrieval_context": _retrieval_envelope(results),
                 "llm_provider": llm_settings.get("provider"),
                 "llm_api_key": llm_settings.get("api_key"),
                 "llm_model": llm_settings.get("model"),

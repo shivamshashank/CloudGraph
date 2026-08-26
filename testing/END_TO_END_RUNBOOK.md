@@ -243,7 +243,7 @@ restart mid-run discards all progress, no resume. A real crash mid-run
 already cost 19/25 scenarios of progress once. Batching (default: 5
 batches of 5 scenarios) means a crash only costs the current batch, and
 `scripts/merge_reports.py` combines the batches into
-`experiments/results/` automatically at the end.
+`experiment-1-benchmark/results/` automatically at the end.
 
 Pilot first, to verify the pipeline works before committing to the full
 run:
@@ -283,7 +283,7 @@ Alternative — the primary, no-local-checkout path via the CLI directly
 # then merge the 5 saved report-<timestamp>/ directories:
 cd services/api && .venv/bin/python scripts/merge_reports.py \
   ~/.cloudgraph/reports/report-A ~/.cloudgraph/reports/report-B ... \
-  --out ../../experiments/results
+  --out ../../experiment-1-benchmark/results
 ```
 
 ---
@@ -298,9 +298,9 @@ testing/verify/run_verification.sh
 Runs the research module test suite, then re-runs
 `scripts/paired_bootstrap.py` (significance tests) and
 `scripts/make_figures.py` (the 3 figures) against whatever's now in
-`experiments/results/` — confirms every number/figure actually
+`experiment-1-benchmark/results/` — confirms every number/figure actually
 regenerates from the saved data, not just that the report ran. See
-`experiments/README.md` for what the results actually say.
+`experiment-1-benchmark/README.md` for what the results actually say.
 
 **Not run by this step** (needs its own real LLM calls against a live
 cluster): the matched-compute control —

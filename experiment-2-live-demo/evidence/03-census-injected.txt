@@ -1,0 +1,48 @@
+CENSUS 03 — AFTER fault injection and ingestion
+captured: 2026-08-25T21:10:55Z
+injected: live-checkout, sustained memory pressure (60M of 64Mi = 94%)
+injection time: 1787692073
+
+SCOPE NOTE: this experiment uses LOGS and TOPOLOGY only.
+Metric nodes are excluded — see FINDINGS.md, _simulate_pod_metrics()
+generates them with random.uniform(), they are not measured.
+
+== Neo4j node counts ==
+label, cnt
+"Log", 1008
+"Metric", 76
+"Service", 13
+"Pod", 10
+"Deployment", 8
+"Node", 1
+"Settings", 1
+
+== the faulted pod, as the graph sees it ==
+pod, status
+"live-checkout-7b5d89d574-vkqzn", "Running"
+
+== REAL log evidence captured from the faulted container ==
+level, n
+"ERROR", 19
+"INFO", 2
+"WARN", 2
+distinct_messages
+"checkout worker starting"
+"WARN  checkout: allocating request buffer pool"
+"ERROR checkout: buffer pool at capacity, allocation stalled"
+"ERROR checkout: request rejected, insufficient memory for buffer"
+
+== logs linked to the faulted pod ==
+linked
+8
+
+== topology around the fault ==
+rel, neighbour, cnt
+"GENERATES", "Log", 8
+"GENERATES", "Metric", 2
+"MANAGES", "Deployment", 1
+"BELONGS_TO", "Service", 1
+"RUNS_ON", "Node", 1
+
+== Qdrant ==
+evidence points: 522

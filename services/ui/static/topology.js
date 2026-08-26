@@ -108,7 +108,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const maxLayerCount = Math.max(
       ...Object.values(layers).map((l) => l.length),
     );
-    const width = Math.max(containerWidth, maxLayerCount * 80 + 100);
+    const width = Math.max(containerWidth, maxLayerCount * 110 + 100);
     svg.setAttribute("viewBox", `0 0 ${width} 520`);
     const positions = {};
 
@@ -126,12 +126,12 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     // Assign layered coordinates
-    assignPositions(layers["Commit"], 60);
-    assignPositions(layers["Deployment"], 140);
-    assignPositions(layers["Service"], 220);
-    assignPositions(layers["Pod"], 320);
-    assignPositions(layers["Node"], 440);
-    assignPositions(layers["Incident"], 220);
+    assignPositions(layers["Commit"], 50);
+    assignPositions(layers["Deployment"], 130);
+    assignPositions(layers["Service"], 210);
+    assignPositions(layers["Incident"], 280);
+    assignPositions(layers["Pod"], 360);
+    assignPositions(layers["Node"], 450);
 
     // Render Edges
     edges.forEach((edge) => {
@@ -216,6 +216,14 @@ document.addEventListener("DOMContentLoaded", () => {
       circle.setAttribute("stroke", strokeColor);
       nodeG.appendChild(circle);
 
+      // Truncate display name for node label text to prevent collisions
+      let displayName = node.name || "";
+      if (node.label === "Incident" && displayName.length > 12) {
+        displayName = "inc-" + displayName.substring(0, 8) + "…";
+      } else if (displayName.length > 16) {
+        displayName = displayName.substring(0, 14) + "…";
+      }
+
       // Node Label text (shown below node)
       const label = document.createElementNS(
         "http://www.w3.org/2000/svg",
@@ -224,10 +232,10 @@ document.addEventListener("DOMContentLoaded", () => {
       label.setAttribute("y", 28);
       label.setAttribute("text-anchor", "middle");
       label.setAttribute("class", "node-text");
-      label.textContent = node.name;
+      label.textContent = displayName;
 
       // Add label background container
-      const bbox = { width: node.name.length * 6.5 + 10, height: 16 };
+      const bbox = { width: displayName.length * 6.5 + 10, height: 16 };
       const labelBg = document.createElementNS(
         "http://www.w3.org/2000/svg",
         "rect",

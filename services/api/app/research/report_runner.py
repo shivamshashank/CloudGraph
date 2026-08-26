@@ -4,7 +4,7 @@ machine without needing a local source checkout.
 
 Three sections make up "the report":
 
-1. GPCS vs. self-consistency (see dissertation/PROGRESS.md Week 8,
+1. GPCS vs. self-consistency (
    NOVEL_CONTRIBUTIONS.md Contribution 2) — the flagship comparison.
 2. Context-condition ablation (Day 3) — the same generation+scoring
    pipeline run under three conditions per scenario: no retrieved context
@@ -395,7 +395,8 @@ def _overall_summary(all_rows: list[dict[str, Any]]) -> tuple[str, str]:
     )
     n_total = sum(1 for r in all_rows if r["agreement"] is not None)
     n_agree = sum(1 for r in all_rows if r["agreement"] is True)
-    return f"{n_agree}/{n_total} claims agree", cross_tab.to_csv()
+    pct = (n_agree / n_total * 100) if n_total else 0.0
+    return f"{n_agree}/{n_total} claims agree ({pct:.1f}%)", cross_tab.to_csv()
 
 
 def _condition_summary(all_rows: list[dict[str, Any]]) -> dict[str, str]:
@@ -409,8 +410,10 @@ def _condition_summary(all_rows: list[dict[str, Any]]) -> dict[str, str]:
             continue
         c_total = sum(1 for r in condition_rows if r["agreement"] is not None)
         c_agree = sum(1 for r in condition_rows if r["agreement"] is True)
+        pct = (c_agree / c_total * 100) if c_total else 0.0
         summary[condition] = (
-            f"{c_agree}/{c_total} claims agree ({len(condition_rows)} claims)"
+            f"{c_agree}/{c_total} claims agree ({pct:.1f}%) "
+            f"({len(condition_rows)} claims)"
         )
     return summary
 

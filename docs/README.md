@@ -1,9 +1,9 @@
 # CloudGraph documentation
 
 **v1 is complete.** The system is built, deployed and evaluated; the results
-in [`../experiments/`](../experiments/) are final. Remaining work is scoped to
-v2 and listed in [`project/ROADMAP.md`](project/ROADMAP.md) and the
-[v2 section of the root README](../README.md#v2--whats-deferred).
+in [`../experiment-1-benchmark/`](../experiment-1-benchmark/) are final. Remaining work is scoped to
+v2 and listed in `project/ROADMAP.md` and the
+[v2 section of the root README](../README.md).
 
 Every document here is marked with what it describes: **built** (implemented
 and, where relevant, exercised by the evaluation), or **planned** (design
@@ -16,7 +16,6 @@ honestly were removed rather than captioned.
 |---|---|---|
 | [`architecture/figures/current-architecture.svg`](architecture/figures/current-architecture.svg) | The evaluated pipeline end to end — solid boxes are built, dashed are not | **built** |
 | [`architecture/system-overview.md`](architecture/system-overview.md) | Step-by-step lifecycle, install through investigation | **built** |
-| [`architecture/design-evolution.md`](architecture/design-evolution.md) | What the original design promised, what changed, and why | history |
 
 ## Algorithm design
 
@@ -41,8 +40,6 @@ defaults (GPCS: 0.30 evidence floor, 0.50 trust cut).
 
 | Document | Describes |
 |---|---|
-| [`project/STATUS.md`](project/STATUS.md) | What is implemented, what is not — the source of truth for scope |
-| [`project/ROADMAP.md`](project/ROADMAP.md) | Planned work, in priority order |
 
 ## Results and research
 
@@ -50,11 +47,10 @@ Documentation of the evaluation lives with the data it describes, not here:
 
 | Location | Contains |
 |---|---|
-| [`../experiments/FINDINGS.html`](../experiments/FINDINGS.html) | Eight findings with their evidential status, statistics and figures |
-| [`../experiments/README.md`](../experiments/README.md) | Benchmark, results, integrity guarantees, known limitations |
-| [`../experiments/DATA_PROVENANCE.md`](../experiments/DATA_PROVENANCE.md) | Where the data came from, how cases were selected and derived |
+| [`../experiment-1-benchmark/FINDINGS.html`](../experiment-1-benchmark/results/EXPERIMENT_FINAL_RESULTS.md) | Eight findings with their evidential status, statistics and figures |
+| [`../experiment-1-benchmark/README.md`](../experiment-1-benchmark/README.md) | Benchmark, results, integrity guarantees, known limitations |
+| [`../experiment-1-benchmark/DATA_PROVENANCE.md`](../experiment-1-benchmark/README.md) | Where the data came from, how cases were selected and derived |
 | [`../research/`](../research/) | Research questions, gaps, contribution analysis, experiment plan |
-| [`../dissertation/PROGRESS.md`](../dissertation/PROGRESS.md) | Week-by-week account, including the Week 9 integrity postmortem |
 
 ## Product scope vs evaluated scope
 

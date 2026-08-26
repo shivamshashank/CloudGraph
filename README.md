@@ -35,11 +35,10 @@ It is *"can we tell whether it made that up?"*
 ![Grafana](https://img.shields.io/badge/Grafana-F46800?style=for-the-badge&logo=grafana&logoColor=white)
 ![OpenTelemetry](https://img.shields.io/badge/OpenTelemetry-000000?style=for-the-badge&logo=opentelemetry&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)
-![Orchestrator](https://img.shields.io/badge/Orchestrator-Custom_HTTP-blue?style=for-the-badge)
 
 <br />
 
-**v1 complete** · 36 RCAEval RE2 scenarios · 3,685 claims · 0 exclusions · 129 tests
+**Experiment 1** · 6 RCAEval RE2 scenarios × 3 conditions · 18 runs · 661 claims · 129 tests
 
 </div>
 
@@ -50,79 +49,150 @@ It is *"can we tell whether it made that up?"*
 Large language models write fluent incident explanations. They also invent
 them. CloudGraph is a system and a study for telling the two apart.
 
-It ingests Prometheus metrics, Loki logs, Kubernetes objects and Git/Argo CD
+It ingests Loki logs, Kubernetes objects and Git/Argo CD
 events into a **temporal property graph** (Neo4j), retrieves incident context
 by **k-hop traversal fused with dense vectors** (Qdrant), runs **five
 specialist agents** over that context, and then scores every atomic claim in
 the resulting narrative two independent ways:
 
-- **GPCS** (Graph-Provenance Claim Scoring): *evidence-grounded*: is this
-  claim supported by the incident graph?
+- **GPCS** (Graph-Provenance Claim Scoring) — *evidence-grounded*: is this
+  claim supported by the incident graph? Costs **no extra model calls.**
 - **Self-consistency** — *model-internal*: does this claim recur when the model
-  is sampled again?
+  is sampled again? Costs **two extra full generations.**
 
 Comparing those two verifiers, on real chaos-injected telemetry, is the
 experiment.
 
+> **Two properties of the implementation that bound how the results read.**
+>
+> **Metrics are synthetic.** `_simulate_pod_metrics()`
+> (`services/api/app/adapters/k8s_discovery.py:236`) is the only source of
+> `Metric` nodes, and it generates values with `random.uniform()`. There is no
+> Prometheus or metrics-server path, so no metric figure in any diagnosis
+> reflects measured telemetry. Metric evidence is excluded from retrieval and
+> from provenance scoring in Experiment 2.
+>
+> **GPCS's semantic term is a constant in Experiment 1.** Its evidence comes
+> from graph traversal, which assigns a fixed score (`0.75` within two hops,
+> `0.6` beyond) rather than a measured similarity. The trust score is therefore
+> determined by graph reachability:
+> `0.45×0.75 + 0.35×0.50 + 0.25×0.81 − 0.15×0.05 = 0.7075 ≈ 0.708`, which is the
+> value taken by 85 of the 661 claims. Read those results as measuring
+> **reachability**, not semantic provenance.
+
+**The headline result is a measurement, not a win.** Only **3.3%** of the claims
+an LLM generates about an incident can be adjudicated at all using standard RCA
+benchmark metadata. That ceiling — not the choice of verifier — is what binds
+this whole line of work, and it applies to any claim-level verifier evaluated
+this way.
+
 | | |
 |---|---|
-| **Evaluation** | 36 RCAEval RE2 scenarios · 3,685 claims · 0 exclusions |
-| **Build** | `9787fde`, image `sha256:81c4864130e8` |
+| **Evaluation** | 6 RCAEval RE2 scenarios × 3 retrieval conditions · 18 runs · 661 claims |
+| **Adjudicable** | 22 of 661 claims (3.3%) |
 | **Tests** | 129 |
 | **Deployment** | Kubernetes via Helm — verified on kubeadm and OrbStack |
 
 ---
 
-## 📊 Results
+## 🧪 Two experiments, two different jobs
 
-All three headline results come from one merged dataset
-([`experiments/results/`](experiments/results/)), with scenario-clustered
-paired bootstrap confidence intervals and Wilcoxon signed-rank tests.
+| | `experiment-1-benchmark/` | `experiment-2-live-demo/` |
+|---|---|---|
+| **Purpose** | measure verification | demonstrate the pipeline |
+| **Evidence comes from** | an RCAEval file, seeded into the stores | the real cluster, via the ingestion pipeline |
+| **Exercises ingestion?** | **no** | **yes** |
+| **Ground truth** | labelled, 661 claims | known but unlabelled |
+| **Scale** | 6 faults x 3 conditions = 18 runs | 1 fault |
+| **Produces results?** | **yes — every number in this README** | **no** |
 
-| RQ | Question | Answer | Effect | 95% CI | p |
-|---|---|---|---|---|---|
-| **RQ1** | Does graph-grounded scoring differ from self-consistency? | **Yes** | +0.119 | [+0.073, +0.163] | <0.0001 |
-| **RQ4** | Does neural/hybrid retrieval beat keyword? | **Yes** | +0.190 | [+0.116, +0.269] | 0.0003 |
-| **RQ3** | Does structured context beat raw context? | **No** | +0.024 | [−0.028, +0.077] | 0.302 |
+```mermaid
+flowchart TB
+    subgraph E1["Experiment 1 — benchmark (all results)"]
+        direction TB
+        F["RCAEval RE2 file<br/><small>26 observations per scenario</small>"] --> S["seed into Neo4j + Qdrant"]
+        S --> R1["retrieve<br/><small>scenario-scoped</small>"]
+    end
+    subgraph E2["Experiment 2 — live demo (no results)"]
+        direction TB
+        K["real Kubernetes cluster"] --> I["ingestion pipeline<br/><small>discovery + pod logs</small>"]
+        I --> G[("Neo4j + Qdrant")] --> R2["retrieve<br/><small>unscoped</small>"]
+    end
+    R1 --> P["5 agents -> consensus -> atomic claims"]
+    R2 --> P
+    P --> V["GPCS + self-consistency"]
+    V --> L["labelled ground truth<br/><i>Experiment 1 only</i>"]
 
-**RQ2**, *is this real end-to-end rather than a simulated scorer?*, is answered
-**yes**: every baseline invokes the real pipeline. It was the prerequisite for
-all of the above, and discharging it meant finding and fixing integrity defects
-in this project's own pipeline first.
+    classDef e1 fill:#dbeafe,stroke:#1d4ed8,color:#172554
+    classDef e2 fill:#dcfce7,stroke:#15803d,color:#052e16
+    class F,S,R1 e1
+    class K,I,G,R2 e2
+```
 
-Two further findings, reported because they went against the design's own
-predictions:
+**No data from the host cluster reaches any prompt in Experiment 1.** Its
+telemetry is seeded from a file and torn down after each run. That is deliberate:
+incidents on a live cluster have no labelled ground truth, so claim correctness
+could not be scored; and holding the evidence pool constant is what lets a
+difference in outcome be attributed to retrieval strategy rather than to which
+data happened to exist.
 
-- **Vector ≡ hybrid on every measure.** The graph contributes nothing to
-  *retrieval* on this benchmark. Its measurable contribution is to *claim
-  scoring* — a different mechanism.
-- **Neither verifier discriminates correct from incorrect claims.** On the
-  4.2% of claims carrying automatic correctness labels, both gaps are −0.8 pp
-  and both precision figures sit exactly on the base rate.
+The consequence is that Experiment 1 measures evidence **selection**, not
+evidence **discovery**. Experiment 2 exists to exercise the ingestion pipeline
+that Experiment 1 deliberately bypasses — it demonstrates, and measures nothing.
 
-**→ [Full findings with figures](experiments/FINDINGS.html)** ·
-[Methodology](experiments/README.md) ·
-[Data provenance](experiments/DATA_PROVENANCE.md)
+---
 
-### ⚠️ What these results do not establish
+## 📊 Results & Key Findings
 
-Stated once, plainly, because each is easy to assume away:
+Every number below is derived from the 18 run logs across 6 benchmark scenarios (`rcaeval-03` through `rcaeval-18`). Full analysis is detailed in [`experiment-1-benchmark/results/EXPERIMENT_FINAL_RESULTS.md`](experiment-1-benchmark/results/EXPERIMENT_FINAL_RESULTS.md).
 
-1. **The primary measure is inter-method concordance, not accuracy.** It
-   measures whether two verifiers reached the *same* verdict. Both can be wrong
-   on the same claim and it counts as agreement.
-2. **GPCS is stricter, not demonstrably better aimed.** Flagging more claims is
-   not evidence of flagging the right ones.
-3. **The task is fault-type diagnosis for a known affected service.** The
-   benchmark supplies the faulted service, so the system is asked *why* it
-   failed, never *which* service failed. Nothing here demonstrates root-cause
-   service localisation.
-4. **Scope is resource and network faults in microservice systems.** RCAEval
-   RE2 contains no config errors, security events, deployment failures, DNS
-   faults or certificate expiry.
-5. **GPCS thresholds are fixed defaults**: 0.30 evidence floor, 0.50 trust cut
-   — set by inspecting live score distributions. No held-out fitting was
-   performed. They are **not calibrated**.
+### 1. Retrieval Condition Breakdown (`NONE` vs `RAW` vs `HYBRID`)
+
+| Metric | `NONE` (No Context) | `RAW` (Full Dump) | `HYBRID` (Ranked Graph) | Best Observed & Takeaway |
+|---|---:|---:|---:|---|
+| **Total Claims Extracted** | 218 | 241 | **202** | **HYBRID:** Reduces claim volume and noise (33.7 claims/run). |
+| **GPCS Unsupported % (Pooled)** | 83.5% | 80.1% | **78.7%** | **HYBRID:** Strictest evidence check with lowest false rejection. |
+| **Self-Consistency Unsupported %**| 59.6% | **47.3%** | 50.5% | **RAW:** Highest recurrence across multi-run sampling. |
+| **Mean Specialist Prompt Size** | 1,101 ch | 30,655 ch | **13,808 ch** | **HYBRID: 55.0% smaller prompts** than `RAW` (Token cost winner!). |
+| **Evaluable Correctness Coverage**| 3.2% (7/218) | 1.7% (4/241) | **5.4% (11/202)** | **HYBRID: 3× higher coverage** than `RAW` (guides LLMs to direct root causes). |
+
+---
+
+### 2. Research Questions (RQ) Support Matrix
+
+| Research Question | Status | Key Experimental Evidence & Findings |
+|---|---|---|
+| **E1-RQ1: Pipeline Reliability** | **Supported** | All 18 runs (6 scenarios × 3 conditions) completed reliably with zero execution timeouts, producing paired GPCS and Self-Consistency verdicts for all 661 claims. |
+| **E1-RQ2 & RQ3: Retrieval Strategy** | **Supported** | `HYBRID` context retrieval reduces prompt size by **55.0% relative to RAW** while achieving **3× higher evaluable coverage (5.4% vs 1.7%)**. Injected commit distractors (102 exposures) were unanimously discounted (100% rejection). |
+| **E1-RQ4: Joint Verifier Filter** | **Supported** | **RQ:** *To what extent does combining GPCS and Self-Consistency into a joint filter isolate high-confidence claims and reduce LLM noise?*<br/>**Finding:** Yields a high-precision candidate set with an **84.2% reduction in raw LLM claim noise** (isolating a ~15.8% candidate set). |
+| **E1-RQ5 & RQ6: Verifier Parity & Cost** | **Supported** | **RQ:** *Can graph-based provenance verification (GPCS) match LLM self-consistency accuracy while eliminating API token overhead?*<br/>**Finding:** GPCS achieves near-identical accuracy to Self-Consistency (**~52% vs 50% precision**, identical **81.8% false rejection rate**) at **ZERO additional LLM call cost** (vs 3× token costs for Self-Consistency). |
+
+---
+
+### 3. Key Positive Findings
+
+1. **GPCS Factual Grounding at Zero LLM Cost:** GPCS validates claims directly against Neo4j knowledge graph nodes and Qdrant vector embeddings via fast database queries (**0 additional LLM API calls**).
+2. **Self-Consistency Model Reproducibility:** Identifies unstable, one-off model hallucinations by sampling 2 additional generations at $T=0.8$ (costing $2\times$ extra LLM calls).
+3. **GPCS Aggressive Evidence Strictness:** Stricter than Self-Consistency in **18/18 runs** (**80.8% pooled unsupported rate** vs **52.3%**). This tests evidence grounding rather than phrasing bias.
+4. **HYBRID Context Efficiency Leader:** Reduces prompt token size by **55.0% compared to RAW**, cuts claim noise, and achieves **3× higher evaluable coverage (5.4% vs 1.7%)**.
+5. **Unanimous Red Herring Rejection:** Decoy commit timestamps injected into 102 `RAW` prompts were correctly recognized and rejected in **100% of cases**, demonstrating strong prompt reasoning integrity.
+6. **Complementary Dual-Verifier Signal:** GPCS verifies *factual database provenance* while Self-Consistency verifies *output stability*. Claims clearing both filters represent high-confidence candidate facts.
+7. **Deterministic Ground-Truth Evaluation (Step 8):** Uses an objective, 100% Python string/regex evaluator (`services/api/scripts/label_claim_correctness.py`) based on scenario metadata (`target_service` & `root_cause`) to prevent LLM grading bias.
+
+**→ [Full Pooled Results](experiment-1-benchmark/results/EXPERIMENT_FINAL_RESULTS.md)** ·
+[Joint-Verifier Comparison](experiment-1-benchmark/results/EXPERIMENT_JOINT_VERIFIER_COMPARISON.md) ·
+[Experiment 1 Methodology](experiment-1-benchmark/README.md)
+
+---
+
+### ⚠️ What These Results Do Not Establish (Scope & Limitations)
+
+To keep evaluation findings honest and transparent, here is what the results do **not** claim:
+
+1. **Strictness ≠ Superior Accuracy:** GPCS is stricter than Self-Consistency (rejection rate 80.8% vs 52.3%), but flagging more claims reflects a stricter database evidence gate—not higher accuracy. Across the 22 ground-truth claims, both verifiers differ by only 1 claim net.
+2. **Single-Run Flag Rates Are Not Accuracy:** A single scenario run measures verifier strictness, not overall Precision/Recall. True verifier accuracy is evaluated over the combined 6-scenario dataset.
+3. **Fault Diagnosis, Not Service Localization:** The benchmark identifies the affected target service (`ts-order-service`, `carts`, etc.) in advance. The system diagnoses *how/why* the service failed, not *which* service failed across the cluster.
+4. **Coarse Evidence Gate (Binary Thresholding):** GPCS trust scores operate as a strict pass/fail evidence gate (80.8% of claims score `0.000` because no graph evidence cleared the vector similarity floor), rather than a calibrated continuous confidence score.
 
 ---
 
@@ -131,7 +201,8 @@ Stated once, plainly, because each is easy to assume away:
 ```bash
 git clone https://github.com/shivamshashank/CloudGraph.git
 cd CloudGraph
-sudo cloudgraph deploy
+go build -o cloudgraph ./cmd/cloudgraph
+sudo ./cloudgraph deploy
 ```
 
 Then open the UI, configure an LLM provider on the Settings page, and run a
@@ -147,25 +218,41 @@ diagnosis.
 
 ## 📚 Documentation
 
+### Start here
+
+| | Document | Describes |
+|---|---|---|
+| 🧭 | [Project explained](docs/PROJECT_EXPLAINED.md) | What this is, in plain language |
+| 🧮 | [Formulas & Framework](docs/FORMULAS.md) | Complete formulas, variables, code blocks & literature references |
+| ⚙️ | [Mechanisms](docs/MECHANISMS.md) | Every algorithm, with its formula |
+| 🔎 | [Verification flow](docs/VERIFICATION_FLOW.md) | How a claim becomes a verdict |
+
+### The experiment
+
+| | Document | Describes |
+|---|---|---|
+| 🧪 | [Experiment 1](experiment-1-benchmark/README.md) | Scenarios, layout, reproduction, pipeline state |
+| 📈 | [Final results](experiment-1-benchmark/results/EXPERIMENT_FINAL_RESULTS.md) | Pooled and per-scenario |
+| ⚖️ | [Joint verifier comparison](experiment-1-benchmark/results/EXPERIMENT_JOINT_VERIFIER_COMPARISON.md) | GPCS and self-consistency used together |
+| 🧵 | [How the traces work](experiment-1-benchmark/traces/README.md) | The runner, the log format, the nine steps |
+| 🏷️ | [Labelling policy](research/LABELLING_POLICY.md) | Pre-registration and the deviation log D-1…D-4 |
+
+### Design and architecture
+
 | | Document | Describes |
 |---|---|---|
 | 🏗️ | [Architecture index](docs/README.md) | Every design doc, marked built vs planned |
 | 🗺️ | [System overview](docs/architecture/system-overview.md) | Lifecycle, install through investigation |
 | 🖼️ | [Current architecture](docs/architecture/figures/current-architecture.svg) | Evaluated pipeline — solid built, dashed planned |
-| 🔄 | [Design evolution](docs/architecture/design-evolution.md) | What changed from the original design, and why |
 | 🧮 | [GPCS design](docs/design/GPCS_DESIGN.md) | Graph-Provenance Claim Scoring — the contribution |
-| 📈 | [GCP design](docs/design/GCP_DESIGN.md) | Graph Confidence Propagation — Noisy-OR over the topology |
-| 🧪 | [Experiments](experiments/README.md) | Benchmark, results, integrity guarantees, limitations |
-| 📊 | [Findings](experiments/FINDINGS.html) | Eight findings with evidential status |
-| 🔖 | [Data provenance](experiments/DATA_PROVENANCE.md) | Corpus source, licence, selection, checksums |
-| 📚 | [Literature review](dissertation/LITERATURE_REVIEW.md) | RAG, GraphRAG, AIOps, multi-agent, hallucination detection |
-| 🔗 | [References](dissertation/REFERENCES.md) | Numbered bibliography |
-| ❓ | [Research questions](research/RESEARCH_QUESTIONS.md) | The seven RQs — four answered in v1, three deferred to v2 |
+| 📉 | [GCP design](docs/design/GCP_DESIGN.md) | Graph Confidence Propagation — Noisy-OR, live path only |
+
+### Research and dissertation
+
+| | Document | Describes |
+|---|---|---|
 | 🕳️ | [Research gaps](research/RESEARCH_GAPS.md) | CloudGraph against the literature |
-| 💡 | [Novel contributions](research/NOVEL_CONTRIBUTIONS.md) | Five candidates with pre-registered falsification criteria |
-| ✅ | [Project status](docs/project/STATUS.md) | What is implemented and what is not |
-| 🚧 | [Roadmap](docs/project/ROADMAP.md) | v2 work in priority order |
-| 🎓 | [Dissertation pack](dissertation/README.md) | Chapter plan, progress log, submission checklist |
+| 💡 | [Novel contributions](research/NOVEL_CONTRIBUTIONS.md) | Candidates with falsification criteria |
 
 ---
 
@@ -199,7 +286,8 @@ flowchart TB
     end
 
     CONS["⚖️ ConsensusEngine<br/><i>static weighted aggregation</i>"]
-    GCP["📈 GCP<br/>Noisy-OR propagation"]
+    GCP["📈 GCP<br/>Noisy-OR propagation<br/><i>live path only</i>"]
+    INC["🗒️ Incident node<br/>root_cause_confidence"]
     VERIFY["🛡️ Claim verification<br/>GPCS vs self-consistency"]
     UI["🖥️ Web UI + Go CLI"]
 
@@ -209,9 +297,13 @@ flowchart TB
     QD --> RANK
     RANK --> MON & LOG & DEP & TOP & SEC
     MON & LOG & DEP & TOP & SEC --> CONS
-    CONS --> GCP --> VERIFY
+    CONS --> VERIFY
+    CONS -.live path only.-> GCP --> INC
     NEO -.evidence.-> VERIFY
+    NEO -.topology.-> GCP
+    GCP -.writes confidence back.-> NEO
     VERIFY --> UI
+    INC --> UI
 
     classDef store fill:#d1fae5,stroke:#047857,stroke-width:2px,color:#064e3b
     classDef contrib fill:#fde68a,stroke:#b45309,stroke-width:3px,color:#451a03
@@ -222,23 +314,39 @@ flowchart TB
 **The amber boxes are the research contribution.** Everything upstream is
 infrastructure that exists to make verification possible.
 
+Two things the diagram makes explicit that are easy to get wrong:
+
+**GCP does not feed verification.** They are computed independently.
+`GraphProvenanceClaimScorer` never reads GCP's output — GCP's two scores go only
+to the `Incident` node's `root_cause_confidence` and `recommendation_confidence`
+properties. And GCP runs **only on the live investigation path**
+(`/api/v1/investigations/trigger`); the evaluation that produced every number
+above never calls it. So the reported results test **GPCS against
+self-consistency**, and say nothing about GCP.
+
+**GCP writes its output back onto the graph**, and reads that property in
+preference to its content rules on the next run — so each run's output becomes
+the next run's input. It is therefore not idempotent, and repeated investigation
+of the same cluster inflates confidences toward saturation. This is documented
+rather than repaired.
+
 ### The verification step
 
-This is what the study measures: the same claims scored two independent ways:
+This is what the study measures: the same claims scored two independent ways.
 
 ```mermaid
 flowchart TB
-    RCA["RCA narrative from consensus"] --> EX["Atomic claim extraction"]
+    RCA["RCA narrative from consensus"] --> EX["Atomic claim extraction<br/><small>27–52 per run, mean 36.7</small>"]
 
-    EX --> G["<b>GPCS</b> — evidence-grounded<br/>0.45·semantic + 0.35·proximity<br/>+ 0.25·reliability − 0.15·(min_hop·0.05)"]
-    EX --> S["<b>Self-consistency</b> — model-internal<br/>3 samples @ T=0.8<br/>cosine recurrence ≥ 0.8"]
+    EX --> G["<b>GPCS</b> — evidence-grounded<br/>0.45·semantic + 0.35·proximity<br/>+ 0.25·reliability − 0.15·(min_hop·0.05)<br/><small>0 extra LLM calls</small>"]
+    EX --> S["<b>Self-consistency</b> — model-internal<br/>3 samples @ T=0.8<br/>cosine recurrence ≥ 0.8<br/><small>2 extra generations</small>"]
 
     G --> GV["trust ≥ 0.50 → supported"]
     S --> SV["recurrence ≥ 0.5 → supported"]
 
     GV --> CMP{{"Concordance — same verdict?"}}
     SV --> CMP
-    CMP --> R["<b>70.3% vs 57.9% flagged unsupported</b><br/>Δ +0.119, 95% CI [+0.073, +0.163], p&lt;0.0001"]
+    CMP --> R["<b>80.8% vs 52.3% flagged unsupported</b><br/>pooled over 661 claims · stricter in 18/18 runs"]
 
     classDef contrib fill:#fde68a,stroke:#b45309,stroke-width:3px,color:#451a03
     classDef result fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px,color:#172554
@@ -248,7 +356,7 @@ flowchart TB
 
 ⚠️ **Concordance is not accuracy.** The comparison establishes that the two
 verifiers *differ*, not that either is *right*: see
-[what these results do not establish](#️-what-these-results-do-not-establish).
+[known limitations](#-known-limitations).
 
 **Ingestion.** Metrics, logs, Kubernetes objects and webhook events become a
 temporal property graph — `(:Pod)-[:RUNS_ON]->(:Node)`,
@@ -295,6 +403,24 @@ static weighted aggregation, not a reasoning agent**: an accurate description
 matters here, because "multi-agent" often implies debate or critique, and this
 system has neither.
 
+**Each specialist is gated on finding evidence first.** The monitoring agent's
+model call sits behind `if metrics_log:`, the security agent's behind
+`if threat_detected:`, and so on; without evidence the agent takes a rules path
+and still returns a finding, but makes no LLM call.
+
+This is measurable in the logs, and the measured cost is **not** five specialist
+calls. On every RCAEval scenario the security specialist takes the rules path —
+a chaos-injected resource fault is not a threat — so each generation is **4
+specialist calls + 1 consensus call**:
+
+| | calls |
+|---|---:|
+| in-cluster (4 specialists + 1 consensus) × 3 generations | 15 |
+| in-process (claim extraction) × 3 generations | 3 |
+| **total per scenario** | **18** |
+
+Five specialists is therefore the *architecture*, not a guaranteed cost.
+
 ---
 
 ## 📂 Repository Structure
@@ -308,10 +434,13 @@ services/
   ui/                    Static HTML/CSS/vanilla-JS (no framework, no build)
 deployments/helm/        Helm chart — API, agents, UI, Neo4j, Qdrant, OTel, RBAC
 graph/schema.cypher      Node labels, constraints, indexes
-experiments/             Benchmark, merged results, findings, provenance
-research/                Forward-looking research programme
-dissertation/            Chapter plan, progress log, literature review, references
-docs/                    Architecture, algorithm design, guides, project status
+experiment-1-benchmark/  Experiment 1 — the evaluation. 18 run logs, 9 traces,
+                         results, claims.csv. Seeded RCAEval data; no live cluster.
+experiment-2-live-demo/  Experiment 2 — end-to-end demonstration on a real
+                         Kubernetes cluster. No results, no statistics.
+scripts/                 trace_scenario.py — the instrumented runner for Experiment 1
+research/                Labelling policy, gaps against the literature, contributions
+docs/                    Architecture, algorithm design, guides
 testing/                 End-to-end runbook and reproduction scripts
 ```
 
@@ -319,42 +448,51 @@ testing/                 End-to-end runbook and reproduction scripts
 
 ## 🔬 Reproducing the Evaluation
 
-```bash
-cd services/api && .venv/bin/python scripts/build_rcaeval_dataset.py --n-cases 36
-```
-
-Case selection is deterministic — the same 36 cases reproduce exactly. Run the
-batches per [`testing/END_TO_END_RUNBOOK.md`](testing/END_TO_END_RUNBOOK.md),
-then merge and regenerate:
+The logs **cannot** be reproduced byte-for-byte: generation runs at temperature
+0.8, and identical configurations were measured to vary by ~15 pp on verifier
+rates. What *is* reproducible is the analysis.
 
 ```bash
-cd services/api && .venv/bin/python scripts/paired_bootstrap.py && .venv/bin/python scripts/make_figures.py
+gunzip -k experiment-1-benchmark/logs/*.gz
 ```
 
-**Expected divergence.** LLM sampling at temperature 0.8 is not seedable
-through these APIs. Per-condition concordance moved across a 12-point range
-over four isolated re-runs of identical scenarios, so a reproduction will land
-*near*, not *on*, the published figures. This is a stated limitation, not
-something worked around.
+To re-run one scenario end to end (requires the cluster and port-forwards):
 
-### 🛡️ Evaluation Integrity
+```bash
+cd services/api
+AUTH=$(kubectl get secret cloudgraph-neo4j-auth -n cloudgraph-system -o jsonpath='{.data.NEO4J_AUTH}' | base64 -d)
+NEO4J_URI=bolt://127.0.0.1:7687 NEO4J_AUTH="$AUTH" QDRANT_HOST=127.0.0.1 QDRANT_PORT=6333 AGENT_ORCHESTRATOR_URL=http://localhost:8082 .venv/bin/python ../../scripts/trace_scenario.py rcaeval-03 hybrid out.log
+```
 
-Four defects each produced confident, invalid numbers before being caught. All
-are fixed and pinned by regression tests in
-`services/api/tests/test_evaluation_integrity.py`:
+**Scenarios must run sequentially.** `teardown_benchmark_data()` deletes every
+`is_benchmark` node without scenario scoping, and `assert_semantic_store_isolated()`
+fails if the vector store holds any foreign scenario. Parallel runs break both.
 
-| Defect | Consequence |
+### 🛡️ Evaluation controls
+
+The pipeline enforces the following, and every run records enough to check them:
+
+| Control | Enforced by |
 |---|---|
-| Ground-truth leakage | Every condition received the answer as its input |
-| Index-based claim join | Scores attached to the wrong claims |
-| Unearned graph proximity | A missing path scored as hop distance 0 |
-| Cross-scenario contamination | Evidence from other scenarios stayed visible |
+| Ground truth never enters a prompt | `test_no_ground_truth_leakage_into_observations` — rejects both the claim text and the bare fault phrase |
+| Observations span all services, not just the faulted one | `test_observations_span_multiple_services` — showing only the anomalous service would be leakage by selection |
+| Retrieval sees one scenario only | `scenario_id` filter on the Neo4j query and the Qdrant filter, plus the file-fallback path |
+| Scenarios do not overlap | `teardown_benchmark_data()` between runs; store census printed before and after seeding |
+| Claims join to their own scores | scores and claim text carried together, verified per run |
+| Prompts are what the services actually sent | in-cluster request and response bodies captured from pod stdout, not reconstructed |
 
-`merge_reports.py` enforces gates that **abort** on duplicate claims, broken
-joins or ground-truth echo. Bootstrap is seeded (`seed=42`).
+Two limits of these controls are worth stating:
 
-> Anything citing `64.0% agreement`, `44.2% vs 31.5%`, or `n=25` refers to an
-> invalidated run and must not be reused.
+- **Isolation is enforced at query time, not by assertion.** The
+  `assert_semantic_store_isolated()` check inspects a collection the evaluation
+  does not write to, so it passes unconditionally. What actually prevents
+  cross-scenario evidence is the `scenario_id` filter, and the run logs record
+  the store census that demonstrates it.
+- **Claim text in `results/claims.csv` is truncated to 52 characters.** Full text
+  is in the run logs and the traces.
+
+Labelling follows a pre-registered policy with its deviations recorded in
+[`research/LABELLING_POLICY.md`](research/LABELLING_POLICY.md).
 
 ---
 
@@ -373,21 +511,20 @@ go build ./... && go test ./...
 
 ---
 
-## 🚧 v2 — What's Deferred
+## 🚧 Known limitations
 
-v1 is complete. Everything below is explicitly out of scope and tracked in
-[`docs/project/ROADMAP.md`](docs/project/ROADMAP.md).
-
-| Item | Why it matters |
+| Limitation | Consequence |
 |---|---|
-| **Human-labelled claim correctness** (RQ7) | The most valuable outstanding work. Automatic labels cover 4.2%; without human labels we can say GPCS is *stricter*, not better *aimed*. Also the prerequisite for completing RQ1. |
-| **Matched-compute control re-run** (RQ5) | Whether five agents beat one LLM at equal cost. The existing run predates the integrity fixes, so its numbers are invalid and unreported. One run, no new code. |
-| **Benchmark screen** | The six-baseline ladder is built but **hidden from the UI** and not citable: point estimates with no CIs, compute confounded with architecture. |
-| **Threshold calibration** (RQ6) | GPCS 0.30/0.50 and GCP edge weights are hand-set. Reliability diagrams and Brier score would make confidence outputs meaningful. **Nothing in v1 is calibrated.** |
-| **API authentication** | `/api/v1/settings` is unauthenticated and returns the stored provider key in cleartext. Fine on localhost; a real risk otherwise. |
-| **Qdrant collection bootstrap** | The `evidence` collection is not created on a fresh deploy, so the semantic store silently falls back to a local file. |
-| **RCAEval RE3** | Code-level faults, to widen beyond resource and network. |
-| **Trace ingestion** | The Tempo adapter is wired but Tempo was never deployed; `CALLS` edges fall back to naming heuristics. |
+| **Six scenarios, one sample per cell** | Results are counts and rates. No inferential statistics are reported, and the N1 null is underpowered. |
+| **3.3% adjudicable coverage** | Verifier comparisons rest on 22 labelled claims. GPCS can be shown *stricter*, not better *aimed*. |
+| **GPCS resolution** | Trust takes six distinct values, 80.8% of them exactly `0.000`. It is a gate, not a continuous confidence. |
+| **Nothing is calibrated** | GPCS thresholds (0.30 floor, 0.50 cut) and GCP edge weights are hand-set defaults. No reliability diagrams or Brier scores. |
+| **Metrics are synthetic** | No metric-based diagnosis is grounded in measured telemetry. |
+| **Scope is resource and network faults** | RCAEval RE2 has no config errors, security events, deployment failures, DNS faults or certificate expiry. |
+| **Task is fault-type diagnosis** | The faulted service is given. Nothing here demonstrates root-cause service localisation. |
+| **`/api/v1/settings` is unauthenticated** | It returns the stored provider key in cleartext. Acceptable on localhost, not otherwise. |
+| **Qdrant `evidence` collection is not created on a fresh deploy** | The semantic store falls back to a local file until it is created. |
+| **Traces are not ingested** | The Tempo adapter is wired but unused; `CALLS` edges fall back to naming heuristics. |
 
 ---
 
@@ -409,16 +546,16 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) ·
 
 MIT — see [`LICENSE`](LICENSE).
 
+### Upstream corpus
+
 The benchmark corpus is **RCAEval** (MIT), Zenodo DOI
 [10.5281/zenodo.14590730](https://doi.org/10.5281/zenodo.14590730), arXiv
-[2412.17015](https://arxiv.org/abs/2412.17015). Full attribution in
-[`experiments/DATA_PROVENANCE.md`](experiments/DATA_PROVENANCE.md).
-
----
+[2412.17015](https://arxiv.org/abs/2412.17015).
 
 ## 👤 Author
 
-**Shivam Shashank**
+**Shivam Shashank** — MSc dissertation, University of Birmingham.
+Supervisor: Dr Vincent Rahli.
 
 - 🌐 Portfolio: [shivam-shashank.me](https://www.shivam-shashank.me/)
 - 💼 LinkedIn:

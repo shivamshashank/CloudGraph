@@ -1,0 +1,90 @@
+# Two healthy services deployed BEFORE the fault, so the graph has real topology
+# for the topology agent to traverse. Without neighbours a single failing pod
+# gives the graph nothing structural to find.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: live-cart
+  namespace: cloudgraph-system
+  labels:
+    app: live-cart
+    tier: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: live-cart
+  template:
+    metadata:
+      labels:
+        app: live-cart
+        tier: backend
+    spec:
+      containers:
+        - name: cart
+          image: nginx:1.27-alpine
+          ports:
+            - containerPort: 80
+          resources:
+            limits:
+              memory: "256Mi"
+              cpu: "100m"
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: live-cart
+  namespace: cloudgraph-system
+spec:
+  selector:
+    app: live-cart
+  ports:
+    - port: 80
+      targetPort: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: live-catalogue
+  namespace: cloudgraph-system
+  labels:
+    app: live-catalogue
+    tier: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: live-catalogue
+  template:
+    metadata:
+      labels:
+        app: live-catalogue
+        tier: backend
+    spec:
+      containers:
+        - name: catalogue
+          image: nginx:1.27-alpine
+          ports:
+            - containerPort: 80
+          resources:
+            limits:
+              memory: "256Mi"
+              cpu: "100m"
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: live-catalogue
+  namespace: cloudgraph-system
+spec:
+  selector:
+    app: live-catalogue
+  ports:
+    - port: 80
+      targetPort: 80

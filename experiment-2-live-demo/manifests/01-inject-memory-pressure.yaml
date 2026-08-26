@@ -1,0 +1,73 @@
+# THE INJECTED FAULT — sustained memory pressure, pod stays alive.
+#
+# Allocates ~90% of a 64Mi limit into tmpfs and holds it. Memory utilisation
+# sits near the ceiling indefinitely, but the kernel never OOM-kills, so the pod
+# stays Running and the metrics collector can scrape it.
+#
+# Why not the OOMKilled version (kept as 01-inject-oom.yaml.rejected):
+# `tail /dev/zero` under a 32Mi limit is killed in seconds and the pod enters
+# CrashLoopBackOff. The metrics collector only samples RUNNING pods, so the
+# faulted pod was the ONE pod in the cluster with no metrics at all — verified
+# 2026-08-25: every other pod had 4 metrics, live-checkout had 0. The monitoring
+# agent's model call is gated behind `if metrics_log:`, so it would have taken
+# the rules path and never called the LLM.
+#
+# That observation is itself a finding and is reported in FINDINGS.md — the
+# system collects least evidence about precisely the pod that failed. This
+# manifest exists so the experiment can also produce a usable trace.
+#
+# Ground truth for labelling: memory exhaustion / memory pressure on live-checkout.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: live-checkout
+  namespace: cloudgraph-system
+  labels:
+    app: live-checkout
+    tier: backend
+    injected-fault: memory-pressure
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: live-checkout
+  template:
+    metadata:
+      labels:
+        app: live-checkout
+        tier: backend
+        injected-fault: memory-pressure
+    spec:
+      containers:
+        - name: checkout
+          image: busybox:1.36
+          command: ["sh", "-c"]
+          args:
+            - |
+              echo "checkout worker starting";
+              echo "WARN  checkout: allocating request buffer pool";
+              dd if=/dev/zero of=/dev/shm/buffer bs=1M count=60 2>/dev/null;
+              echo "ERROR checkout: buffer pool at capacity, allocation stalled";
+              while true; do
+                echo "ERROR checkout: request rejected, insufficient memory for buffer";
+                sleep 10;
+              done
+          resources:
+            limits:
+              memory: "64Mi"
+              cpu: "100m"
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: live-checkout
+  namespace: cloudgraph-system
+spec:
+  selector:
+    app: live-checkout
+  ports:
+    - port: 80
+      targetPort: 80

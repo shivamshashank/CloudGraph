@@ -23,9 +23,9 @@ answer different questions and run on different timescales:
 - **`report/`** — generating CloudGraph's core research report: the
   GPCS-vs-self-consistency comparison, context-condition ablation, and
   neuro-symbolic retrieval detail (`research/NOVEL_CONTRIBUTIONS.md`
-  Contributions 2-3; see `dissertation/PROGRESS.md` Week 8 for the
+  Contributions 2-3; see
   narrative account) — the actual result
-  this is all for, now real data in `experiments/`. Two ways to run it,
+  this is all for, now real data in `experiment-1-benchmark/`. Two ways to run it,
   same underlying logic either way:
   - **`cloudgraph report`** — works from any machine that can reach the
     CloudGraph API, including an `install.sh`-only install with no local
@@ -45,7 +45,7 @@ answer different questions and run on different timescales:
   data is reproducible, not just that it ran once:
   - `run_verification.sh` — re-runs the research module test suite,
     `scripts/paired_bootstrap.py`, and `scripts/make_figures.py` against
-    the current `experiments/results/`, and reports whether everything
+    the current `experiment-1-benchmark/results/`, and reports whether everything
     regenerates cleanly — the project's honesty guardrail that every
     figure/table must be regenerable by re-running a script, made concrete
     and checkable.

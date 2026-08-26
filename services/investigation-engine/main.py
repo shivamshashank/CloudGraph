@@ -1,3 +1,6 @@
+# Five specialist agents live in this service; splitting them across modules
+# would separate each from the shared prompt scaffolding they depend on.
+# pylint: disable=too-many-lines
 """Investigation Engine Service with AIOps agents analyzing cluster telemetry."""
 
 import json
@@ -388,6 +391,37 @@ def _analyze_security_rules(metadata: dict, threat_detected: bool) -> tuple[str,
     return finding, confidence
 
 
+def _retrieval_items(retrieval_context: Any) -> Any:
+    """Return the retrieved evidence carried by a retrieval_context envelope,
+    or None when it carries none.
+
+    Two producers build this field with different, incompatible shapes:
+
+      live path      helpers.build_retrieval_context_for_investigation() ->
+                     {"status": "success", "source", "query", "summary",
+                      "top_result"}  -- a SUMMARY; no "results" key.
+      research path  self_consistency._generate_one_sample() and
+                     evaluation.run_investigation() ->
+                     {"results": [...]}  -- the ITEMS; no "status" key.
+
+    The guard here used to test `status == "success"` only, which is the live
+    envelope's contract. Every research-path call therefore failed the guard
+    and silently dropped its retrieval, so the raw and hybrid context
+    conditions sent byte-identical prompts to the `none` condition. Keying on
+    the payload's actual content instead of on one producer's status string is
+    what stops that recurring; the status check is retained so the live
+    envelope, which has no "results" key, keeps injecting its summary.
+    """
+    if not isinstance(retrieval_context, dict):
+        return None
+    items = retrieval_context.get("results")
+    if items:
+        return items
+    if retrieval_context.get("status") == "success":
+        return retrieval_context
+    return None
+
+
 def run_monitoring_agent(
     pod_name: str,
     llm_config: dict[str, Any] | None = None,
@@ -434,10 +468,11 @@ def run_monitoring_agent(
             f"for anomalies.\n\n"
             f"Metrics:\n{json.dumps(metrics_log, indent=2)}\n\n"
         )
-        if retrieval_context and retrieval_context.get("status") == "success":
+        _retrieved = _retrieval_items(retrieval_context)
+        if _retrieved is not None:
             prompt += (
-                "Retrieved graph evidence summary:\n"
-                f"{json.dumps(retrieval_context, indent=2)}\n\n"
+                "Retrieved graph evidence:\n"
+                f"{json.dumps(_retrieved, indent=2, default=str)}\n\n"
             )
         elif evidence_context:
             prompt += (
@@ -477,7 +512,9 @@ def run_monitoring_agent(
     }
 
 
-def run_log_agent(
+# The agent assembles graph evidence, retrieval context, prompt and response
+# handling in one pass; the locals are that single flow's state.
+def run_log_agent(  # pylint: disable=too-many-locals
     pod_name: str,
     error_logs: List[str],
     llm_config: dict[str, Any] | None = None,
@@ -513,10 +550,11 @@ def run_log_agent(
             f"for failure patterns.\n\n"
             f"Logs:\n{chr(10).join(logs_to_scan)}\n\n"
         )
-        if retrieval_context and retrieval_context.get("status") == "success":
+        _retrieved = _retrieval_items(retrieval_context)
+        if _retrieved is not None:
             prompt += (
-                "Retrieved graph evidence summary:\n"
-                f"{json.dumps(retrieval_context, indent=2)}\n\n"
+                "Retrieved graph evidence:\n"
+                f"{json.dumps(_retrieved, indent=2, default=str)}\n\n"
             )
         elif evidence_context:
             prompt += (
@@ -602,10 +640,11 @@ def run_deployment_agent(
             f"to check for regressions.\n\n"
             f"Deployment info:\n{json.dumps(deployment_info, indent=2)}\n\n"
         )
-        if retrieval_context and retrieval_context.get("status") == "success":
+        _retrieved = _retrieval_items(retrieval_context)
+        if _retrieved is not None:
             prompt += (
-                "Retrieved graph evidence summary:\n"
-                f"{json.dumps(retrieval_context, indent=2)}\n\n"
+                "Retrieved graph evidence:\n"
+                f"{json.dumps(_retrieved, indent=2, default=str)}\n\n"
             )
         elif evidence_context:
             prompt += (
@@ -697,10 +736,11 @@ def run_topology_agent(
             f"for noisy neighbors.\n\n"
             f"Topology:\n{json.dumps(topology_info, indent=2)}\n\n"
         )
-        if retrieval_context and retrieval_context.get("status") == "success":
+        _retrieved = _retrieval_items(retrieval_context)
+        if _retrieved is not None:
             prompt += (
-                "Retrieved graph evidence summary:\n"
-                f"{json.dumps(retrieval_context, indent=2)}\n\n"
+                "Retrieved graph evidence:\n"
+                f"{json.dumps(_retrieved, indent=2, default=str)}\n\n"
             )
         elif evidence_context:
             prompt += (
@@ -796,10 +836,11 @@ def run_security_agent(
             f"for credential leaks.\n\n"
             f"Logs:\n{chr(10).join(security_logs)}\n\n"
         )
-        if retrieval_context and retrieval_context.get("status") == "success":
+        _retrieved = _retrieval_items(retrieval_context)
+        if _retrieved is not None:
             prompt += (
-                "Retrieved graph evidence summary:\n"
-                f"{json.dumps(retrieval_context, indent=2)}\n\n"
+                "Retrieved graph evidence:\n"
+                f"{json.dumps(_retrieved, indent=2, default=str)}\n\n"
             )
         elif evidence_context:
             prompt += (

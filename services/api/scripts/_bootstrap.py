@@ -12,7 +12,7 @@ services/api itself is on the path.
 
 Also exposes API_ROOT/REPO_ROOT so callers don't each need their own
 fragile `Path(__file__).resolve().parent.parent.parent.parent` chain to
-find experiments/results/.
+find experiment-1-benchmark/results/.
 """
 
 import sys

@@ -1,0 +1,1899 @@
+# CloudGraph — Live Cluster Execution Trace (Condition `HYBRID`)
+
+Complete input-to-output chain for **condition `HYBRID`** (ranked retrieval) on a **real Kubernetes cluster**, not a seeded benchmark scenario. Top 5 by 0.50·vector + 0.30·graph_proximity + 0.20·recency.
+
+Every value is quoted from `logs/live-HYBRID.log`, written live by `scripts/trace_live.py`. **Nothing in this document is truncated.**
+
+> **How this differs from `experiment/traces/`.** Those trace RCAEval scenarios whose telemetry is *seeded* into Neo4j and Qdrant before each run, so retrieval re-selects from a fixed 26-item pool. Here the graph was built by the ingestion pipeline from a live cluster, nothing is seeded, and retrieval is unscoped (`scenario_id=None`) against the whole graph.
+
+> **Metric nodes are excluded throughout.** `k8s_discovery._simulate_pod_metrics()` generates every metric value with `random.uniform()`, so metric evidence is not telemetry and must not enter a prompt or a provenance score.
+
+---
+
+## Executive summary
+
+| Metric | Value |
+|---|---|
+| Faulted pod | `live-checkout-7b5d89d574-vkqzn` |
+| Pod status in graph | `Running` |
+| Input: real container log lines | 8 |
+| Evidence retrieved | 5 |
+| Simulated metrics filtered from GPCS | 25 |
+| Claims extracted | 26 |
+| GPCS unsupported | 26/26 = 100.0% |
+| Self-consistency unsupported | 15/26 = 57.7% |
+| Concordance | 15/26 = 57.7% |
+| Distinct GPCS trust values | `[0.0, 0.34, 0.35, 0.353, 0.373, 0.377, 0.38, 0.383, 0.392]` |
+| Total LLM calls | 15 |
+| Wall time | 1061.4s |
+---
+
+## STEP 1 — The fault, as the graph sees it
+
+> The input is the faulted container's own log lines, read by `_ingest_pod_logs` → `read_namespaced_pod_log()`. These are real.
+
+```text
+[10:18:11] [+   6.50s] pod            = live-checkout-7b5d89d574-vkqzn
+[10:18:11] [+   6.50s] status         = Running
+[10:18:11] [+   6.50s] observed_symptoms = 8 REAL log lines from the container (THE INPUT)
+   - ERROR ERROR checkout: request rejected, insufficient memory for buffer
+   - ERROR ERROR checkout: request rejected, insufficient memory for buffer
+   - ERROR ERROR checkout: request rejected, insufficient memory for buffer
+   - ERROR ERROR checkout: request rejected, insufficient memory for buffer
+   - ERROR ERROR checkout: request rejected, insufficient memory for buffer
+   - ERROR ERROR checkout: buffer pool at capacity, allocation stalled
+   - WARN WARN  checkout: allocating request buffer pool
+   - INFO checkout worker starting
+[10:18:11] [+   6.50s] inject_time    = 1787692073
+```
+
+## STEP 2 — Store state (nothing seeded)
+
+> `qdrant:evidence_eval 0` while `qdrant:evidence` holds the data is defect #8: `assert_semantic_store_isolated()` inspects the empty collection, so it passes without checking anything.
+
+```text
+Deployment             8
+   Log                    1008
+   Metric                 76
+   Node                   1
+   Pod                    10
+   Service                13
+   Settings               1
+   qdrant:evidence        1093
+   qdrant:evidence_eval   0
+
+|
+|  STEP 2 store  ->  STEP 3 retrieval
+|  Nothing was seeded. Whatever retrieval returns was placed in the
+|            graph by the ingestion pipeline from the real cluster.
+v
+```
+
+## STEP 3 — Retrieval
+
+> Unscoped: `scenario_id=None`, so this searches the whole live graph.
+
+```text
+[10:18:11] [+   6.54s] condition=hybrid  query='live-checkout degraded performance investigation'  scenario_id=None
+   score = 0.50*vector_similarity + 0.30*graph_proximity + 0.20*recency
+[10:18:14] [+   9.43s] returned 5 items in 2.892s (no LLM involved)
+   [1] score=0.39458 :: ERROR checkout: buffer pool at capacity, allocation stalled
+   [2] score=0.392245 :: ERROR checkout: buffer pool at capacity, allocation stalled
+   [3] score=0.385753 :: ERROR checkout: request rejected, insufficient memory for buffer
+   [4] score=0.385753 :: ERROR checkout: request rejected, insufficient memory for buffer
+   [5] score=0.385753 :: ERROR checkout: request rejected, insufficient memory for buffer
+
+|
+|  STEP 3 retrieval  ->  STEP 4 generation
+|  The retrieved items are passed to the orchestrator as
+|            retrieval_results. Under condition=none this is None, so the
+|            agents reason from the incident description alone.
+v
+```
+
+## STEP 5 — Self-consistency verdicts
+
+> Measures stability across 3 samples at T=0.8, cosine ≥ 0.8. Not truth — only whether the model said it again.
+
+```text
+supported  <=> an equivalent claim (cosine >= 0.8) recurs in >= half
+                  of the OTHER generations.  Measures STABILITY, not truth.
+[10:35:45] [+1060.66s]   claim  1: recurrence=0.5  -> supported
+        Pod 'live-checkout-7b5d89d574-vkqzn' is in 'Failed' status
+[10:35:45] [+1060.66s]   claim  2: recurrence=0.5  -> supported
+        Pod 'live-checkout-7b5d89d574-vkqzn' is part of the live-checkout service
+[10:35:45] [+1060.66s]   claim  3: recurrence=0.5  -> supported
+        Checkout requests are being rejected
+[10:35:45] [+1060.66s]   claim  4: recurrence=0.0  -> UNSUPPORTED
+        Impact is service degradation/outage for live-checkout
+[10:35:45] [+1060.66s]   claim  5: recurrence=0.0  -> UNSUPPORTED
+        Application cannot allocate request buffers
+[10:35:45] [+1060.66s]   claim  6: recurrence=0.0  -> UNSUPPORTED
+        Inability to allocate request buffers causes request failures
+[10:35:45] [+1060.66s]   claim  7: recurrence=0.5  -> supported
+        Failure is due to intra-pod application-level memory pressure and buffer pool saturation
+[10:35:45] [+1060.66s]   claim  8: recurrence=0.0  -> UNSUPPORTED
+        Failure is not due to infrastructure-level OOM
+[10:35:45] [+1060.66s]   claim  9: recurrence=0.5  -> supported
+        Pod memory utilization was 45.72% at timestamp 1787692115
+[10:35:45] [+1060.66s]   claim 10: recurrence=0.5  -> supported
+        Pod CPU utilization was 48.77% at timestamp 1787692115
+[10:35:45] [+1060.66s]   claim 11: recurrence=0.0  -> UNSUPPORTED
+        Pod-level metrics show normal utilization at timestamp 1787692115
+[10:35:45] [+1060.66s]   claim 12: recurrence=0.0  -> UNSUPPORTED
+        Application logs contain 5 ERROR events
+[10:35:45] [+1060.66s]   claim 13: recurrence=0.0  -> UNSUPPORTED
+        The 5 ERROR events occurred within a 61 second window
+[10:35:45] [+1060.66s]   claim 14: recurrence=0.0  -> UNSUPPORTED
+        The 5 ERROR events occurred between timestamps 1787692012 and 1787692115
+[10:35:45] [+1060.66s]   claim 15: recurrence=0.5  -> supported
+        Three ERROR events have message 'request rejected, insufficient memory for buffer'
+[10:35:45] [+1060.66s]   claim 16: recurrence=0.5  -> supported
+        Two ERROR events have message 'buffer pool at capacity, allocation stalled'
+[10:35:45] [+1060.66s]   claim 17: recurrence=0.0  -> UNSUPPORTED
+        A WARN event with message 'allocating request buffer pool' preceded the ERROR events
+[10:35:45] [+1060.66s]   claim 18: recurrence=0.0  -> UNSUPPORTED
+        The application's internal buffer pool is exhausted
+[10:35:45] [+1060.66s]   claim 19: recurrence=0.5  -> supported
+        Buffer pool allocations are stalled
+[10:35:45] [+1060.66s]   claim 20: recurrence=0.5  -> supported
+        Buffer pool exhaustion causes allocations to stall
+[10:35:45] [+1060.66s]   claim 21: recurrence=0.0  -> UNSUPPORTED
+        Stalled allocations cause request rejections
+[10:35:45] [+1060.66s]   claim 22: recurrence=0.0  -> UNSUPPORTED
+        Failure is not reflected in pod_memory_utilization_ratio metric
+[10:35:45] [+1060.66s]   claim 23: recurrence=0.0  -> UNSUPPORTED
+        Lack of reflection in pod_memory_utilization_ratio explains the divergence between normal infrastructure metrics and error logs
+[10:35:45] [+1060.66s]   claim 24: recurrence=0.0  -> UNSUPPORTED
+        There is no evidence of deployment regression
+[10:35:45] [+1060.66s]   claim 25: recurrence=0.0  -> UNSUPPORTED
+        There is no evidence of noisy neighbor contention
+[10:35:45] [+1060.66s]   claim 26: recurrence=0.5  -> supported
+        There is no evidence of security breach
+
+|
+|  STEP 5 self-consistency  ->  STEP 6 GPCS
+|  GPCS now scores the SAME claim list, from the SAME extraction. Only
+|            the mechanism differs: self-consistency asked whether the model
+|            repeated itself; GPCS asks whether the live graph supports it.
+v
+```
+
+## STEP 6 — GPCS scoring, per claim
+
+> `trust = 0.45·semantic + 0.35·proximity + 0.25·reliability − 0.15·(hop×0.05)`. Where `hop` is None the evidence has no path into the graph: that is absent provenance, so it earns neither proximity nor penalty.
+
+```text
+[10:35:45] [+1060.66s] weights semantic=0.45 graph=0.35 reliability=0.25 penalty=0.15
+[10:35:45] [+1060.66s] threshold=0.5  evidence_floor=0.3
+   trust = 0.45*semantic + 0.35*proximity + 0.25*reliability - 0.15*(hop*0.05)
+[10:35:45] [+1060.71s]   claim  1: evidence_items=0
+        no evidence survived the 0.3 floor -> _score_claim returned 0.0 immediately
+        (aggregation never ran; no semantic/hop/reliability value)
+        TRUST = 0.000   ->  UNSUPPORTED (< 0.5)
+[10:35:45] [+1060.76s]   claim  2: evidence_items=0
+        no evidence survived the 0.3 floor -> _score_claim returned 0.0 immediately
+        (aggregation never ran; no semantic/hop/reliability value)
+        TRUST = 0.000   ->  UNSUPPORTED (< 0.5)
+[10:35:45] [+1060.79s]   claim  3: evidence_items=0
+        no evidence survived the 0.3 floor -> _score_claim returned 0.0 immediately
+        (aggregation never ran; no semantic/hop/reliability value)
+        TRUST = 0.000   ->  UNSUPPORTED (< 0.5)
+[10:35:45] [+1060.83s]   claim  4: evidence_items=0
+        no evidence survived the 0.3 floor -> _score_claim returned 0.0 immediately
+        (aggregation never ran; no semantic/hop/reliability value)
+        TRUST = 0.000   ->  UNSUPPORTED (< 0.5)
+[10:35:45] [+1060.85s]   claim  5: evidence_items=5
+        semantic    = 0.3343  x 0.45  = 0.1504
+        min_hop     = None
+        proximity   = 0.0000 (hop is None -> absent provenance, earns no graph credit)  x 0.35 = 0.0000
+        reliability = 0.8000  x 0.25 = 0.2000
+        penalty     = -0.0000
+        TRUST = 0.350   ->  UNSUPPORTED (< 0.5)
+[10:35:45] [+1060.88s]   claim  6: evidence_items=5
+        semantic    = 0.3396  x 0.45  = 0.1528
+        min_hop     = None
+        proximity   = 0.0000 (hop is None -> absent provenance, earns no graph credit)  x 0.35 = 0.0000
+        reliability = 0.8000  x 0.25 = 0.2000
+        penalty     = -0.0000
+        TRUST = 0.353   ->  UNSUPPORTED (< 0.5)
+[10:35:45] [+1060.91s]   claim  7: evidence_items=0
+        no evidence survived the 0.3 floor -> _score_claim returned 0.0 immediately
+        (aggregation never ran; no semantic/hop/reliability value)
+        TRUST = 0.000   ->  UNSUPPORTED (< 0.5)
+[10:35:45] [+1060.93s]   claim  8: evidence_items=0
+        no evidence survived the 0.3 floor -> _score_claim returned 0.0 immediately
+        (aggregation never ran; no semantic/hop/reliability value)
+        TRUST = 0.000   ->  UNSUPPORTED (< 0.5)
+[10:35:45] [+1060.96s]   claim  9: evidence_items=0
+        no evidence survived the 0.3 floor -> _score_claim returned 0.0 immediately
+        (aggregation never ran; no semantic/hop/reliability value)
+        TRUST = 0.000   ->  UNSUPPORTED (< 0.5)
+[10:35:45] [+1060.98s]   claim 10: evidence_items=0
+        no evidence survived the 0.3 floor -> _score_claim returned 0.0 immediately
+        (aggregation never ran; no semantic/hop/reliability value)
+        TRUST = 0.000   ->  UNSUPPORTED (< 0.5)
+[10:35:45] [+1061.01s]   claim 11: evidence_items=0
+        no evidence survived the 0.3 floor -> _score_claim returned 0.0 immediately
+        (aggregation never ran; no semantic/hop/reliability value)
+        TRUST = 0.000   ->  UNSUPPORTED (< 0.5)
+[10:35:45] [+1061.03s]   claim 12: evidence_items=0
+        no evidence survived the 0.3 floor -> _score_claim returned 0.0 immediately
+        (aggregation never ran; no semantic/hop/reliability value)
+        TRUST = 0.000   ->  UNSUPPORTED (< 0.5)
+[10:35:45] [+1061.05s]   claim 13: evidence_items=0
+        no evidence survived the 0.3 floor -> _score_claim returned 0.0 immediately
+        (aggregation never ran; no semantic/hop/reliability value)
+        TRUST = 0.000   ->  UNSUPPORTED (< 0.5)
+[10:35:45] [+1061.08s]   claim 14: evidence_items=0
+        no evidence survived the 0.3 floor -> _score_claim returned 0.0 immediately
+        (aggregation never ran; no semantic/hop/reliability value)
+        TRUST = 0.000   ->  UNSUPPORTED (< 0.5)
+[10:35:45] [+1061.10s]   claim 15: evidence_items=5
+        semantic    = 0.3994  x 0.45  = 0.1797
+        min_hop     = None
+        proximity   = 0.0000 (hop is None -> absent provenance, earns no graph credit)  x 0.35 = 0.0000
+        reliability = 0.8000  x 0.25 = 0.2000
+        penalty     = -0.0000
+        TRUST = 0.380   ->  UNSUPPORTED (< 0.5)
+[10:35:45] [+1061.13s]   claim 16: evidence_items=2
+        semantic    = 0.4271  x 0.45  = 0.1922
+        min_hop     = None
+        proximity   = 0.0000 (hop is None -> absent provenance, earns no graph credit)  x 0.35 = 0.0000
+        reliability = 0.8000  x 0.25 = 0.2000
+        penalty     = -0.0000
+        TRUST = 0.392   ->  UNSUPPORTED (< 0.5)
+[10:35:45] [+1061.15s]   claim 17: evidence_items=4
+        semantic    = 0.3841  x 0.45  = 0.1728
+        min_hop     = None
+        proximity   = 0.0000 (hop is None -> absent provenance, earns no graph credit)  x 0.35 = 0.0000
+        reliability = 0.8000  x 0.25 = 0.2000
+        penalty     = -0.0000
+        TRUST = 0.373   ->  UNSUPPORTED (< 0.5)
+[10:35:46] [+1061.18s]   claim 18: evidence_items=2
+        semantic    = 0.3113  x 0.45  = 0.1401
+        min_hop     = None
+        proximity   = 0.0000 (hop is None -> absent provenance, earns no graph credit)  x 0.35 = 0.0000
+        reliability = 0.8000  x 0.25 = 0.2000
+        penalty     = -0.0000
+        TRUST = 0.340   ->  UNSUPPORTED (< 0.5)
+[10:35:46] [+1061.20s]   claim 19: evidence_items=2
+        semantic    = 0.4069  x 0.45  = 0.1831
+        min_hop     = None
+        proximity   = 0.0000 (hop is None -> absent provenance, earns no graph credit)  x 0.35 = 0.0000
+        reliability = 0.8000  x 0.25 = 0.2000
+        penalty     = -0.0000
+        TRUST = 0.383   ->  UNSUPPORTED (< 0.5)
+[10:35:46] [+1061.22s]   claim 20: evidence_items=2
+        semantic    = 0.3927  x 0.45  = 0.1767
+        min_hop     = None
+        proximity   = 0.0000 (hop is None -> absent provenance, earns no graph credit)  x 0.35 = 0.0000
+        reliability = 0.8000  x 0.25 = 0.2000
+        penalty     = -0.0000
+        TRUST = 0.377   ->  UNSUPPORTED (< 0.5)
+[10:35:46] [+1061.24s]   claim 21: evidence_items=0
+        no evidence survived the 0.3 floor -> _score_claim returned 0.0 immediately
+        (aggregation never ran; no semantic/hop/reliability value)
+        TRUST = 0.000   ->  UNSUPPORTED (< 0.5)
+[10:35:46] [+1061.28s]   claim 22: evidence_items=0
+        no evidence survived the 0.3 floor -> _score_claim returned 0.0 immediately
+        (aggregation never ran; no semantic/hop/reliability value)
+        TRUST = 0.000   ->  UNSUPPORTED (< 0.5)
+[10:35:46] [+1061.31s]   claim 23: evidence_items=0
+        no evidence survived the 0.3 floor -> _score_claim returned 0.0 immediately
+        (aggregation never ran; no semantic/hop/reliability value)
+        TRUST = 0.000   ->  UNSUPPORTED (< 0.5)
+[10:35:46] [+1061.34s]   claim 24: evidence_items=0
+        no evidence survived the 0.3 floor -> _score_claim returned 0.0 immediately
+        (aggregation never ran; no semantic/hop/reliability value)
+        TRUST = 0.000   ->  UNSUPPORTED (< 0.5)
+[10:35:46] [+1061.36s]   claim 25: evidence_items=0
+        no evidence survived the 0.3 floor -> _score_claim returned 0.0 immediately
+        (aggregation never ran; no semantic/hop/reliability value)
+        TRUST = 0.000   ->  UNSUPPORTED (< 0.5)
+[10:35:46] [+1061.39s]   claim 26: evidence_items=0
+        no evidence survived the 0.3 floor -> _score_claim returned 0.0 immediately
+        (aggregation never ran; no semantic/hop/reliability value)
+        TRUST = 0.000   ->  UNSUPPORTED (< 0.5)
+[10:35:46] [+1061.39s] scored 26 claims in 0.734s (no LLM)
+[10:35:46] [+1061.39s] simulated Metric items filtered from GPCS evidence: 25
+```
+
+---
+
+## STEP 4 — Multi-agent analysis: every LLM call, in full
+
+36 in-cluster request/response bodies were captured. All are reproduced complete.
+
+| Agent | Requests |
+|---|---:|
+| monitoring specialist AI | 4 |
+| log analysis specialist AI | 4 |
+| deployment rollout analysis specialist AI | 4 |
+| topology specialist AI | 4 |
+| expert AIOps consensus engine | 3 |
+
+> A specialist making 0 calls took its rules path instead — its model call is gated on finding evidence first.
+
+<details>
+<summary><b>1. [investigation-engine] RESPONSE — topology specialist AI (generation 1)</b></summary>
+
+```json
+{
+  "top_logprobs": 0,
+  "temperature": 0.1,
+  "top_p": 1.0,
+  "service_tier": "auto",
+  "model": "muse-spark-1.2-contributor",
+  "reasoning": {
+    "effort": "high"
+  },
+  "background": false,
+  "tools": [],
+  "tool_choice": "auto",
+  "truncation": "disabled",
+  "id": "resp_6a8eae9a604dec9a7b6e41c8",
+  "object": "response",
+  "status": "completed",
+  "created_at": 1787735706.0,
+  "completed_at": 1787735706.0,
+  "error": null,
+  "incomplete_details": null,
+  "output": [
+    {
+      "type": "reasoning",
+      "id": "rs_6a8eae9a604dec9a7b6e41c8:rs_38422d9b-c972-4d04-99a6-243473a0e25b",
+      "summary": [],
+      "status": "completed"
+    },
+    {
+      "type": "message",
+      "id": "msg_aa873602-71ce-48be-ae7c-c4fa789074f7",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "output_text",
+          "text": "{\"finding\": \"Inconclusive - provided topology is empty (node_name is empty, dependencies is empty, noisy_neighbors is empty) so noisy neighbor status for Pod 'live-checkout-7b5d89d574-vkqzn' cannot be determined from this data. No noisy neighbors are listed, but no node placement data is available to verify.\", \"confidence\": 0.0}",
+          "annotations": [],
+          "logprobs": []
+        }
+      ],
+      "status": "completed"
+    }
+  ],
+  "instructions": "You are a topology specialist AI. You output strictly JSON.",
+  "usage": {
+    "input_tokens": 89,
+    "input_tokens_details": {
+      "cached_tokens": 49
+    },
+    "output_tokens": 891,
+    "output_tokens_details": {
+      "reasoning_tokens": 800
+    },
+    "total_tokens": 980
+  },
+  "parallel_tool_calls": true,
+  "store": true
+}
+```
+
+</details>
+
+<details>
+<summary><b>2. [investigation-engine] REQUEST — monitoring specialist AI (generation 1)</b></summary>
+
+```json
+{
+  "model": "muse-spark-1.2-contributor",
+  "instructions": "You are a monitoring specialist AI. You output strictly JSON.",
+  "input": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "input_text",
+          "text": "You are a Specialist Monitoring Agent.\nAnalyze metrics for Pod 'live-checkout-7b5d89d574-vkqzn' to check for anomalies.\n\nMetrics:\n[\n  {\n    \"name\": \"pod_memory_utilization_ratio\",\n    \"value\": 45.721035981333756,\n    \"ts\": 1787692115\n  },\n  {\n    \"name\": \"pod_cpu_utilization_ratio\",\n    \"value\": 48.77184510322129,\n    \"ts\": 1787692115\n  }\n]\n\nRetrieved graph evidence:\n[\n  {\n    \"id\": \"neo4j:Log:0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n    \"text\": \"ERROR checkout: buffer pool at capacity, allocation stalled\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n      \"timestamp\": 1787692115,\n      \"source_id\": \"neo4j:Log:0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n    \"type\": \"log\",\n    \"score\": 0.39458,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.38916,\n        \"weight\": 0.5,\n        \"contribution\": 0.19458,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 1.0,\n        \"weight\": 0.2,\n        \"contribution\": 0.2,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692115,\n        \"age_seconds\": 0,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.39458\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.195 from raw score 0.389.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.200 for timestamp 1787692115.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n    \"text\": \"ERROR checkout: buffer pool at capacity, allocation stalled\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n    \"type\": \"log\",\n    \"score\": 0.392245,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.38916,\n        \"weight\": 0.5,\n        \"contribution\": 0.19458,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.392245\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.195 from raw score 0.389.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  }\n]\n\nOutput JSON with: 'finding', 'confidence', 'anomalies'."
+        }
+      ]
+    }
+  ],
+  "temperature": 0.1,
+  "stream": false
+}
+```
+
+</details>
+
+<details>
+<summary><b>3. [investigation-engine] RESPONSE — monitoring specialist AI (generation 1)</b></summary>
+
+```json
+{
+  "top_logprobs": 0,
+  "temperature": 0.1,
+  "top_p": 1.0,
+  "service_tier": "auto",
+  "model": "muse-spark-1.2-contributor",
+  "reasoning": {
+    "effort": "high"
+  },
+  "background": false,
+  "tools": [],
+  "tool_choice": "auto",
+  "truncation": "disabled",
+  "id": "resp_6a8eaf8189f9665633c14183",
+  "object": "response",
+  "status": "completed",
+  "created_at": 1787735937.0,
+  "completed_at": 1787735937.0,
+  "error": null,
+  "incomplete_details": null,
+  "output": [
+    {
+      "type": "reasoning",
+      "id": "rs_6a8eaf8189f9665633c14183:rs_30f42ebc-266b-4f99-8f68-bd001b93b045",
+      "summary": [],
+      "status": "completed"
+    },
+    {
+      "type": "message",
+      "id": "msg_95c87500-d30a-406f-9d04-3354071f17d0",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "output_text",
+          "text": "{\"finding\": \"Pod 'live-checkout-7b5d89d574-vkqzn' shows NO pod-level resource anomaly at ts 1787692115: pod_memory_utilization_ratio 45.72% and pod_cpu_utilization_ratio 48.77% are both well below critical thresholds (80-85%) and within normal operating range. However, 5 recent application ERROR logs within 61s of the metric timestamp indicate application-level memory pressure: 2x 'buffer pool at capacity, allocation stalled' (ts 1787692115, 1787692012) and 3x 'request rejected, insufficient memory for buffer' (ts 1787692012). This indicates buffer pool exhaustion / application-level memory rejection despite low pod-level utilization, suggesting misconfigured buffer pool limits, application memory leak, or pod memory limit not reflecting internal pool - requires investigation, not pod autoscaling.\",\"confidence\": 0.82,\"anomalies\": [{\"name\": \"pod_memory_utilization_ratio\",\"value\": 45.721035981333756,\"ts\": 1787692115,\"anomalous\": false,\"reason\": \"Value 45.7% is within normal range, no threshold breach\"},{\"name\": \"pod_cpu_utilization_ratio\",\"value\": 48.77184510322129,\"ts\": 1787692115,\"anomalous\": false,\"reason\": \"Value 48.8% is within normal range, no threshold breach\"},{\"name\": \"checkout_buffer_pool_exhaustion\",\"type\": \"application_log_anomaly\",\"anomalous\": true,\"count\": 5,\"evidence\": [\"ERROR checkout: buffer pool at capacity, allocation stalled x2\",\"ERROR checkout: request rejected, insufficient memory for buffer x3\"],\"timestamps\": [1787692115, 1787692012],\"reason\": \"Application-level buffer/memory exhaustion not reflected in pod-level metrics, indicates discrepancy between pod utilization and internal buffer pool capacity\"}]}",
+          "annotations": [],
+          "logprobs": []
+        }
+      ],
+      "status": "completed"
+    }
+  ],
+  "instructions": "You are a monitoring specialist AI. You output strictly JSON.",
+  "usage": {
+    "input_tokens": 2998,
+    "input_tokens_details": {
+      "cached_tokens": 0
+    },
+    "output_tokens": 2177,
+    "output_tokens_details": {
+      "reasoning_tokens": 1763
+    },
+    "total_tokens": 5175
+  },
+  "parallel_tool_calls": true,
+  "store": true
+}
+```
+
+</details>
+
+<details>
+<summary><b>4. [investigation-engine] REQUEST — log analysis specialist AI (generation 1)</b></summary>
+
+```json
+{
+  "model": "muse-spark-1.2-contributor",
+  "instructions": "You are a log analysis specialist AI. You output strictly JSON.",
+  "input": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "input_text",
+          "text": "You are a Specialist Log Agent.\nAnalyze logs for Pod 'live-checkout-7b5d89d574-vkqzn' to check for failure patterns.\n\nLogs:\nERROR ERROR checkout: request rejected, insufficient memory for buffer\nERROR ERROR checkout: request rejected, insufficient memory for buffer\nERROR ERROR checkout: request rejected, insufficient memory for buffer\nERROR ERROR checkout: request rejected, insufficient memory for buffer\nERROR ERROR checkout: request rejected, insufficient memory for buffer\nERROR ERROR checkout: buffer pool at capacity, allocation stalled\nWARN WARN  checkout: allocating request buffer pool\nINFO checkout worker starting\n\nRetrieved graph evidence:\n[\n  {\n    \"id\": \"neo4j:Log:0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n    \"text\": \"ERROR checkout: buffer pool at capacity, allocation stalled\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n      \"timestamp\": 1787692115,\n      \"source_id\": \"neo4j:Log:0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n    \"type\": \"log\",\n    \"score\": 0.39458,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.38916,\n        \"weight\": 0.5,\n        \"contribution\": 0.19458,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 1.0,\n        \"weight\": 0.2,\n        \"contribution\": 0.2,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692115,\n        \"age_seconds\": 0,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.39458\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.195 from raw score 0.389.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.200 for timestamp 1787692115.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n    \"text\": \"ERROR checkout: buffer pool at capacity, allocation stalled\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n    \"type\": \"log\",\n    \"score\": 0.392245,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.38916,\n        \"weight\": 0.5,\n        \"contribution\": 0.19458,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.392245\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.195 from raw score 0.389.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  }\n]\n\nOutput JSON with: 'finding', 'confidence', 'category'."
+        }
+      ]
+    }
+  ],
+  "temperature": 0.1,
+  "stream": false
+}
+```
+
+</details>
+
+<details>
+<summary><b>5. [investigation-engine] RESPONSE — log analysis specialist AI (generation 1)</b></summary>
+
+```json
+{
+  "top_logprobs": 0,
+  "temperature": 0.1,
+  "top_p": 1.0,
+  "service_tier": "auto",
+  "model": "muse-spark-1.2-contributor",
+  "reasoning": {
+    "effort": "high"
+  },
+  "background": false,
+  "tools": [],
+  "tool_choice": "auto",
+  "truncation": "disabled",
+  "id": "resp_6a8eafae6ef10949231a484b",
+  "object": "response",
+  "status": "completed",
+  "created_at": 1787735982.0,
+  "completed_at": 1787735982.0,
+  "error": null,
+  "incomplete_details": null,
+  "output": [
+    {
+      "type": "reasoning",
+      "id": "rs_6a8eafae6ef10949231a484b:rs_8dd6f045-1941-4203-8322-09483d0ed717",
+      "summary": [],
+      "status": "completed"
+    },
+    {
+      "type": "message",
+      "id": "msg_177fa7c3-dff2-4e9a-bd6f-913b0fd8ea77",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "output_text",
+          "text": "{\"finding\": \"Pod live-checkout-7b5d89d574-vkqzn shows critical failure pattern of buffer pool exhaustion: 5 occurrences of 'request rejected, insufficient memory for buffer' and 2 occurrences of 'buffer pool at capacity, allocation stalled' within 61s window (timestamps 1787692012-1787692115), with preceding WARN 'allocating request buffer pool'. Pattern indicates memory pressure / buffer pool at capacity causing repeated checkout request rejections and allocation stalls.\", \"confidence\": 0.92, \"category\": \"memory_exhaustion\"}",
+          "annotations": [],
+          "logprobs": []
+        }
+      ],
+      "status": "completed"
+    }
+  ],
+  "instructions": "You are a log analysis specialist AI. You output strictly JSON.",
+  "usage": {
+    "input_tokens": 3008,
+    "input_tokens_details": {
+      "cached_tokens": 0
+    },
+    "output_tokens": 1329,
+    "output_tokens_details": {
+      "reasoning_tokens": 1198
+    },
+    "total_tokens": 4337
+  },
+  "parallel_tool_calls": true,
+  "store": true
+}
+```
+
+</details>
+
+<details>
+<summary><b>6. [investigation-engine] REQUEST — deployment rollout analysis specialist AI (generation 1)</b></summary>
+
+```json
+{
+  "model": "muse-spark-1.2-contributor",
+  "instructions": "You are a deployment rollout analysis specialist AI. You output strictly JSON.",
+  "input": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "input_text",
+          "text": "You are a Specialist Deployment Agent.\nAnalyze deployment and Git status for Pod 'live-checkout-7b5d89d574-vkqzn' to check for regressions.\n\nDeployment info:\n{\n  \"name\": \"live-checkout\",\n  \"status\": \"Available\",\n  \"sha\": null,\n  \"commit_msg\": null\n}\n\nRetrieved graph evidence:\n[\n  {\n    \"id\": \"neo4j:Log:0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n    \"text\": \"ERROR checkout: buffer pool at capacity, allocation stalled\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n      \"timestamp\": 1787692115,\n      \"source_id\": \"neo4j:Log:0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n    \"type\": \"log\",\n    \"score\": 0.39458,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.38916,\n        \"weight\": 0.5,\n        \"contribution\": 0.19458,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 1.0,\n        \"weight\": 0.2,\n        \"contribution\": 0.2,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692115,\n        \"age_seconds\": 0,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.39458\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.195 from raw score 0.389.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.200 for timestamp 1787692115.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n    \"text\": \"ERROR checkout: buffer pool at capacity, allocation stalled\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n    \"type\": \"log\",\n    \"score\": 0.392245,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.38916,\n        \"weight\": 0.5,\n        \"contribution\": 0.19458,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.392245\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.195 from raw score 0.389.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  }\n]\n\nOutput JSON with: 'finding', 'confidence'."
+        }
+      ]
+    }
+  ],
+  "temperature": 0.1,
+  "stream": false
+}
+```
+
+</details>
+
+<details>
+<summary><b>7. [investigation-engine] RESPONSE — deployment rollout analysis specialist AI (generation 1)</b></summary>
+
+```json
+{
+  "top_logprobs": 0,
+  "temperature": 0.1,
+  "top_p": 1.0,
+  "service_tier": "auto",
+  "model": "muse-spark-1.2-contributor",
+  "reasoning": {
+    "effort": "high"
+  },
+  "background": false,
+  "tools": [],
+  "tool_choice": "auto",
+  "truncation": "disabled",
+  "id": "resp_6a8eafd711b22053cb2f4891",
+  "object": "response",
+  "status": "completed",
+  "created_at": 1787736023.0,
+  "completed_at": 1787736023.0,
+  "error": null,
+  "incomplete_details": null,
+  "output": [
+    {
+      "type": "reasoning",
+      "id": "rs_6a8eafd711b22053cb2f4891:rs_bfaf853e-90d0-447e-8394-fbeee450598a",
+      "summary": [],
+      "status": "completed"
+    },
+    {
+      "type": "message",
+      "id": "msg_4990ffdc-66e0-44aa-805e-1f09c573fe6a",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "output_text",
+          "text": "{\"finding\": \"Pod live-checkout-7b5d89d574-vkqzn (Deployment live-checkout) status is 'Available' but shows active functional degradation: 5 recent ERROR logs within 61s - 'buffer pool at capacity, allocation stalled' (2x at 1787692115, 1787692012) and 'request rejected, insufficient memory for buffer' (3x at 1787692012). Pattern indicates consistent memory/buffer pool exhaustion causing checkout request rejections, consistent with resource/config regression despite Available status. Git SHA and commit_msg are null, so rollout cannot be correlated to a specific commit and regression cannot be definitively attributed to a code change. Graph proximity is null (no deployment-log linkage), evidence is vector-similarity only. Requires immediate investigation of buffer pool/memory limits and fixing deployment Git metadata reporting.\",\"confidence\": 0.68}",
+          "annotations": [],
+          "logprobs": []
+        }
+      ],
+      "status": "completed"
+    }
+  ],
+  "instructions": "You are a deployment rollout analysis specialist AI. You output strictly JSON.",
+  "usage": {
+    "input_tokens": 2952,
+    "input_tokens_details": {
+      "cached_tokens": 0
+    },
+    "output_tokens": 1328,
+    "output_tokens_details": {
+      "reasoning_tokens": 1134
+    },
+    "total_tokens": 4280
+  },
+  "parallel_tool_calls": true,
+  "store": true
+}
+```
+
+</details>
+
+<details>
+<summary><b>8. [investigation-engine] REQUEST — topology specialist AI (generation 1)</b></summary>
+
+```json
+{
+  "model": "muse-spark-1.2-contributor",
+  "instructions": "You are a topology specialist AI. You output strictly JSON.",
+  "input": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "input_text",
+          "text": "You are a Specialist Topology Agent.\nAnalyze topology for Pod 'live-checkout-7b5d89d574-vkqzn' to check for noisy neighbors.\n\nTopology:\n{\n  \"dependencies\": [],\n  \"node_name\": \"\",\n  \"noisy_neighbors\": []\n}\n\nRetrieved graph evidence:\n[\n  {\n    \"id\": \"neo4j:Log:0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n    \"text\": \"ERROR checkout: buffer pool at capacity, allocation stalled\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n      \"timestamp\": 1787692115,\n      \"source_id\": \"neo4j:Log:0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n    \"type\": \"log\",\n    \"score\": 0.39458,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.38916,\n        \"weight\": 0.5,\n        \"contribution\": 0.19458,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 1.0,\n        \"weight\": 0.2,\n        \"contribution\": 0.2,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692115,\n        \"age_seconds\": 0,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.39458\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.195 from raw score 0.389.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.200 for timestamp 1787692115.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n    \"text\": \"ERROR checkout: buffer pool at capacity, allocation stalled\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n    \"type\": \"log\",\n    \"score\": 0.392245,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.38916,\n        \"weight\": 0.5,\n        \"contribution\": 0.19458,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.392245\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.195 from raw score 0.389.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  }\n]\n\nOutput JSON with: 'finding', 'confidence'."
+        }
+      ]
+    }
+  ],
+  "temperature": 0.1,
+  "stream": false
+}
+```
+
+</details>
+
+<details>
+<summary><b>9. [investigation-engine] RESPONSE — topology specialist AI (generation 1)</b></summary>
+
+```json
+{
+  "top_logprobs": 0,
+  "temperature": 0.1,
+  "top_p": 1.0,
+  "service_tier": "auto",
+  "model": "muse-spark-1.2-contributor",
+  "reasoning": {
+    "effort": "high"
+  },
+  "background": false,
+  "tools": [],
+  "tool_choice": "auto",
+  "truncation": "disabled",
+  "id": "resp_6a8eb006db313cd326c84787",
+  "object": "response",
+  "status": "completed",
+  "created_at": 1787736070.0,
+  "completed_at": 1787736070.0,
+  "error": null,
+  "incomplete_details": null,
+  "output": [
+    {
+      "type": "reasoning",
+      "id": "rs_6a8eb006db313cd326c84787:rs_7dfab305-da72-4b80-b9ae-d32265dedfbd",
+      "summary": [],
+      "status": "completed"
+    },
+    {
+      "type": "message",
+      "id": "msg_65abfdad-330c-4afd-9e8e-70224679419d",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "output_text",
+          "text": "{\"finding\": \"Pod 'live-checkout-7b5d89d574-vkqzn' has no topology evidence of noisy neighbors: node_name is empty (no node assignment recorded), noisy_neighbors=[] and dependencies=[] . Retrieved graph evidence shows checkout buffer pool at capacity / insufficient memory for buffer errors but all 5 logs have hop_distance=null, graph_proximity=0.0 (contribution 0.0), no path/relationships, and sources=[vector] only - indicating no topological linkage to a co-located pod. Memory pressure appears internal to checkout, not attributable to noisy neighbor contention with available topology data. Node-level placement and resource contention metrics needed to fully rule out noisy neighbors.\", \"confidence\": 0.92}",
+          "annotations": [],
+          "logprobs": []
+        }
+      ],
+      "status": "completed"
+    }
+  ],
+  "instructions": "You are a topology specialist AI. You output strictly JSON.",
+  "usage": {
+    "input_tokens": 2936,
+    "input_tokens_details": {
+      "cached_tokens": 0
+    },
+    "output_tokens": 1677,
+    "output_tokens_details": {
+      "reasoning_tokens": 1516
+    },
+    "total_tokens": 4613
+  },
+  "parallel_tool_calls": true,
+  "store": true
+}
+```
+
+</details>
+
+<details>
+<summary><b>10. [investigation-engine] REQUEST — monitoring specialist AI (generation 1)</b></summary>
+
+```json
+{
+  "model": "muse-spark-1.2-contributor",
+  "instructions": "You are a monitoring specialist AI. You output strictly JSON.",
+  "input": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "input_text",
+          "text": "You are a Specialist Monitoring Agent.\nAnalyze metrics for Pod 'live-checkout-7b5d89d574-vkqzn' to check for anomalies.\n\nMetrics:\n[\n  {\n    \"name\": \"pod_memory_utilization_ratio\",\n    \"value\": 45.721035981333756,\n    \"ts\": 1787692115\n  },\n  {\n    \"name\": \"pod_cpu_utilization_ratio\",\n    \"value\": 48.77184510322129,\n    \"ts\": 1787692115\n  }\n]\n\nRetrieved graph evidence:\n[\n  {\n    \"id\": \"neo4j:Log:0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n    \"text\": \"ERROR checkout: buffer pool at capacity, allocation stalled\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n      \"timestamp\": 1787692115,\n      \"source_id\": \"neo4j:Log:0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n    \"type\": \"log\",\n    \"score\": 0.39458,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.38916,\n        \"weight\": 0.5,\n        \"contribution\": 0.19458,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 1.0,\n        \"weight\": 0.2,\n        \"contribution\": 0.2,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692115,\n        \"age_seconds\": 0,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.39458\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.195 from raw score 0.389.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.200 for timestamp 1787692115.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n    \"text\": \"ERROR checkout: buffer pool at capacity, allocation stalled\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n    \"type\": \"log\",\n    \"score\": 0.392245,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.38916,\n        \"weight\": 0.5,\n        \"contribution\": 0.19458,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.392245\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.195 from raw score 0.389.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  }\n]\n\nOutput JSON with: 'finding', 'confidence', 'anomalies'."
+        }
+      ]
+    }
+  ],
+  "temperature": 0.1,
+  "stream": false
+}
+```
+
+</details>
+
+<details>
+<summary><b>11. [investigation-engine] RESPONSE — monitoring specialist AI (generation 1)</b></summary>
+
+```json
+{
+  "top_logprobs": 0,
+  "temperature": 0.1,
+  "top_p": 1.0,
+  "service_tier": "auto",
+  "model": "muse-spark-1.2-contributor",
+  "reasoning": {
+    "effort": "high"
+  },
+  "background": false,
+  "tools": [],
+  "tool_choice": "auto",
+  "truncation": "disabled",
+  "id": "resp_6a8eb075dd4e859545614aef",
+  "object": "response",
+  "status": "completed",
+  "created_at": 1787736181.0,
+  "completed_at": 1787736181.0,
+  "error": null,
+  "incomplete_details": null,
+  "output": [
+    {
+      "type": "reasoning",
+      "id": "rs_6a8eb075dd4e859545614aef:rs_0ccefb45-9756-481f-a385-7cfe1eecf660",
+      "summary": [],
+      "status": "completed"
+    },
+    {
+      "type": "message",
+      "id": "msg_ab7c9e47-7b78-4769-a6eb-12e85de05f77",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "output_text",
+          "text": "{\"finding\": \"Pod live-checkout-7b5d89d574-vkqzn shows normal pod-level utilization (memory 45.72%, CPU 48.77% at ts 1787692115) but correlated logs show active application-level memory pressure: 5 recent ERROR checkout logs within 61s indicating buffer pool at capacity / allocation stalled (2 events at 1787692012, 1787692115) and request rejected due to insufficient memory for buffer (3 events at 1787692012). Indicates buffer pool saturation / memory exhaustion not reflected in pod_memory_utilization_ratio, causing request failures.\",\"confidence\": 0.87,\"anomalies\": [{\"type\": \"log\",\"name\": \"buffer_pool_at_capacity\",\"description\": \"ERROR checkout: buffer pool at capacity, allocation stalled\",\"count\": 2,\"timestamps\": [1787692012, 1787692115],\"severity\": \"high\",\"evidence_ids\": [\"neo4j:Log:0ee7278b-1279-4cf9-8ab8-11a616a98e85\", \"neo4j:Log:3cee1a3c-2f99-4221-87f9-88a5bdf68894\"]}, {\"type\": \"log\",\"name\": \"insufficient_memory_for_buffer\",\"description\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\"count\": 3,\"timestamps\": [1787692012],\"severity\": \"high\",\"evidence_ids\": [\"neo4j:Log:1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\", \"neo4j:Log:28a8a597-8b57-4ef9-9b83-252d6c21d40e\", \"neo4j:Log:8bc92cf5-0147-4053-98d7-3715ebcd005c\"]}, {\"type\": \"metric\",\"name\": \"pod_memory_utilization_ratio\",\"value\": 45.721035981333756,\"ts\": 1787692115,\"anomalous\": false,\"note\": \"moderate utilization, not threshold breach but inconsistent with log-indicated memory pressure\"}, {\"type\": \"metric\",\"name\": \"pod_cpu_utilization_ratio\",\"value\": 48.77184510322129,\"ts\": 1787692115,\"anomalous\": false,\"note\": \"moderate utilization, no anomaly\"}]}",
+          "annotations": [],
+          "logprobs": []
+        }
+      ],
+      "status": "completed"
+    }
+  ],
+  "instructions": "You are a monitoring specialist AI. You output strictly JSON.",
+  "usage": {
+    "input_tokens": 2998,
+    "input_tokens_details": {
+      "cached_tokens": 2993
+    },
+    "output_tokens": 2178,
+    "output_tokens_details": {
+      "reasoning_tokens": 1649
+    },
+    "total_tokens": 5176
+  },
+  "parallel_tool_calls": true,
+  "store": true
+}
+```
+
+</details>
+
+<details>
+<summary><b>12. [investigation-engine] REQUEST — log analysis specialist AI (generation 1)</b></summary>
+
+```json
+{
+  "model": "muse-spark-1.2-contributor",
+  "instructions": "You are a log analysis specialist AI. You output strictly JSON.",
+  "input": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "input_text",
+          "text": "You are a Specialist Log Agent.\nAnalyze logs for Pod 'live-checkout-7b5d89d574-vkqzn' to check for failure patterns.\n\nLogs:\nERROR ERROR checkout: request rejected, insufficient memory for buffer\nERROR ERROR checkout: request rejected, insufficient memory for buffer\nERROR ERROR checkout: request rejected, insufficient memory for buffer\nERROR ERROR checkout: request rejected, insufficient memory for buffer\nERROR ERROR checkout: request rejected, insufficient memory for buffer\nERROR ERROR checkout: buffer pool at capacity, allocation stalled\nWARN WARN  checkout: allocating request buffer pool\nINFO checkout worker starting\n\nRetrieved graph evidence:\n[\n  {\n    \"id\": \"neo4j:Log:0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n    \"text\": \"ERROR checkout: buffer pool at capacity, allocation stalled\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n      \"timestamp\": 1787692115,\n      \"source_id\": \"neo4j:Log:0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n    \"type\": \"log\",\n    \"score\": 0.39458,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.38916,\n        \"weight\": 0.5,\n        \"contribution\": 0.19458,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 1.0,\n        \"weight\": 0.2,\n        \"contribution\": 0.2,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692115,\n        \"age_seconds\": 0,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.39458\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.195 from raw score 0.389.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.200 for timestamp 1787692115.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n    \"text\": \"ERROR checkout: buffer pool at capacity, allocation stalled\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n    \"type\": \"log\",\n    \"score\": 0.392245,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.38916,\n        \"weight\": 0.5,\n        \"contribution\": 0.19458,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.392245\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.195 from raw score 0.389.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  }\n]\n\nOutput JSON with: 'finding', 'confidence', 'category'."
+        }
+      ]
+    }
+  ],
+  "temperature": 0.1,
+  "stream": false
+}
+```
+
+</details>
+
+<details>
+<summary><b>13. [investigation-engine] RESPONSE — log analysis specialist AI (generation 1)</b></summary>
+
+```json
+{
+  "top_logprobs": 0,
+  "temperature": 0.1,
+  "top_p": 1.0,
+  "service_tier": "auto",
+  "model": "muse-spark-1.2-contributor",
+  "reasoning": {
+    "effort": "high"
+  },
+  "background": false,
+  "tools": [],
+  "tool_choice": "auto",
+  "truncation": "disabled",
+  "id": "resp_6a8eb08dec3e19a3be4e4e98",
+  "object": "response",
+  "status": "completed",
+  "created_at": 1787736205.0,
+  "completed_at": 1787736205.0,
+  "error": null,
+  "incomplete_details": null,
+  "output": [
+    {
+      "type": "reasoning",
+      "id": "rs_6a8eb08dec3e19a3be4e4e98:rs_0edd265a-87cf-4da0-89d7-0000fbf9250a",
+      "summary": [],
+      "status": "completed"
+    },
+    {
+      "type": "message",
+      "id": "msg_48811ef5-3b24-414a-a629-5be5ec1fad60",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "output_text",
+          "text": "{\"finding\": \"Pod 'live-checkout-7b5d89d574-vkqzn' exhibits repeated failure pattern of buffer pool exhaustion: 5x 'request rejected, insufficient memory for buffer' and 2x 'buffer pool at capacity, allocation stalled' (timestamps 1787692012-1787692115), with preceding WARN 'allocating request buffer pool', indicating requests are being rejected due to insufficient buffer memory/pool at capacity\",\"confidence\": 0.95,\"category\": \"memory_exhaustion\"}",
+          "annotations": [],
+          "logprobs": []
+        }
+      ],
+      "status": "completed"
+    }
+  ],
+  "instructions": "You are a log analysis specialist AI. You output strictly JSON.",
+  "usage": {
+    "input_tokens": 3008,
+    "input_tokens_details": {
+      "cached_tokens": 0
+    },
+    "output_tokens": 1211,
+    "output_tokens_details": {
+      "reasoning_tokens": 1091
+    },
+    "total_tokens": 4219
+  },
+  "parallel_tool_calls": true,
+  "store": true
+}
+```
+
+</details>
+
+<details>
+<summary><b>14. [investigation-engine] REQUEST — deployment rollout analysis specialist AI (generation 1)</b></summary>
+
+```json
+{
+  "model": "muse-spark-1.2-contributor",
+  "instructions": "You are a deployment rollout analysis specialist AI. You output strictly JSON.",
+  "input": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "input_text",
+          "text": "You are a Specialist Deployment Agent.\nAnalyze deployment and Git status for Pod 'live-checkout-7b5d89d574-vkqzn' to check for regressions.\n\nDeployment info:\n{\n  \"name\": \"live-checkout\",\n  \"status\": \"Available\",\n  \"sha\": null,\n  \"commit_msg\": null\n}\n\nRetrieved graph evidence:\n[\n  {\n    \"id\": \"neo4j:Log:0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n    \"text\": \"ERROR checkout: buffer pool at capacity, allocation stalled\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n      \"timestamp\": 1787692115,\n      \"source_id\": \"neo4j:Log:0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n    \"type\": \"log\",\n    \"score\": 0.39458,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.38916,\n        \"weight\": 0.5,\n        \"contribution\": 0.19458,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 1.0,\n        \"weight\": 0.2,\n        \"contribution\": 0.2,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692115,\n        \"age_seconds\": 0,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.39458\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.195 from raw score 0.389.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.200 for timestamp 1787692115.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n    \"text\": \"ERROR checkout: buffer pool at capacity, allocation stalled\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n    \"type\": \"log\",\n    \"score\": 0.392245,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.38916,\n        \"weight\": 0.5,\n        \"contribution\": 0.19458,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.392245\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.195 from raw score 0.389.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  }\n]\n\nOutput JSON with: 'finding', 'confidence'."
+        }
+      ]
+    }
+  ],
+  "temperature": 0.1,
+  "stream": false
+}
+```
+
+</details>
+
+<details>
+<summary><b>15. [investigation-engine] RESPONSE — deployment rollout analysis specialist AI (generation 1)</b></summary>
+
+```json
+{
+  "top_logprobs": 0,
+  "temperature": 0.1,
+  "top_p": 1.0,
+  "service_tier": "auto",
+  "model": "muse-spark-1.2-contributor",
+  "reasoning": {
+    "effort": "high"
+  },
+  "background": false,
+  "tools": [],
+  "tool_choice": "auto",
+  "truncation": "disabled",
+  "id": "resp_6a8eb0b9c59d755fa2d04412",
+  "object": "response",
+  "status": "completed",
+  "created_at": 1787736249.0,
+  "completed_at": 1787736249.0,
+  "error": null,
+  "incomplete_details": null,
+  "output": [
+    {
+      "type": "reasoning",
+      "id": "rs_6a8eb0b9c59d755fa2d04412:rs_586bef6d-562c-46f6-baad-bb09d3c8cf43",
+      "summary": [],
+      "status": "completed"
+    },
+    {
+      "type": "message",
+      "id": "msg_ba19bbda-3b54-4ae6-bf4b-309239dd5d20",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "output_text",
+          "text": "{\"finding\": \"Pod 'live-checkout-7b5d89d574-vkqzn' deployment 'live-checkout' status is 'Available' but sha is null and commit_msg is null - no Git rollout verifiable, so regression analysis is inconclusive. Retrieved evidence shows 5 recent checkout ERROR logs (buffer pool at capacity/allocation stalled and insufficient memory for buffer, timestamps 1787692012-1787692115, age 0-61s) indicating runtime resource exhaustion, but all have low vector similarity (0.376-0.389) and zero graph proximity (hop_distance null, no path, sources: vector only, hybrid_score ~0.385-0.394). No graph linkage to deployment change, no commit to correlate. No evidence of deployment-induced regression; errors appear to be application-level memory pressure, not attributable to a verifiable rollout without SHA/commit metadata.\", \"confidence\": 0.38}",
+          "annotations": [],
+          "logprobs": []
+        }
+      ],
+      "status": "completed"
+    }
+  ],
+  "instructions": "You are a deployment rollout analysis specialist AI. You output strictly JSON.",
+  "usage": {
+    "input_tokens": 2952,
+    "input_tokens_details": {
+      "cached_tokens": 0
+    },
+    "output_tokens": 1467,
+    "output_tokens_details": {
+      "reasoning_tokens": 1262
+    },
+    "total_tokens": 4419
+  },
+  "parallel_tool_calls": true,
+  "store": true
+}
+```
+
+</details>
+
+<details>
+<summary><b>16. [investigation-engine] REQUEST — topology specialist AI (generation 1)</b></summary>
+
+```json
+{
+  "model": "muse-spark-1.2-contributor",
+  "instructions": "You are a topology specialist AI. You output strictly JSON.",
+  "input": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "input_text",
+          "text": "You are a Specialist Topology Agent.\nAnalyze topology for Pod 'live-checkout-7b5d89d574-vkqzn' to check for noisy neighbors.\n\nTopology:\n{\n  \"dependencies\": [],\n  \"node_name\": \"\",\n  \"noisy_neighbors\": []\n}\n\nRetrieved graph evidence:\n[\n  {\n    \"id\": \"neo4j:Log:0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n    \"text\": \"ERROR checkout: buffer pool at capacity, allocation stalled\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n      \"timestamp\": 1787692115,\n      \"source_id\": \"neo4j:Log:0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n    \"type\": \"log\",\n    \"score\": 0.39458,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.38916,\n        \"weight\": 0.5,\n        \"contribution\": 0.19458,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 1.0,\n        \"weight\": 0.2,\n        \"contribution\": 0.2,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692115,\n        \"age_seconds\": 0,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.39458\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.195 from raw score 0.389.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.200 for timestamp 1787692115.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n    \"text\": \"ERROR checkout: buffer pool at capacity, allocation stalled\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n    \"type\": \"log\",\n    \"score\": 0.392245,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.38916,\n        \"weight\": 0.5,\n        \"contribution\": 0.19458,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.392245\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.195 from raw score 0.389.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  }\n]\n\nOutput JSON with: 'finding', 'confidence'."
+        }
+      ]
+    }
+  ],
+  "temperature": 0.1,
+  "stream": false
+```
+
+</details>
+
+<details>
+<summary><b>17. [agent-orchestrator] RESPONSE — expert AIOps consensus engine (generation 1)</b></summary>
+
+```json
+{
+  "top_logprobs": 0,
+  "temperature": 0.8,
+  "top_p": 1.0,
+  "service_tier": "auto",
+  "model": "muse-spark-1.2-contributor",
+  "reasoning": {
+    "effort": "high"
+  },
+  "background": false,
+  "tools": [],
+  "tool_choice": "auto",
+  "truncation": "disabled",
+  "id": "resp_6a8eaec35d195ed5fcda4ce9",
+  "object": "response",
+  "status": "completed",
+  "created_at": 1787735747.0,
+  "completed_at": 1787735747.0,
+  "error": null,
+  "incomplete_details": null,
+  "output": [
+    {
+      "type": "reasoning",
+      "id": "rs_6a8eaec35d195ed5fcda4ce9:rs_56776a96-d1c5-463e-bac2-e083a6ac7ed9",
+      "summary": [],
+      "status": "completed"
+    },
+    {
+      "type": "message",
+      "id": "msg_c1aacfad-f961-4a69-871b-bfb6822cbf3b",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "output_text",
+          "text": "{\"title\":\"Memory Exhaustion - Buffer Pool OOM on live-checkout-7b5d89d574-vkqzn\",\"summary\":\"Pod 'live-checkout-7b5d89d574-vkqzn' is in 'Failed' state causing service disruption to live-checkout. Traffic is being rejected due to resource exhaustion, resulting in failed checkout requests.\",\"cause\":\"Root cause is memory resource exhaustion on the pod. The buffer pool reached capacity with allocation stalled, causing repeated request rejections due to insufficient memory for buffer. This resource exhaustion pattern led directly to the pod failure. The pod's 'Failed' status contradicts the MONITORING agent's healthy signal, indicating a monitoring false-negative or lagging metrics.\",\"recommendation\":\"1) Immediate: Restart pod and temporarily increase memory limits/requests for deployment live-checkout-7b5d89d574. 2) Investigate: Analyze application heap/buffer pool configuration for memory leak or undersized pool; review memory usage trends and GC logs. 3) Preventive: Tune buffer pool size, implement Vertical Pod Autoscaler (VPA) or increase limits, add memory-based HPA alerts and OOMKilled alerts, and ensure resource requests/limits are correctly set. 4) Verify deployment pipeline to restore Git SHA/commit_msg tracking for future regression correlation.\",\"severity\":\"CRITICAL\",\"confidence\":0.96,\"evidence\":[\"Pod status is 'Failed' - ground truth failure contradicts MONITORING Agent (Conf: 0.97) 'healthy - no anomalies' signal; monitoring deprioritized as false-negative\",\"LOGS Agent (Conf: 0.98) HIGH confidence: Repeated request rejections due to insufficient memory for buffer; buffer pool at capacity with allocation stalled - definitive resource exhaustion failure pattern - primary root cause\",\"DEPLOYMENTS Agent (Conf: 0.5) reports status 'Available' but SHA and commit_msg are null/missing - inconclusive for regression assessment, insufficient data to correlate deployment change, ruled out as root cause\",\"TOPOLOGY Agent (Conf: 0.0) Inconclusive - empty topology (node_name empty, dependencies empty, noisy_neighbors empty) - cannot determine noisy neighbor status, excluded from root cause with zero weight\",\"SECURITY Agent (Conf: 0.8) No security breaches, secret reference warnings, or RBAC alerts - security ruled out as contributing factor\"]}",
+          "annotations": [],
+          "logprobs": []
+        }
+      ],
+      "status": "completed"
+    }
+  ],
+  "instructions": "You are an expert AIOps consensus engine. You output strictly JSON.",
+  "usage": {
+    "input_tokens": 426,
+    "input_tokens_details": {
+      "cached_tokens": 0
+    },
+    "output_tokens": 1426,
+    "output_tokens_details": {
+      "reasoning_tokens": 927
+    },
+    "total_tokens": 1852
+  },
+  "parallel_tool_calls": true,
+  "store": true
+}
+```
+
+</details>
+
+<details>
+<summary><b>18. [agent-orchestrator] REQUEST — expert AIOps consensus engine (generation 1)</b></summary>
+
+```json
+{
+  "model": "muse-spark-1.2-contributor",
+  "instructions": "You are an expert AIOps consensus engine. You output strictly JSON.",
+  "input": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "input_text",
+          "text": "You are the Lead Consensus Orchestrator in an AIOps pipeline.\nYou received telemetry from 5 agents for pod 'live-checkout-7b5d89d574-vkqzn' (Status: 'Failed'):\n\n- MONITORING Agent (Conf: 0.82): Pod 'live-checkout-7b5d89d574-vkqzn' shows NO pod-level resource anomaly at ts 1787692115: pod_memory_utilization_ratio 45.72% and pod_cpu_utilization_ratio 48.77% are both well below critical thresholds (80-85%) and within normal operating range. However, 5 recent application ERROR logs within 61s of the metric timestamp indicate application-level memory pressure: 2x 'buffer pool at capacity, allocation stalled' (ts 1787692115, 1787692012) and 3x 'request rejected, insufficient memory for buffer' (ts 1787692012). This indicates buffer pool exhaustion / application-level memory rejection despite low pod-level utilization, suggesting misconfigured buffer pool limits, application memory leak, or pod memory limit not reflecting internal pool - requires investigation, not pod autoscaling.\n- LOGS Agent (Conf: 0.92): Pod live-checkout-7b5d89d574-vkqzn shows critical failure pattern of buffer pool exhaustion: 5 occurrences of 'request rejected, insufficient memory for buffer' and 2 occurrences of 'buffer pool at capacity, allocation stalled' within 61s window (timestamps 1787692012-1787692115), with preceding WARN 'allocating request buffer pool'. Pattern indicates memory pressure / buffer pool at capacity causing repeated checkout request rejections and allocation stalls.\n- DEPLOYMENTS Agent (Conf: 0.68): Pod live-checkout-7b5d89d574-vkqzn (Deployment live-checkout) status is 'Available' but shows active functional degradation: 5 recent ERROR logs within 61s - 'buffer pool at capacity, allocation stalled' (2x at 1787692115, 1787692012) and 'request rejected, insufficient memory for buffer' (3x at 1787692012). Pattern indicates consistent memory/buffer pool exhaustion causing checkout request rejections, consistent with resource/config regression despite Available status. Git SHA and commit_msg are null, so rollout cannot be correlated to a specific commit and regression cannot be definitively attributed to a code change. Graph proximity is null (no deployment-log linkage), evidence is vector-similarity only. Requires immediate investigation of buffer pool/memory limits and fixing deployment Git metadata reporting.\n- TOPOLOGY Agent (Conf: 0.92): Pod 'live-checkout-7b5d89d574-vkqzn' has no topology evidence of noisy neighbors: node_name is empty (no node assignment recorded), noisy_neighbors=[] and dependencies=[] . Retrieved graph evidence shows checkout buffer pool at capacity / insufficient memory for buffer errors but all 5 logs have hop_distance=null, graph_proximity=0.0 (contribution 0.0), no path/relationships, and sources=[vector] only - indicating no topological linkage to a co-located pod. Memory pressure appears internal to checkout, not attributable to noisy neighbor contention with available topology data. Node-level placement and resource contention metrics needed to fully rule out noisy neighbors.\n- SECURITY Agent (Conf: 0.8): No security breaches, secret reference warnings, or RBAC alerts.\n\nCorrelate these findings to determine the root cause.\nYour response MUST be a JSON object with fields:\n- 'title': A short title (e.g. 'OOM Killed on billing-service').\n- 'summary': A high-level description of impact.\n- 'cause': A detailed explanation of the root cause.\n- 'recommendation': Actionable SRE remediation steps.\n- 'severity': 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW', or 'NONE'.\n- 'confidence': score between 0.0 and 1.0.\n- 'evidence': list of decision path messages.\n"
+        }
+      ]
+    }
+  ],
+  "temperature": 0.8,
+  "stream": false
+}
+ConsensusEngine LLM resolution failed, falling back to rule-based logic: HTTPSConnectionPool(host='api.meta.ai', port=443): Read timed out. (read timeout=60)
+```
+
+</details>
+
+<details>
+<summary><b>19. [agent-orchestrator] REQUEST — expert AIOps consensus engine (generation 1)</b></summary>
+
+```json
+{
+  "model": "muse-spark-1.2-contributor",
+  "instructions": "You are an expert AIOps consensus engine. You output strictly JSON.",
+  "input": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "input_text",
+          "text": "You are the Lead Consensus Orchestrator in an AIOps pipeline.\nYou received telemetry from 5 agents for pod 'live-checkout-7b5d89d574-vkqzn' (Status: 'Failed'):\n\n- MONITORING Agent (Conf: 0.87): Pod live-checkout-7b5d89d574-vkqzn shows normal pod-level utilization (memory 45.72%, CPU 48.77% at ts 1787692115) but correlated logs show active application-level memory pressure: 5 recent ERROR checkout logs within 61s indicating buffer pool at capacity / allocation stalled (2 events at 1787692012, 1787692115) and request rejected due to insufficient memory for buffer (3 events at 1787692012). Indicates buffer pool saturation / memory exhaustion not reflected in pod_memory_utilization_ratio, causing request failures.\n- LOGS Agent (Conf: 0.95): Pod 'live-checkout-7b5d89d574-vkqzn' exhibits repeated failure pattern of buffer pool exhaustion: 5x 'request rejected, insufficient memory for buffer' and 2x 'buffer pool at capacity, allocation stalled' (timestamps 1787692012-1787692115), with preceding WARN 'allocating request buffer pool', indicating requests are being rejected due to insufficient buffer memory/pool at capacity\n- DEPLOYMENTS Agent (Conf: 0.38): Pod 'live-checkout-7b5d89d574-vkqzn' deployment 'live-checkout' status is 'Available' but sha is null and commit_msg is null - no Git rollout verifiable, so regression analysis is inconclusive. Retrieved evidence shows 5 recent checkout ERROR logs (buffer pool at capacity/allocation stalled and insufficient memory for buffer, timestamps 1787692012-1787692115, age 0-61s) indicating runtime resource exhaustion, but all have low vector similarity (0.376-0.389) and zero graph proximity (hop_distance null, no path, sources: vector only, hybrid_score ~0.385-0.394). No graph linkage to deployment change, no commit to correlate. No evidence of deployment-induced regression; errors appear to be application-level memory pressure, not attributable to a verifiable rollout without SHA/commit metadata.\n- TOPOLOGY Agent (Conf: 0.18): No noisy neighbor evidence found for Pod 'live-checkout-7b5d89d574-vkqzn'. Topology shows node_name=\"\", noisy_neighbors=[], dependencies=[] - no node placement or co-located pods to evaluate. All 5 retrieved logs (buffer pool at capacity, insufficient memory for buffer) are vector-only results with hop_distance=null and graph_proximity=0.0, providing no graph path or node co-location evidence. Errors indicate intra-pod memory pressure, not cross-pod contention, but assessment is inconclusive due to missing topology data.\n- SECURITY Agent (Conf: 0.8): No security breaches, secret reference warnings, or RBAC alerts.\n\nCorrelate these findings to determine the root cause.\nYour response MUST be a JSON object with fields:\n- 'title': A short title (e.g. 'OOM Killed on billing-service').\n- 'summary': A high-level description of impact.\n- 'cause': A detailed explanation of the root cause.\n- 'recommendation': Actionable SRE remediation steps.\n- 'severity': 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW', or 'NONE'.\n- 'confidence': score between 0.0 and 1.0.\n- 'evidence': list of decision path messages.\n"
+        }
+      ]
+    }
+  ],
+  "temperature": 0.8,
+  "stream": false
+```
+
+</details>
+
+<details>
+<summary><b>20. [investigation-engine] RESPONSE — topology specialist AI (generation 2)</b></summary>
+
+```json
+{
+  "top_logprobs": 0,
+  "temperature": 0.1,
+  "top_p": 1.0,
+  "service_tier": "auto",
+  "model": "muse-spark-1.2-contributor",
+  "reasoning": {
+    "effort": "high"
+  },
+  "background": false,
+  "tools": [],
+  "tool_choice": "auto",
+  "truncation": "disabled",
+  "id": "resp_6a8eb0ea07f4e1f02f9f417a",
+  "object": "response",
+  "status": "completed",
+  "created_at": 1787736298.0,
+  "completed_at": 1787736298.0,
+  "error": null,
+  "incomplete_details": null,
+  "output": [
+    {
+      "type": "reasoning",
+      "id": "rs_6a8eb0ea07f4e1f02f9f417a:rs_34c57dfd-89cf-42bf-b031-efb29c68c078",
+      "summary": [],
+      "status": "completed"
+    },
+    {
+      "type": "message",
+      "id": "msg_7ddf3dcf-db7a-49e1-877d-36badccb0b8e",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "output_text",
+          "text": "{\"finding\": \"No noisy neighbor evidence found for Pod 'live-checkout-7b5d89d574-vkqzn'. Topology shows node_name=\\\"\\\", noisy_neighbors=[], dependencies=[] - no node placement or co-located pods to evaluate. All 5 retrieved logs (buffer pool at capacity, insufficient memory for buffer) are vector-only results with hop_distance=null and graph_proximity=0.0, providing no graph path or node co-location evidence. Errors indicate intra-pod memory pressure, not cross-pod contention, but assessment is inconclusive due to missing topology data.\", \"confidence\": 0.18}",
+          "annotations": [],
+          "logprobs": []
+        }
+      ],
+      "status": "completed"
+    }
+  ],
+  "instructions": "You are a topology specialist AI. You output strictly JSON.",
+  "usage": {
+    "input_tokens": 2936,
+    "input_tokens_details": {
+      "cached_tokens": 0
+    },
+    "output_tokens": 936,
+    "output_tokens_details": {
+      "reasoning_tokens": 801
+    },
+    "total_tokens": 3872
+  },
+  "parallel_tool_calls": true,
+  "store": true
+}
+```
+
+</details>
+
+<details>
+<summary><b>21. [investigation-engine] REQUEST — monitoring specialist AI (generation 2)</b></summary>
+
+```json
+{
+  "model": "muse-spark-1.2-contributor",
+  "instructions": "You are a monitoring specialist AI. You output strictly JSON.",
+  "input": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "input_text",
+          "text": "You are a Specialist Monitoring Agent.\nAnalyze metrics for Pod 'live-checkout-7b5d89d574-vkqzn' to check for anomalies.\n\nMetrics:\n[\n  {\n    \"name\": \"pod_memory_utilization_ratio\",\n    \"value\": 45.721035981333756,\n    \"ts\": 1787692115\n  },\n  {\n    \"name\": \"pod_cpu_utilization_ratio\",\n    \"value\": 48.77184510322129,\n    \"ts\": 1787692115\n  }\n]\n\nRetrieved graph evidence:\n[\n  {\n    \"id\": \"neo4j:Log:0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n    \"text\": \"ERROR checkout: buffer pool at capacity, allocation stalled\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n      \"timestamp\": 1787692115,\n      \"source_id\": \"neo4j:Log:0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n    \"type\": \"log\",\n    \"score\": 0.39458,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.38916,\n        \"weight\": 0.5,\n        \"contribution\": 0.19458,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 1.0,\n        \"weight\": 0.2,\n        \"contribution\": 0.2,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692115,\n        \"age_seconds\": 0,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.39458\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.195 from raw score 0.389.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.200 for timestamp 1787692115.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n    \"text\": \"ERROR checkout: buffer pool at capacity, allocation stalled\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n    \"type\": \"log\",\n    \"score\": 0.392245,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.38916,\n        \"weight\": 0.5,\n        \"contribution\": 0.19458,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.392245\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.195 from raw score 0.389.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  }\n]\n\nOutput JSON with: 'finding', 'confidence', 'anomalies'."
+        }
+      ]
+    }
+  ],
+  "temperature": 0.1,
+  "stream": false
+}
+```
+
+</details>
+
+<details>
+<summary><b>22. [investigation-engine] RESPONSE — monitoring specialist AI (generation 2)</b></summary>
+
+```json
+{
+  "top_logprobs": 0,
+  "temperature": 0.1,
+  "top_p": 1.0,
+  "service_tier": "auto",
+  "model": "muse-spark-1.2-contributor",
+  "reasoning": {
+    "effort": "high"
+  },
+  "background": false,
+  "tools": [],
+  "tool_choice": "auto",
+  "truncation": "disabled",
+  "id": "resp_6a8eb14bd6ad4dfcb6db4b2e",
+  "object": "response",
+  "status": "completed",
+  "created_at": 1787736395.0,
+  "completed_at": 1787736395.0,
+  "error": null,
+  "incomplete_details": null,
+  "output": [
+    {
+      "type": "reasoning",
+      "id": "rs_6a8eb14bd6ad4dfcb6db4b2e:rs_d65bc686-b6a1-4342-bd44-95c47c05bd0f",
+      "summary": [],
+      "status": "completed"
+    },
+    {
+      "type": "message",
+      "id": "msg_041a15b0-d3ce-42a1-8325-56ef413f807a",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "output_text",
+          "text": "{\"finding\":\"Anomaly detected for Pod 'live-checkout-7b5d89d574-vkqzn': Application-level memory/buffer exhaustion despite moderate pod-level metrics. pod_memory_utilization_ratio at 45.72% and pod_cpu_utilization_ratio at 48.77% appear normal, but 5 contemporaneous checkout ERROR logs (within 61s of metric timestamp 1787692115) report 'buffer pool at capacity, allocation stalled' (x2) and 'request rejected, insufficient memory for buffer' (x3), indicating buffer pool saturation and request failures not reflected in pod-level memory metric.\",\"confidence\":0.87,\"anomalies\":[{\"type\":\"application_buffer_pool_exhaustion\",\"severity\":\"high\",\"metric\":\"pod_memory_utilization_ratio\",\"metric_value\":45.721035981333756,\"metric_timestamp\":1787692115,\"expected_behavior\":\"No memory allocation errors at ~45% pod memory utilization\",\"observed_behavior\":\"Buffer pool at capacity, allocation stalled and 3x request rejected due to insufficient memory for buffer\",\"evidence_count\":5,\"evidence_ids\":[\"neo4j:Log:0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\"neo4j:Log:3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\"neo4j:Log:1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\"neo4j:Log:28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\"neo4j:Log:8bc92cf5-0147-4053-98d7-3715ebcd005c\"],\"interpretation\":\"Pod-level metric is misleadingly low; application-level buffer/memory limit reached. Suggests undersized buffer pool configuration, memory leak, or unaccounted off-heap/direct memory pressure causing allocation stalls and rejected requests\"},{\"type\":\"metric_log_discrepancy\",\"severity\":\"medium\",\"metric\":\"pod_cpu_utilization_ratio\",\"metric_value\":48.77184510322129,\"metric_timestamp\":1787692115,\"description\":\"CPU utilization normal at 48.77% while memory allocation is stalled, confirming contention is memory/buffer-specific not CPU-bound\",\"evidence_ids\":[]}]}",
+          "annotations": [],
+          "logprobs": []
+        }
+      ],
+      "status": "completed"
+    }
+  ],
+  "instructions": "You are a monitoring specialist AI. You output strictly JSON.",
+  "usage": {
+    "input_tokens": 2998,
+    "input_tokens_details": {
+      "cached_tokens": 2993
+    },
+    "output_tokens": 1839,
+    "output_tokens_details": {
+      "reasoning_tokens": 1328
+    },
+    "total_tokens": 4837
+  },
+  "parallel_tool_calls": true,
+  "store": true
+}
+```
+
+</details>
+
+<details>
+<summary><b>23. [investigation-engine] REQUEST — log analysis specialist AI (generation 2)</b></summary>
+
+```json
+{
+  "model": "muse-spark-1.2-contributor",
+  "instructions": "You are a log analysis specialist AI. You output strictly JSON.",
+  "input": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "input_text",
+          "text": "You are a Specialist Log Agent.\nAnalyze logs for Pod 'live-checkout-7b5d89d574-vkqzn' to check for failure patterns.\n\nLogs:\nERROR ERROR checkout: request rejected, insufficient memory for buffer\nERROR ERROR checkout: request rejected, insufficient memory for buffer\nERROR ERROR checkout: request rejected, insufficient memory for buffer\nERROR ERROR checkout: request rejected, insufficient memory for buffer\nERROR ERROR checkout: request rejected, insufficient memory for buffer\nERROR ERROR checkout: buffer pool at capacity, allocation stalled\nWARN WARN  checkout: allocating request buffer pool\nINFO checkout worker starting\n\nRetrieved graph evidence:\n[\n  {\n    \"id\": \"neo4j:Log:0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n    \"text\": \"ERROR checkout: buffer pool at capacity, allocation stalled\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n      \"timestamp\": 1787692115,\n      \"source_id\": \"neo4j:Log:0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n    \"type\": \"log\",\n    \"score\": 0.39458,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.38916,\n        \"weight\": 0.5,\n        \"contribution\": 0.19458,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 1.0,\n        \"weight\": 0.2,\n        \"contribution\": 0.2,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692115,\n        \"age_seconds\": 0,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.39458\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.195 from raw score 0.389.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.200 for timestamp 1787692115.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n    \"text\": \"ERROR checkout: buffer pool at capacity, allocation stalled\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n    \"type\": \"log\",\n    \"score\": 0.392245,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.38916,\n        \"weight\": 0.5,\n        \"contribution\": 0.19458,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.392245\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.195 from raw score 0.389.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  }\n]\n\nOutput JSON with: 'finding', 'confidence', 'category'."
+        }
+      ]
+    }
+  ],
+  "temperature": 0.1,
+  "stream": false
+}
+LLM Agent call failed: HTTPSConnectionPool(host='api.meta.ai', port=443): Read timed out. (read timeout=60)
+```
+
+</details>
+
+<details>
+<summary><b>24. [investigation-engine] REQUEST — deployment rollout analysis specialist AI (generation 2)</b></summary>
+
+```json
+{
+  "model": "muse-spark-1.2-contributor",
+  "instructions": "You are a deployment rollout analysis specialist AI. You output strictly JSON.",
+  "input": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "input_text",
+          "text": "You are a Specialist Deployment Agent.\nAnalyze deployment and Git status for Pod 'live-checkout-7b5d89d574-vkqzn' to check for regressions.\n\nDeployment info:\n{\n  \"name\": \"live-checkout\",\n  \"status\": \"Available\",\n  \"sha\": null,\n  \"commit_msg\": null\n}\n\nRetrieved graph evidence:\n[\n  {\n    \"id\": \"neo4j:Log:0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n    \"text\": \"ERROR checkout: buffer pool at capacity, allocation stalled\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n      \"timestamp\": 1787692115,\n      \"source_id\": \"neo4j:Log:0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n    \"type\": \"log\",\n    \"score\": 0.39458,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.38916,\n        \"weight\": 0.5,\n        \"contribution\": 0.19458,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 1.0,\n        \"weight\": 0.2,\n        \"contribution\": 0.2,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692115,\n        \"age_seconds\": 0,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.39458\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.195 from raw score 0.389.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.200 for timestamp 1787692115.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n    \"text\": \"ERROR checkout: buffer pool at capacity, allocation stalled\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n    \"type\": \"log\",\n    \"score\": 0.392245,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.38916,\n        \"weight\": 0.5,\n        \"contribution\": 0.19458,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.392245\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.195 from raw score 0.389.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  }\n]\n\nOutput JSON with: 'finding', 'confidence'."
+        }
+      ]
+    }
+  ],
+  "temperature": 0.1,
+  "stream": false
+}
+```
+
+</details>
+
+<details>
+<summary><b>25. [investigation-engine] RESPONSE — deployment rollout analysis specialist AI (generation 2)</b></summary>
+
+```json
+{
+  "top_logprobs": 0,
+  "temperature": 0.1,
+  "top_p": 1.0,
+  "service_tier": "auto",
+  "model": "muse-spark-1.2-contributor",
+  "reasoning": {
+    "effort": "high"
+  },
+  "background": false,
+  "tools": [],
+  "tool_choice": "auto",
+  "truncation": "disabled",
+  "id": "resp_6a8eb1ae4eba366ed14c4a21",
+  "object": "response",
+  "status": "completed",
+  "created_at": 1787736494.0,
+  "completed_at": 1787736494.0,
+  "error": null,
+  "incomplete_details": null,
+  "output": [
+    {
+      "type": "reasoning",
+      "id": "rs_6a8eb1ae4eba366ed14c4a21:rs_e71fd4db-2740-4768-bed2-84c2d4a05d6a",
+      "summary": [],
+      "status": "completed"
+    },
+    {
+      "type": "message",
+      "id": "msg_bd5ad96a-9de6-43c7-b210-dfef6a380c4d",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "output_text",
+          "text": "{\"finding\": \"Pod live-checkout-7b5d89d574-vkqzn deployment 'live-checkout' status is Available but sha and commit_msg are null, preventing verification of deployed version and direct regression attribution. Retrieved graph evidence shows 5 recent logs (0-61s old) with consistent memory pressure: 'buffer pool at capacity, allocation stalled' (2x) and 'request rejected, insufficient memory for buffer' (3x). No graph proximity (hop_distance null) and low vector similarity (0.376-0.389) means no direct linkage to deployment, but temporal clustering suggests ongoing buffer/memory exhaustion in checkout. Cannot confirm regression vs pre-existing capacity issue without SHA/metrics comparison; requires fetching actual deployed SHA, comparing to previous revision, and checking memory limits/buffer pool config and error rate trends.\", \"confidence\": 0.62}",
+          "annotations": [],
+          "logprobs": []
+        }
+      ],
+      "status": "completed"
+    }
+  ],
+  "instructions": "You are a deployment rollout analysis specialist AI. You output strictly JSON.",
+  "usage": {
+    "input_tokens": 2952,
+    "input_tokens_details": {
+      "cached_tokens": 0
+    },
+    "output_tokens": 1472,
+    "output_tokens_details": {
+      "reasoning_tokens": 1282
+    },
+    "total_tokens": 4424
+  },
+  "parallel_tool_calls": true,
+  "store": true
+}
+```
+
+</details>
+
+<details>
+<summary><b>26. [investigation-engine] REQUEST — topology specialist AI (generation 2)</b></summary>
+
+```json
+{
+  "model": "muse-spark-1.2-contributor",
+  "instructions": "You are a topology specialist AI. You output strictly JSON.",
+  "input": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "input_text",
+          "text": "You are a Specialist Topology Agent.\nAnalyze topology for Pod 'live-checkout-7b5d89d574-vkqzn' to check for noisy neighbors.\n\nTopology:\n{\n  \"dependencies\": [],\n  \"node_name\": \"\",\n  \"noisy_neighbors\": []\n}\n\nRetrieved graph evidence:\n[\n  {\n    \"id\": \"neo4j:Log:0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n    \"text\": \"ERROR checkout: buffer pool at capacity, allocation stalled\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n      \"timestamp\": 1787692115,\n      \"source_id\": \"neo4j:Log:0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n    \"type\": \"log\",\n    \"score\": 0.39458,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.38916,\n        \"weight\": 0.5,\n        \"contribution\": 0.19458,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 1.0,\n        \"weight\": 0.2,\n        \"contribution\": 0.2,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692115,\n        \"age_seconds\": 0,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.39458\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.195 from raw score 0.389.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.200 for timestamp 1787692115.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n    \"text\": \"ERROR checkout: buffer pool at capacity, allocation stalled\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n    \"type\": \"log\",\n    \"score\": 0.392245,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.38916,\n        \"weight\": 0.5,\n        \"contribution\": 0.19458,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.392245\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.195 from raw score 0.389.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  }\n]\n\nOutput JSON with: 'finding', 'confidence'."
+        }
+      ]
+    }
+  ],
+  "temperature": 0.1,
+  "stream": false
+```
+
+</details>
+
+<details>
+<summary><b>27. [agent-orchestrator] RESPONSE — expert AIOps consensus engine (generation 2)</b></summary>
+
+```json
+{
+  "top_logprobs": 0,
+  "temperature": 0.8,
+  "top_p": 1.0,
+  "service_tier": "auto",
+  "model": "muse-spark-1.2-contributor",
+  "reasoning": {
+    "effort": "high"
+  },
+  "background": false,
+  "tools": [],
+  "tool_choice": "auto",
+  "truncation": "disabled",
+  "id": "resp_6a8eb10b85fcb25e36da438a",
+  "object": "response",
+  "status": "completed",
+  "created_at": 1787736331.0,
+  "completed_at": 1787736331.0,
+  "error": null,
+  "incomplete_details": null,
+  "output": [
+    {
+      "type": "reasoning",
+      "id": "rs_6a8eb10b85fcb25e36da438a:rs_7fbcb4fe-d043-4173-b579-c77f2bfb8486",
+      "summary": [],
+      "status": "completed"
+    },
+    {
+      "type": "message",
+      "id": "msg_cc136fc1-3ce9-432e-8c7c-8e3db055b623",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "output_text",
+          "text": "{\"title\":\"Application-Level Buffer Pool Exhaustion on live-checkout Pod\",\"summary\":\"Pod 'live-checkout-7b5d89d574-vkqzn' is in 'Failed' status with checkout requests being rejected. Impact is service degradation/outage for live-checkout - application cannot allocate request buffers, causing request failures despite normal infrastructure metrics.\",\"cause\":\"Intra-pod application-level memory pressure and buffer pool saturation, not infrastructure-level OOM. Pod-level metrics show normal utilization (memory 45.72%, CPU 48.77% at 1787692115) but application logs show 5 ERROR events within 61s (1787692012-1787692115): 3x 'request rejected, insufficient memory for buffer' and 2x 'buffer pool at capacity, allocation stalled', preceded by WARN 'allocating request buffer pool'. This indicates the application's internal buffer pool is exhausted and allocations are stalled, causing rejections. Failure is not reflected in pod_memory_utilization_ratio, explaining the metric divergence. No evidence of deployment regression, noisy neighbor contention, or security breach.\",\"recommendation\":\"1. Immediate: Restart pod 'live-checkout-7b5d89d574-vkqzn' to clear stalled pool and restore service; consider temporary horizontal scale-out. 2. Increase container memory limits/requests and tune application buffer pool settings (max pool size, buffer size, timeout/eviction policy) to handle peak checkout load. 3. Investigate application for memory leak or unbounded buffer growth - profile heap/buffer pool usage, review recent config changes to pool. 4. Add application-level observability: export buffer pool utilization, allocation stall count, and rejected request metrics with alerts (do not rely solely on pod_memory_utilization_ratio). 5. Implement backpressure / circuit breaker and request queuing to fail gracefully. 6. Load test checkout under realistic concurrency to validate new limits.\",\"severity\":\"CRITICAL\",\"confidence\":0.91,\"evidence\":[\"LOGS Agent (0.95): 5x 'request rejected, insufficient memory for buffer' + 2x 'buffer pool at capacity, allocation stalled' in 61s window (1787692012-1787692115) with preceding WARN 'allocating request buffer pool' - strong repeated failure pattern\",\"MONITORING Agent (0.87): Correlates normal pod utilization (memory 45.72%, CPU 48.77%) with active application-level memory pressure - confirms metric divergence and intra-pod exhaustion not visible at infra level\",\"DEPLOYMENTS Agent (0.38): Deployment 'live-checkout' is 'Available' but sha=null/commit_msg=null, low vector similarity (0.376-0.389) and zero graph proximity (hop_distance null) - no verifiable rollout or graph linkage to errors, inconclusive and discounted due to low confidence\",\"TOPOLOGY Agent (0.18): node_name=\\\"\\\", noisy_neighbors=[], dependencies=[] with all logs vector-only (graph_proximity 0.0, hop_distance null) - no noisy neighbor or cross-pod contention evidence, inconclusive due to missing topology data and discounted\",\"SECURITY Agent (0.8): No security breaches, secret reference warnings, or RBAC alerts - rules out security-related root cause\"]}",
+          "annotations": [],
+          "logprobs": []
+        }
+      ],
+      "status": "completed"
+    }
+  ],
+  "instructions": "You are an expert AIOps consensus engine. You output strictly JSON.",
+  "usage": {
+    "input_tokens": 781,
+    "input_tokens_details": {
+      "cached_tokens": 0
+    },
+    "output_tokens": 1717,
+    "output_tokens_details": {
+      "reasoning_tokens": 1034
+    },
+    "total_tokens": 2498
+  },
+  "parallel_tool_calls": true,
+  "store": true
+}
+```
+
+</details>
+
+<details>
+<summary><b>28. [agent-orchestrator] REQUEST — expert AIOps consensus engine (generation 2)</b></summary>
+
+```json
+{
+  "model": "muse-spark-1.2-contributor",
+  "instructions": "You are an expert AIOps consensus engine. You output strictly JSON.",
+  "input": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "input_text",
+          "text": "You are the Lead Consensus Orchestrator in an AIOps pipeline.\nYou received telemetry from 5 agents for pod 'live-checkout-7b5d89d574-vkqzn' (Status: 'Failed'):\n\n- MONITORING Agent (Conf: 0.87): Anomaly detected for Pod 'live-checkout-7b5d89d574-vkqzn': Application-level memory/buffer exhaustion despite moderate pod-level metrics. pod_memory_utilization_ratio at 45.72% and pod_cpu_utilization_ratio at 48.77% appear normal, but 5 contemporaneous checkout ERROR logs (within 61s of metric timestamp 1787692115) report 'buffer pool at capacity, allocation stalled' (x2) and 'request rejected, insufficient memory for buffer' (x3), indicating buffer pool saturation and request failures not reflected in pod-level memory metric.\n- LOGS Agent (Conf: 0.7): Analyzed log streams. Standard runtime errors observed.\n- DEPLOYMENTS Agent (Conf: 0.62): Pod live-checkout-7b5d89d574-vkqzn deployment 'live-checkout' status is Available but sha and commit_msg are null, preventing verification of deployed version and direct regression attribution. Retrieved graph evidence shows 5 recent logs (0-61s old) with consistent memory pressure: 'buffer pool at capacity, allocation stalled' (2x) and 'request rejected, insufficient memory for buffer' (3x). No graph proximity (hop_distance null) and low vector similarity (0.376-0.389) means no direct linkage to deployment, but temporal clustering suggests ongoing buffer/memory exhaustion in checkout. Cannot confirm regression vs pre-existing capacity issue without SHA/metrics comparison; requires fetching actual deployed SHA, comparing to previous revision, and checking memory limits/buffer pool config and error rate trends.\n- TOPOLOGY Agent (Conf: 0.92): Pod live-checkout-7b5d89d574-vkqzn shows no topology evidence for noisy neighbors: node_name is empty, noisy_neighbors is empty, dependencies is empty. Retrieved logs show checkout buffer pool at capacity / insufficient memory for buffer but all have hop_distance=null, graph_proximity=0.0, no relationships/path, and no node co-location data. Memory pressure is evident but cannot be attributed to noisy neighbors from topology alone; node assignment and co-located pod resource usage data required.\n- SECURITY Agent (Conf: 0.8): No security breaches, secret reference warnings, or RBAC alerts.\n\nCorrelate these findings to determine the root cause.\nYour response MUST be a JSON object with fields:\n- 'title': A short title (e.g. 'OOM Killed on billing-service').\n- 'summary': A high-level description of impact.\n- 'cause': A detailed explanation of the root cause.\n- 'recommendation': Actionable SRE remediation steps.\n- 'severity': 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW', or 'NONE'.\n- 'confidence': score between 0.0 and 1.0.\n- 'evidence': list of decision path messages.\n"
+        }
+      ]
+    }
+  ],
+  "temperature": 0.8,
+  "stream": false
+}
+```
+
+</details>
+
+<details>
+<summary><b>29. [agent-orchestrator] RESPONSE — agent-orchestrator (generation 2)</b></summary>
+
+```json
+
+```
+
+</details>
+
+<details>
+<summary><b>30. [investigation-engine] RESPONSE — topology specialist AI (generation 3)</b></summary>
+
+```json
+{
+  "top_logprobs": 0,
+  "temperature": 0.1,
+  "top_p": 1.0,
+  "service_tier": "auto",
+  "model": "muse-spark-1.2-contributor",
+  "reasoning": {
+    "effort": "high"
+  },
+  "background": false,
+  "tools": [],
+  "tool_choice": "auto",
+  "truncation": "disabled",
+  "id": "resp_6a8eb1c8a4e633892a084e54",
+  "object": "response",
+  "status": "completed",
+  "created_at": 1787736520.0,
+  "completed_at": 1787736520.0,
+  "error": null,
+  "incomplete_details": null,
+  "output": [
+    {
+      "type": "reasoning",
+      "id": "rs_6a8eb1c8a4e633892a084e54:rs_696b4f85-9d31-494b-b909-bcd670316afa",
+      "summary": [],
+      "status": "completed"
+    },
+    {
+      "type": "message",
+      "id": "msg_bfbc1cda-6cde-4f90-96c6-10145ec42815",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "output_text",
+          "text": "{\"finding\": \"Pod live-checkout-7b5d89d574-vkqzn shows no topology evidence for noisy neighbors: node_name is empty, noisy_neighbors is empty, dependencies is empty. Retrieved logs show checkout buffer pool at capacity / insufficient memory for buffer but all have hop_distance=null, graph_proximity=0.0, no relationships/path, and no node co-location data. Memory pressure is evident but cannot be attributed to noisy neighbors from topology alone; node assignment and co-located pod resource usage data required.\", \"confidence\": 0.92}",
+          "annotations": [],
+          "logprobs": []
+        }
+      ],
+      "status": "completed"
+    }
+  ],
+  "instructions": "You are a topology specialist AI. You output strictly JSON.",
+  "usage": {
+    "input_tokens": 2936,
+    "input_tokens_details": {
+      "cached_tokens": 2929
+    },
+    "output_tokens": 1093,
+    "output_tokens_details": {
+      "reasoning_tokens": 967
+    },
+    "total_tokens": 4029
+  },
+  "parallel_tool_calls": true,
+  "store": true
+}
+```
+
+</details>
+
+<details>
+<summary><b>31. [investigation-engine] REQUEST — monitoring specialist AI (generation 3)</b></summary>
+
+```json
+{
+  "model": "muse-spark-1.2-contributor",
+  "instructions": "You are a monitoring specialist AI. You output strictly JSON.",
+  "input": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "input_text",
+          "text": "You are a Specialist Monitoring Agent.\nAnalyze metrics for Pod 'live-checkout-7b5d89d574-vkqzn' to check for anomalies.\n\nMetrics:\n[\n  {\n    \"name\": \"pod_memory_utilization_ratio\",\n    \"value\": 45.721035981333756,\n    \"ts\": 1787692115\n  },\n  {\n    \"name\": \"pod_cpu_utilization_ratio\",\n    \"value\": 48.77184510322129,\n    \"ts\": 1787692115\n  }\n]\n\nRetrieved graph evidence:\n[\n  {\n    \"id\": \"neo4j:Log:0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n    \"text\": \"ERROR checkout: buffer pool at capacity, allocation stalled\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n      \"timestamp\": 1787692115,\n      \"source_id\": \"neo4j:Log:0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n    \"type\": \"log\",\n    \"score\": 0.39458,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.38916,\n        \"weight\": 0.5,\n        \"contribution\": 0.19458,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 1.0,\n        \"weight\": 0.2,\n        \"contribution\": 0.2,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692115,\n        \"age_seconds\": 0,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.39458\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.195 from raw score 0.389.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.200 for timestamp 1787692115.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n    \"text\": \"ERROR checkout: buffer pool at capacity, allocation stalled\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n    \"type\": \"log\",\n    \"score\": 0.392245,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.38916,\n        \"weight\": 0.5,\n        \"contribution\": 0.19458,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.392245\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.195 from raw score 0.389.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  }\n]\n\nOutput JSON with: 'finding', 'confidence', 'anomalies'."
+        }
+      ]
+    }
+  ],
+  "temperature": 0.1,
+  "stream": false
+}
+```
+
+</details>
+
+<details>
+<summary><b>32. [investigation-engine] RESPONSE — monitoring specialist AI (generation 3)</b></summary>
+
+```json
+{
+  "top_logprobs": 0,
+  "temperature": 0.1,
+  "top_p": 1.0,
+  "service_tier": "auto",
+  "model": "muse-spark-1.2-contributor",
+  "reasoning": {
+    "effort": "high"
+  },
+  "background": false,
+  "tools": [],
+  "tool_choice": "auto",
+  "truncation": "disabled",
+  "id": "resp_6a8eb22bbd5744c239c74998",
+  "object": "response",
+  "status": "completed",
+  "created_at": 1787736619.0,
+  "completed_at": 1787736619.0,
+  "error": null,
+  "incomplete_details": null,
+  "output": [
+    {
+      "type": "reasoning",
+      "id": "rs_6a8eb22bbd5744c239c74998:rs_79d3c133-6745-4e27-9047-af6f83eeef5f",
+      "summary": [],
+      "status": "completed"
+    },
+    {
+      "type": "message",
+      "id": "msg_42442f34-2efd-47ff-8ec7-d901deda6695",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "output_text",
+          "text": "{\"finding\": \"Pod live-checkout-7b5d89d574-vkqzn shows normal pod-level resource utilization (memory 45.7%, CPU 48.8% at ts 1787692115) with NO infrastructure-level anomaly, but critical application-level memory anomaly detected: checkout service buffer pool exhaustion causing allocation stalls and request rejections\",\"confidence\": 0.88,\"anomalies\": [{\"name\": \"pod_memory_utilization_ratio\",\"value\": 45.721035981333756,\"ts\": 1787692115,\"anomalous\": false,\"reason\": \"Value 45.7% is within normal operating range, no pod-level memory pressure detected\"},{\"name\": \"pod_cpu_utilization_ratio\",\"value\": 48.77184510322129,\"ts\": 1787692115,\"anomalous\": false,\"reason\": \"Value 48.8% is within normal operating range, no CPU pressure detected\"},{\"name\": \"checkout_buffer_pool_memory\",\"anomalous\": true,\"severity\": \"high\",\"reason\": \"Application-level memory exhaustion despite normal pod utilization indicates internal buffer pool limit reached or memory leak, not pod memory limit\",\"evidence\": \"5 correlated ERROR logs within 61s: 'buffer pool at capacity, allocation stalled' (2x at 1787692012, 1787692115 - ids 3cee1a3c, 0ee7278b) and 'request rejected, insufficient memory for buffer' (3x at 1787692012 - ids 1b5ef483, 28a8a597, 8bc92cf5)\",\"impact\": \"Checkout requests are being rejected/stalled\",\"discrepancy_note\": \"Pod memory 45.7% vs application buffer pool at capacity suggests misconfigured application memory limit, buffer pool too small, or leak - requires application-level investigation, not pod scaling\"}]}",
+          "annotations": [],
+          "logprobs": []
+        }
+      ],
+      "status": "completed"
+    }
+  ],
+  "instructions": "You are a monitoring specialist AI. You output strictly JSON.",
+  "usage": {
+    "input_tokens": 2998,
+    "input_tokens_details": {
+      "cached_tokens": 2993
+    },
+    "output_tokens": 1771,
+    "output_tokens_details": {
+      "reasoning_tokens": 1368
+    },
+    "total_tokens": 4769
+  },
+  "parallel_tool_calls": true,
+  "store": true
+}
+```
+
+</details>
+
+<details>
+<summary><b>33. [investigation-engine] REQUEST — log analysis specialist AI (generation 3)</b></summary>
+
+```json
+{
+  "model": "muse-spark-1.2-contributor",
+  "instructions": "You are a log analysis specialist AI. You output strictly JSON.",
+  "input": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "input_text",
+          "text": "You are a Specialist Log Agent.\nAnalyze logs for Pod 'live-checkout-7b5d89d574-vkqzn' to check for failure patterns.\n\nLogs:\nERROR ERROR checkout: request rejected, insufficient memory for buffer\nERROR ERROR checkout: request rejected, insufficient memory for buffer\nERROR ERROR checkout: request rejected, insufficient memory for buffer\nERROR ERROR checkout: request rejected, insufficient memory for buffer\nERROR ERROR checkout: request rejected, insufficient memory for buffer\nERROR ERROR checkout: buffer pool at capacity, allocation stalled\nWARN WARN  checkout: allocating request buffer pool\nINFO checkout worker starting\n\nRetrieved graph evidence:\n[\n  {\n    \"id\": \"neo4j:Log:0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n    \"text\": \"ERROR checkout: buffer pool at capacity, allocation stalled\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n      \"timestamp\": 1787692115,\n      \"source_id\": \"neo4j:Log:0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n    \"type\": \"log\",\n    \"score\": 0.39458,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.38916,\n        \"weight\": 0.5,\n        \"contribution\": 0.19458,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 1.0,\n        \"weight\": 0.2,\n        \"contribution\": 0.2,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692115,\n        \"age_seconds\": 0,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.39458\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.195 from raw score 0.389.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.200 for timestamp 1787692115.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n    \"text\": \"ERROR checkout: buffer pool at capacity, allocation stalled\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n    \"type\": \"log\",\n    \"score\": 0.392245,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.38916,\n        \"weight\": 0.5,\n        \"contribution\": 0.19458,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.392245\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.195 from raw score 0.389.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  }\n]\n\nOutput JSON with: 'finding', 'confidence', 'category'."
+        }
+      ]
+    }
+  ],
+  "temperature": 0.1,
+  "stream": false
+}
+```
+
+</details>
+
+<details>
+<summary><b>34. [investigation-engine] RESPONSE — log analysis specialist AI (generation 3)</b></summary>
+
+```json
+{
+  "top_logprobs": 0,
+  "temperature": 0.1,
+  "top_p": 1.0,
+  "service_tier": "auto",
+  "model": "muse-spark-1.2-contributor",
+  "reasoning": {
+    "effort": "high"
+  },
+  "background": false,
+  "tools": [],
+  "tool_choice": "auto",
+  "truncation": "disabled",
+  "id": "resp_6a8eb244cda2d1bfaae8449d",
+  "object": "response",
+  "status": "completed",
+  "created_at": 1787736644.0,
+  "completed_at": 1787736644.0,
+  "error": null,
+  "incomplete_details": null,
+  "output": [
+    {
+      "type": "reasoning",
+      "id": "rs_6a8eb244cda2d1bfaae8449d:rs_f31c2862-7fdf-4409-b6fb-ec5b3b9c1e40",
+      "summary": [],
+      "status": "completed"
+    },
+    {
+      "type": "message",
+      "id": "msg_a9e900cb-a346-4cb4-9519-f7e448c0cd16",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "output_text",
+          "text": "{\"finding\": \"Pod live-checkout-7b5d89d574-vkqzn exhibits repeated failure pattern of buffer pool exhaustion: 5x 'request rejected, insufficient memory for buffer' and 2x 'buffer pool at capacity, allocation stalled' (timestamps 1787692012, 1787692115) leading to allocation stalls and request rejections\",\"confidence\": 0.94,\"category\": \"memory_exhaustion\"}",
+          "annotations": [],
+          "logprobs": []
+        }
+      ],
+      "status": "completed"
+    }
+  ],
+  "instructions": "You are a log analysis specialist AI. You output strictly JSON.",
+  "usage": {
+    "input_tokens": 3008,
+    "input_tokens_details": {
+      "cached_tokens": 0
+    },
+    "output_tokens": 1187,
+    "output_tokens_details": {
+      "reasoning_tokens": 1084
+    },
+    "total_tokens": 4195
+  },
+  "parallel_tool_calls": true,
+  "store": true
+}
+```
+
+</details>
+
+<details>
+<summary><b>35. [investigation-engine] REQUEST — deployment rollout analysis specialist AI (generation 3)</b></summary>
+
+```json
+{
+  "model": "muse-spark-1.2-contributor",
+  "instructions": "You are a deployment rollout analysis specialist AI. You output strictly JSON.",
+  "input": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "input_text",
+          "text": "You are a Specialist Deployment Agent.\nAnalyze deployment and Git status for Pod 'live-checkout-7b5d89d574-vkqzn' to check for regressions.\n\nDeployment info:\n{\n  \"name\": \"live-checkout\",\n  \"status\": \"Available\",\n  \"sha\": null,\n  \"commit_msg\": null\n}\n\nRetrieved graph evidence:\n[\n  {\n    \"id\": \"neo4j:Log:0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n    \"text\": \"ERROR checkout: buffer pool at capacity, allocation stalled\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n      \"timestamp\": 1787692115,\n      \"source_id\": \"neo4j:Log:0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n    \"type\": \"log\",\n    \"score\": 0.39458,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.38916,\n        \"weight\": 0.5,\n        \"contribution\": 0.19458,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 1.0,\n        \"weight\": 0.2,\n        \"contribution\": 0.2,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692115,\n        \"age_seconds\": 0,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.39458\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.195 from raw score 0.389.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.200 for timestamp 1787692115.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n    \"text\": \"ERROR checkout: buffer pool at capacity, allocation stalled\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n    \"type\": \"log\",\n    \"score\": 0.392245,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.38916,\n        \"weight\": 0.5,\n        \"contribution\": 0.19458,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.392245\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.195 from raw score 0.389.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  }\n]\n\nOutput JSON with: 'finding', 'confidence'."
+        }
+      ]
+    }
+  ],
+  "temperature": 0.1,
+  "stream": false
+}
+LLM Agent call failed: HTTPSConnectionPool(host='api.meta.ai', port=443): Read timed out. (read timeout=60)
+```
+
+</details>
+
+<details>
+<summary><b>36. [investigation-engine] REQUEST — topology specialist AI (generation 3)</b></summary>
+
+```json
+{
+  "model": "muse-spark-1.2-contributor",
+  "instructions": "You are a topology specialist AI. You output strictly JSON.",
+  "input": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "input_text",
+          "text": "You are a Specialist Topology Agent.\nAnalyze topology for Pod 'live-checkout-7b5d89d574-vkqzn' to check for noisy neighbors.\n\nTopology:\n{\n  \"dependencies\": [],\n  \"node_name\": \"\",\n  \"noisy_neighbors\": []\n}\n\nRetrieved graph evidence:\n[\n  {\n    \"id\": \"neo4j:Log:0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n    \"text\": \"ERROR checkout: buffer pool at capacity, allocation stalled\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n      \"timestamp\": 1787692115,\n      \"source_id\": \"neo4j:Log:0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"0ee7278b-1279-4cf9-8ab8-11a616a98e85\",\n    \"type\": \"log\",\n    \"score\": 0.39458,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.38916,\n        \"weight\": 0.5,\n        \"contribution\": 0.19458,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 1.0,\n        \"weight\": 0.2,\n        \"contribution\": 0.2,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692115,\n        \"age_seconds\": 0,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.39458\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.195 from raw score 0.389.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.200 for timestamp 1787692115.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n    \"text\": \"ERROR checkout: buffer pool at capacity, allocation stalled\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"3cee1a3c-2f99-4221-87f9-88a5bdf68894\",\n    \"type\": \"log\",\n    \"score\": 0.392245,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.38916,\n        \"weight\": 0.5,\n        \"contribution\": 0.19458,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.392245\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.195 from raw score 0.389.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"1b5ef483-cf7f-40a1-aecf-c8feeb808fb3\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"28a8a597-8b57-4ef9-9b83-252d6c21d40e\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  },\n  {\n    \"id\": \"neo4j:Log:8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n    \"text\": \"ERROR checkout: request rejected, insufficient memory for buffer\",\n    \"metadata\": {\n      \"type\": \"log\",\n      \"label\": \"Log\",\n      \"name\": \"8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n      \"timestamp\": 1787692012,\n      \"source_id\": \"neo4j:Log:8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n      \"embedding_backend\": \"sentence-transformer\"\n    },\n    \"labels\": [],\n    \"properties\": {},\n    \"hop_distance\": null,\n    \"relationships\": [],\n    \"path\": [],\n    \"sources\": [\n      \"vector\"\n    ],\n    \"name\": \"8bc92cf5-0147-4053-98d7-3715ebcd005c\",\n    \"type\": \"log\",\n    \"score\": 0.385753,\n    \"score_breakdown\": {\n      \"formula\": \"hybrid_score = 0.50 * vector_similarity + 0.30 * graph_proximity + 0.20 * recency\",\n      \"vector_similarity\": {\n        \"raw_score\": 0.376176,\n        \"weight\": 0.5,\n        \"contribution\": 0.188088,\n        \"explanation\": \"Cosine similarity from the local embedding search.\"\n      },\n      \"graph_proximity\": {\n        \"raw_score\": 0.0,\n        \"weight\": 0.3,\n        \"contribution\": 0.0,\n        \"explanation\": \"Inverse hop distance: 1 / (1 + hop_distance).\",\n        \"hop_distance\": null\n      },\n      \"recency\": {\n        \"raw_score\": 0.988324,\n        \"weight\": 0.2,\n        \"contribution\": 0.197665,\n        \"explanation\": \"Exponential decay with a configurable one-hour half-life.\",\n        \"timestamp\": 1787692012,\n        \"age_seconds\": 61,\n        \"half_life_seconds\": 3600\n      },\n      \"final_score\": 0.385753\n    },\n    \"ranking_rationale\": [\n      \"Vector similarity contributed 0.188 from raw score 0.376.\",\n      \"No graph path was available, so graph proximity contributed 0.000.\",\n      \"Recency contributed 0.198 for timestamp 1787692012.\"\n    ]\n  }\n]\n\nOutput JSON with: 'finding', 'confidence'."
+        }
+      ]
+    }
+  ],
+  "temperature": 0.1,
+  "stream": false
+```
+
+</details>
+
+---
+
+## Final result — both verifiers over the same claims
+
+> Claim text below is complete. The `[:52]` cap that truncated `experiment/results/claims.csv` has been removed.
+
+```text
+[10:35:46] [+1061.39s] claims scored               : 26
+[10:35:46] [+1061.39s] GPCS unsupported            : 26/26 = 100.0%
+[10:35:46] [+1061.39s] self-consistency unsupported: 15/26 = 57.7%
+
+   #      TRUST  GPCS           RECUR  SELF-CONSISTENCY  CLAIM
+   1      0.000  UNSUPPORTED      0.5  supported         Pod 'live-checkout-7b5d89d574-vkqzn' is in 'Failed' status
+   2      0.000  UNSUPPORTED      0.5  supported         Pod 'live-checkout-7b5d89d574-vkqzn' is part of the live-checkout service
+   3      0.000  UNSUPPORTED      0.5  supported         Checkout requests are being rejected
+   4      0.000  UNSUPPORTED      0.0  UNSUPPORTED       Impact is service degradation/outage for live-checkout
+   5      0.350  UNSUPPORTED      0.0  UNSUPPORTED       Application cannot allocate request buffers
+   6      0.353  UNSUPPORTED      0.0  UNSUPPORTED       Inability to allocate request buffers causes request failures
+   7      0.000  UNSUPPORTED      0.5  supported         Failure is due to intra-pod application-level memory pressure and buffer pool saturation
+   8      0.000  UNSUPPORTED      0.0  UNSUPPORTED       Failure is not due to infrastructure-level OOM
+   9      0.000  UNSUPPORTED      0.5  supported         Pod memory utilization was 45.72% at timestamp 1787692115
+   10     0.000  UNSUPPORTED      0.5  supported         Pod CPU utilization was 48.77% at timestamp 1787692115
+   11     0.000  UNSUPPORTED      0.0  UNSUPPORTED       Pod-level metrics show normal utilization at timestamp 1787692115
+   12     0.000  UNSUPPORTED      0.0  UNSUPPORTED       Application logs contain 5 ERROR events
+   13     0.000  UNSUPPORTED      0.0  UNSUPPORTED       The 5 ERROR events occurred within a 61 second window
+   14     0.000  UNSUPPORTED      0.0  UNSUPPORTED       The 5 ERROR events occurred between timestamps 1787692012 and 1787692115
+   15     0.380  UNSUPPORTED      0.5  supported         Three ERROR events have message 'request rejected, insufficient memory for buffer'
+   16     0.392  UNSUPPORTED      0.5  supported         Two ERROR events have message 'buffer pool at capacity, allocation stalled'
+   17     0.373  UNSUPPORTED      0.0  UNSUPPORTED       A WARN event with message 'allocating request buffer pool' preceded the ERROR events
+   18     0.340  UNSUPPORTED      0.0  UNSUPPORTED       The application's internal buffer pool is exhausted
+   19     0.383  UNSUPPORTED      0.5  supported         Buffer pool allocations are stalled
+   20     0.377  UNSUPPORTED      0.5  supported         Buffer pool exhaustion causes allocations to stall
+   21     0.000  UNSUPPORTED      0.0  UNSUPPORTED       Stalled allocations cause request rejections
+   22     0.000  UNSUPPORTED      0.0  UNSUPPORTED       Failure is not reflected in pod_memory_utilization_ratio metric
+   23     0.000  UNSUPPORTED      0.0  UNSUPPORTED       Lack of reflection in pod_memory_utilization_ratio explains the divergence between normal infrastructure metrics and error logs
+   24     0.000  UNSUPPORTED      0.0  UNSUPPORTED       There is no evidence of deployment regression
+   25     0.000  UNSUPPORTED      0.0  UNSUPPORTED       There is no evidence of noisy neighbor contention
+   26     0.000  UNSUPPORTED      0.5  supported         There is no evidence of security breach
+
+[10:35:46] [+1061.39s] agreement (concordance)     : 15/26 = 57.7%
+   both supported        0
+   both unsupported     15
+   GPCS only flagged    11
+   SC only flagged       0
+
+   Agreement is CONCORDANCE, never accuracy: both verifiers can be
+   wrong about the same claim and it still counts as agreement.
+
+   NO GROUND-TRUTH STEP HERE. The injected fault is known (sustained
+   memory pressure on live-checkout); labelling is done by hand
+   against a pre-written rubric in results/LABELS.md.
+[10:35:46] [+1061.39s] distinct trust scores observed: [0.0, 0.34, 0.35, 0.353, 0.373, 0.377, 0.38, 0.383, 0.392]
+```
+
+---
+
+## What this trace does not contain
+
+There is **no ground-truth labelling step and no head-to-head evaluation** (STEPs 8–9 in `experiment/traces/`). Claim correctness was not labelled for this experiment, so the figures above are **inter-method concordance, not accuracy**. Both verifiers can be wrong about the same claim and it still counts as agreement. No claim is made here about which verifier is more accurate.

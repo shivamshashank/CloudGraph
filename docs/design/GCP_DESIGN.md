@@ -7,7 +7,7 @@ score for each node.
 than fitted, and the output has never been checked against observed
 correctness rates, so a 0.8 does not mean "correct 80% of the time". Calling
 them probabilities would claim a calibration the implementation does not
-have. See `docs/project/ROADMAP.md` for the calibration work that would be
+have. See the limitations section of the root `README.md` for the calibration work that would be
 required to earn that word.
 
 ## 1. Mathematical Formulation
@@ -27,12 +27,12 @@ Evidence/telemetry nodes are assigned an initial confidence $c_0(v) \in [0, 1]$:
 
 Confidence propagates across directed/undirected relationships in the K8s topology. Every relationship has a configured edge weight $w(e) \in [0, 1]$:
 
-* `GENERATES` (Pod $\rightarrow$ Metric/Log): $w = 0.95$
-* `BELONGS_TO` (Pod $\rightarrow$ Service): $w = 0.80$
-* `CALLS` (Service $\rightarrow$ Service): $w = 0.75$
-* `RUNS_ON` (Pod $\rightarrow$ Node): $w = 0.60$
-* `MANAGES` (Deployment $\rightarrow$ Pod): $w = 0.85$
-* `UPDATED_BY` / `TRIGGERED_BY` (Deployment $\rightarrow$ Commit): $w = 0.90$
+* `GENERATES` (Pod $\r->$ Metric/Log): $w = 0.95$
+* `BELONGS_TO` (Pod $\r->$ Service): $w = 0.80$
+* `CALLS` (Service $\r->$ Service): $w = 0.75$
+* `RUNS_ON` (Pod $\r->$ Node): $w = 0.60$
+* `MANAGES` (Deployment $\r->$ Pod): $w = 0.85$
+* `UPDATED_BY` / `TRIGGERED_BY` (Deployment $\r->$ Commit): $w = 0.90$
 
 When confidence propagates along a path $P = (v_0, v_1, \dots, v_k)$, it decays exponentially with the path length $k$ using a hop decay factor $\gamma \in [0, 1]$ (default $\gamma = 0.85$):
 $$c(P) = c_0(v_0) \times \left( \prod_{i=1}^{k} w(v_{i-1}, v_i) \right) \times \gamma^k$$

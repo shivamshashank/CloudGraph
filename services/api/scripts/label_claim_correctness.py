@@ -86,6 +86,7 @@ MECHANISM_PATTERNS: dict[str, list[str]] = {
     ],
 }
 
+
 # Only claims typed causal or using explicitly causal language are labelled.
 # "originated from" is excluded: it is nearly always log provenance ("log lines
 # originated from ts-travel-service"), which is descriptive, not causal.
@@ -98,12 +99,42 @@ CAUSAL_MARKERS = re.compile(
 
 # A negated mechanism is being ruled out, which on another fault type is
 # correct reasoning, not a wrong answer.
+#
+# Policy v2 correction (2026-08-20). Three forms escaped the original pattern and
+# each produced a FALSE `contradicted` on a claim that reasoned correctly:
+#
+#   "CPU saturation is excluded as the cause"      excludes? misses the participle
+#   "High CPU usage ... ruling out noisy-neighbor" rules?/ruled out miss the gerund
+#   "non-CPU-bound blocking bottleneck"            \bno\b/\bnot\b miss the prefix
+#
+# All three were observed in rcaeval-04 (network_delay), and the class clusters
+# in delay/loss scenarios where models write negative reasoning. The fix closes
+# inflections of lexemes ALREADY in the list and adds the hyphenated `non-`
+# prefix; it deliberately introduces no new negation concepts (preclude,
+# discount, dismiss), which would be a scope change rather than a bug fix.
+#
+# Over-matching is the safe direction here: a spurious negation makes
+# `mentioned_affirmatively` return False for every pattern, so the claim falls to
+# `unverifiable` rather than being mislabelled.
 NEGATION_NEAR = re.compile(
-    r"\b(not|no|never|without|rather than|instead of|rules? out|ruled out|"
-    r"excludes?|excluding|absent|unlikely|refutes?|contradicts?|"
-    r"inconsistent with|does not|did not|isn't|wasn't)\b",
+    r"(?:\b(?:not|no|never|without|rather than|instead of"
+    r"|rul(?:e|es|ed|ing)\s+out"  # rule/rules/ruled/ruling out
+    r"|exclud(?:e|es|ed|ing)"  # exclude/excludes/excluded/excluding
+    r"|refut(?:e|es|ed|ing)"
+    r"|contradict(?:s|ed|ing)?"
+    r"|absent|unlikely|inconsistent with"
+    r"|does not|did not|isn't|wasn't)\b)",
     re.IGNORECASE,
 )
+
+# `non-` is a BOUND morpheme: it negates only the token it prefixes.
+# "deployment-related non-CPU-bound bottleneck" denies CPU while asserting a
+# deployment cause, so treating it as whole-claim negation (as NEGATION_NEAR
+# does for free-standing "not"/"no") would suppress every family at once and
+# drop the deployment attribution the v2 rule exists to catch. Instead the
+# non-X span is excised before matching: the mechanism it names disappears,
+# everything else in the claim is still read.
+NEGATED_PREFIX = re.compile(r"\bnon-\w+(?:-\w+)*", re.IGNORECASE)
 
 # A foreign service only indicts the claim in a cause position; naming a
 # neighbour as harmed is an effect statement and often true.
@@ -175,7 +206,9 @@ def label_claim(
         # the mechanism twice, so checking only the prefix reads it as asserted.
         if NEGATION_NEAR.search(claim_text):
             return False
-        return any(re.search(pattern, claim_text, re.I) for pattern in patterns)
+        # Excise bound `non-X` spans so they negate only what they prefix.
+        scoped = NEGATED_PREFIX.sub(" ", claim_text)
+        return any(re.search(pattern, scoped, re.I) for pattern in patterns)
 
     names_correct_mechanism = mentioned_affirmatively(MECHANISM_PATTERNS.get(fault, []))
     competing = [

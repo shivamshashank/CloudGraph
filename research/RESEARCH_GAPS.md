@@ -16,8 +16,8 @@ For each area: what exists in the literature, what CloudGraph has, and where the
 >
 > Two closed *against* the design's expectation. The remaining gaps map to
 > **RQ5–RQ7** (v2) and the v3 register in
-> [`docs/project/ROADMAP.md`](../docs/project/ROADMAP.md). See
-> [`RESEARCH_QUESTIONS.md`](RESEARCH_QUESTIONS.md) for the full seven.
+> the limitations section of the root `README.md`. See
+> [`README.md`](README.md) for what the evaluation establishes.
 
 ---
 
@@ -68,7 +68,7 @@ For each area: what exists in the literature, what CloudGraph has, and where the
 
 **Literature.** MetaRCA (Liang et al., 2026) and agentic structured graph traversal for RCA (Cui et al., 2025) are close, recent competitors: both target graph-based RCA with agentic elements.
 
-**CloudGraph today.** Directly overlaps with this niche. Its own evaluation is now real: 36 RCAEval RE2 cases (`experiments/README.md`), but it has still not been benchmarked against either system or their datasets.
+**CloudGraph today.** Directly overlaps with this niche. Its own evaluation is now real: 36 RCAEval RE2 cases (`experiment-1-benchmark/README.md`), but it has still not been benchmarked against either system or their datasets.
 
 **Gap.** The most direct competitive gap: CloudGraph must, at minimum, cite and ideally reproduce a comparison against these two systems (or their reported numbers on a shared or adapted dataset) to establish it is not redundant with existing 2025–2026 work. This is a literature-positioning risk, not just an implementation gap: a paper submission without this comparison will likely be rejected as incremental.
 
@@ -103,7 +103,7 @@ The neuro-symbolic framing therefore survives only for claim **scoring**, where 
 | Multi-agent interaction / matched-compute control | **RQ5** | ⏭ **v2.** Control ran only on the pre-fix pipeline; re-run is the cheapest remaining closure. |
 | GCP as calibrated probabilistic graphical inference | **RQ6** | ⏭ **v2.** No weight fitting, no reliability diagram, no Brier score. |
 | Calibration / uncertainty quantification | **RQ6** | ⏭ **v2.** Same gap; confidence scores exist but are never checked against correctness rates. |
-| Claim-type blind-spot stratification | **RQ7** | ⏭ **v2.** Blocked on human labels — 4.2% automatic coverage is too thin to stratify. |
+| Claim-type blind-spot stratification | **RQ7** | ⏭ **v2.** Blocked on human labels — 3.3% automatic coverage is too thin to stratify. |
 | Temporal/operational GraphRAG framing | — | ⏭ **v3.** Recency term now does real work (spread 0.251), but no with/without ablation was run. |
 | Adaptive/learned retrieval policy | — | ⏭ **v3.** Needs a policy layer over existing scorers. |
 | Agent-selection as planning | — | ⏭ **v3.** Needs new orchestration logic. |

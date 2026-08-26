@@ -5,13 +5,13 @@ mechanism that makes "we reduce hallucinations" a measured, named, citable
 claim instead of an assertion.
 
 > **Outcome (v1):** RQ1 is answered, and only half in this design's favour.
-> GPCS does behave distinctly from self-consistency: it flags 70.3% of claims
-> unsupported against 57.9% (p<0.0001). But on the 4.2% of claims carrying
+> GPCS does behave distinctly from self-consistency: it flags 80.8% of claims
+> unsupported against 52.3%. But on the 3.3% of claims carrying
 > correctness labels, **neither verifier separates correct claims from
 > incorrect ones** (both gaps −0.8 pp). GPCS is *stricter, not sharper*. The
 > weights and thresholds below remain **hand-set and uncalibrated**: fitting
 > them is RQ6, deferred to v2. See
-> [`research/RESEARCH_QUESTIONS.md`](../../research/RESEARCH_QUESTIONS.md). It reuses primitives that already exist in
+> [`research/README.md`](../../research/README.md). It reuses primitives that already exist in
 the codebase (`hybrid_ranker.py`'s distance-decay scoring, `graph_traversal.py`'s
 hop-distance retrieval, `semantic_store.py`'s embedding search) repurposed
 for claim verification instead of evidence retrieval.

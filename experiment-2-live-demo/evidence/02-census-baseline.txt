@@ -1,0 +1,33 @@
+CENSUS 02 — baseline deployed and ingested, BEFORE fault injection
+captured: 2026-08-25T21:00:06Z
+
+== deployed baseline (healthy) ==
+live-cart-74df49844-8lt8t                1/1 Running
+live-catalogue-8fdd55bd4-fbc6z           1/1 Running
+
+== Neo4j node counts ==
+label, cnt
+"Log", 223
+"Metric", 18
+"Service", 12
+"Pod", 9
+"Deployment", 7
+"Node", 1
+"Settings", 1
+
+== relationships ==
+rel, cnt
+"GENERATES", 241
+"BELONGS_TO", 10
+"RUNS_ON", 9
+"CALLS", 9
+"MANAGES", 7
+
+== contamination checks (both must be 0) ==
+is_benchmark
+0
+with_confidence
+0
+
+== Qdrant ==
+evidence points: 249  status: green

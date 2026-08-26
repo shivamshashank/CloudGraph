@@ -34,6 +34,13 @@ class ProxyAndStaticHandler(http.server.SimpleHTTPRequestHandler):
         """Initialize SimpleHTTPRequestHandler to serve from STATIC_DIR."""
         super().__init__(*args, directory=STATIC_DIR, **kwargs)
 
+    def end_headers(self):
+        """Send headers with cache control disabled for instant updates."""
+        self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+        self.send_header("Pragma", "no-cache")
+        self.send_header("Expires", "0")
+        super().end_headers()
+
     def do_get(self):
         """Handle GET requests."""
         if self.path.startswith("/api/") or self.path.startswith("/health"):

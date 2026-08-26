@@ -285,17 +285,22 @@ document.addEventListener("DOMContentLoaded", () => {
   let activeContextView = "payload";
 
   function setActiveTab(tab) {
-    if (!tabInvestigation || !tabContextExplorer) return;
-    tabInvestigation.classList.toggle(
-      "tab-button-active",
-      tab === "investigation",
-    );
-    tabContextExplorer.classList.toggle(
-      "tab-button-active",
-      tab === "context-explorer",
-    );
-    if (investigationPanel && contextExplorerPanel) {
+    if (tabInvestigation) {
+      tabInvestigation.classList.toggle(
+        "tab-button-active",
+        tab === "investigation",
+      );
+    }
+    if (tabContextExplorer) {
+      tabContextExplorer.classList.toggle(
+        "tab-button-active",
+        tab === "context-explorer",
+      );
+    }
+    if (investigationPanel) {
       investigationPanel.classList.toggle("hidden", tab !== "investigation");
+    }
+    if (contextExplorerPanel) {
       contextExplorerPanel.classList.toggle(
         "hidden",
         tab !== "context-explorer",

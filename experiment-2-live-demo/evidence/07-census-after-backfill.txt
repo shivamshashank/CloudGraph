@@ -1,0 +1,32 @@
+CENSUS 07 — after corrective backfill, immediately before the valid runs
+captured: 2026-08-26T08:08:43Z
+
+WHY THIS FILE EXISTS
+  The first three runs were invalid. backfill_from_neo4j() was run in
+  Phase 2 (522 vectors) BEFORE the fault was injected in Phase 3, and was
+  never re-run. The faulted container's log lines reached Neo4j via
+  discovery but never reached Qdrant, so vector retrieval could not see
+  the fault at all. Verified: 'checkout' appeared in 0 vector documents.
+  After the corrective backfill it appears in 24.
+
+== Neo4j ==
+label, cnt
+"Log", 1008
+"Metric", 76
+"Service", 13
+"Pod", 10
+"Deployment", 8
+"Node", 1
+"Settings", 1
+
+== the faulted pod ==
+pod, status
+"live-checkout-7b5d89d574-vkqzn", "Running"
+
+== Qdrant ==
+evidence points: 1093  (was 522 during the invalid runs)
+
+== vector search now finds the fault ==
+  query: 'buffer pool exhaustion insufficient memory'
+  0.7153  ERROR checkout: buffer pool at capacity, allocation stalled
+  0.6092  ERROR checkout: request rejected, insufficient memory for buffer

@@ -4,25 +4,8 @@ A screen-by-screen tour of the running system: every tab, every button, what
 each one does, and the technical machinery behind it.
 
 Every screenshot was captured from a **live deployment against a real LLM**, in
-order, by a scripted browser session — not mocked, not composited. Re-run it any
-time the UI changes:
-
-```bash
-# UI (shots 01-11)
-kubectl port-forward -n cloudgraph-system svc/cloudgraph-ui 3000:3000 &
-# data stores (shots 12-14)
-kubectl port-forward -n cloudgraph-system svc/cloudgraph 7474:7474 7687:7687 &
-kubectl port-forward -n cloudgraph-system svc/cloudgraph-qdrant 6333:6333 &
-
-export NEO4J_PASSWORD=$(kubectl get secret -n cloudgraph-system \
-  cloudgraph-neo4j-auth -o jsonpath='{.data.NEO4J_AUTH}' | base64 -d | cut -d/ -f2)
-
-node scripts/capture_ui_walkthrough.mjs http://localhost:3000 docs/guides/images/ui
-```
-
-The password is read from `NEO4J_PASSWORD` and never hardcoded. Either
-data-store section is skipped with a warning if its endpoint is unreachable or
-the password is unset, so a UI-only run still succeeds.
+order, by a scripted browser session — not mocked, not composited. The images
+are committed under `docs/guides/images/`.
 
 | | |
 |---|---|
@@ -52,7 +35,7 @@ Remaining known issues are called out inline rather than deferred elsewhere.
 |---|---|---|
 | 1 | Topology Map | 01–02 |
 | 2 | AI Diagnosis — Investigation | 03 |
-| 3 | AI Diagnosis — Context Explorer | 04–07 |
+| 3 | AI Diagnosis — Context Explorer | hidden |
 | 4 | Log Stream | 08 |
 | 5 | Evidence & Search | 09–10 |
 | 6 | LLM Settings | 11 |
@@ -177,6 +160,7 @@ This is genuine LLM output against the live cluster. **Measured end-to-end:
 
 ---
 
+<!-- Context Explorer section - commented out in UI release
 ## 3. AI Diagnosis — Context Explorer tab
 
 The instrument panel behind the research: it shows exactly what each retrieval
@@ -205,7 +189,7 @@ four result sub-tabs.
   scoring mode. **`start_time`/`end_time`** are the temporal window — `null`
   here because no incident seed constrained it.
 - This is the UI counterpart of the `none` / `raw` / `hybrid` context ablation
-  in `experiments/`, but it is an **inspection tool only**. No published number
+  in `experiment-1-benchmark/`, but it is an **inspection tool only**. No published number
   comes from it.
 
 ### 3.2 Retrieval, Evidence and Prompts
@@ -224,9 +208,10 @@ four result sub-tabs.
 
 - **Prompts** — the fully assembled prompt text per configuration. This is what
   makes prompt construction auditable by eye, and it is the screen that makes
-  the Week 9 **ground-truth leakage** class of bug visible.
+  the **ground-truth leakage** class of bug visible.
 - All four sub-tabs are **client-side switches over a single response** — no
   refetch when you change tab.
+-->
 
 ---
 
@@ -450,7 +435,7 @@ it is **not citable as it stands**:
 
 Making it citable is a separate study, tracked as Contribution 5 in
 [`research/NOVEL_CONTRIBUTIONS.md`](../../research/NOVEL_CONTRIBUTIONS.md).
-**No result in `experiments/` came from this screen.**
+**No result in `experiment-1-benchmark/` came from this screen.**
 
 ---
 
@@ -477,13 +462,13 @@ Present on every page, rendered by `app.js`.
 
 ## What the published research used
 
-The evaluation in `experiments/` was produced by `cloudgraph report` and the
+The evaluation in `experiment-1-benchmark/` was produced by `cloudgraph report` and the
 analysis scripts driving the same API this UI calls — **not** by clicking
 through these screens. Setup: provider `meta`, model
 `muse-spark-1.2-contributor`, temperature 0.8, 36 RCAEval RE2 scenarios,
 1,974 agent-side LLM calls.
 
 The screens worth showing in a demo are the **Topology Map** (§1), the
-**AI Diagnosis** result (§2.1), the **Context Explorer** (§3) and **GraphRAG
-Search** (§5.1) — the last two because they make retrieval and prompt
-construction auditable, which is what the dissertation actually argues.
+**AI Diagnosis** result (§2.1), and **GraphRAG Search** (§5.1) — the last
+making retrieval and prompt construction auditable, which is what the
+dissertation actually argues.

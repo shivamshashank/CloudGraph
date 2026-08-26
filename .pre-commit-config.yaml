@@ -16,11 +16,11 @@ repos:
       - id: check-json
       - id: check-merge-conflict
       - id: check-added-large-files
-        # experiments/results/claims.csv is ~720KB: it is the dataset every
-        # published number derives from, so it has to be tracked rather than
-        # regenerated (regenerating costs ~6h of LLM calls and would not
-        # reproduce, the provider exposes no sampling seed).
-        args: [--maxkb=1024]
+        # Raised for the experiment artefacts: the run logs and claim data that
+        # every published number derives from are tracked rather than
+        # regenerated, because generation is non-deterministic (temperature 0.8,
+        # and the provider exposes no sampling seed).
+        args: [--maxkb=1536]
       - id: detect-private-key
 
   # ===================================================================
@@ -42,7 +42,7 @@ repos:
       - id: go-mod-tidy
 
   - repo: https://github.com/golangci/golangci-lint
-    rev: v1.64.5
+    rev: v2.13.1
     hooks:
       - id: golangci-lint
         entry: bash -c 'golangci-lint run ./... && cd tests/observability && golangci-lint run ./...'
@@ -75,7 +75,7 @@ repos:
       - id: pylint
         language_version: python3.11
         args:
-          - --init-hook=import sys; sys.path.extend(['services/api', 'services/agent-orchestrator', 'services/investigation-engine'])
+          - --init-hook=import sys; sys.path.extend(['services/api', 'services/agent-orchestrator', 'services/investigation-engine', 'services/api/scripts'])
           - --max-line-length=88
           - --min-similarity-lines=100
         additional_dependencies:
@@ -128,6 +128,9 @@ repos:
     hooks:
       - id: markdownlint
         args: [--fix]
+        # Trace documents reproduce captured LLM request/response bodies
+        # verbatim. Reformatting them would alter the evidence.
+        exclude: ^experiment-[12]-[a-z-]+/traces/.*TRACE
 
   - repo: local
     hooks:

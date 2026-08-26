@@ -207,7 +207,7 @@ class GraphProvenanceClaimScorer:
         self.penalty_weight = weights.get("penalty", 0.15)
         self.threshold = threshold
         # Scopes retrieval to one scenario. Unscoped, a claim can be "supported"
-        # by another incident's evidence, which invalidated the ablation once.
+        # by another incident's evidence, which would invalidate the ablation.
         self.scenario_id = scenario_id
         # Without these, call_llm() has no credentials (the pod carries none as
         # env vars; the real key lives in Neo4j) and silently falls back to the

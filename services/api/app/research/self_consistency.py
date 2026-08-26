@@ -104,6 +104,13 @@ def _request_one_sample(
     Passing a populated list is what the Day-3 raw-context and
     ranked-hybrid conditions use to inject their retrieval into the exact
     same generation pipeline, so only the context varies, nothing else.
+
+    That injection was broken from the introduction of this path until it was
+    fixed: the envelope built here lacked the "status" key the
+    investigation-engine guard tested, so retrieval was dropped before prompt
+    construction and raw/hybrid sent byte-identical prompts to none. Results
+    produced before the fix do not vary the context condition at all. See
+    _retrieval_envelope() and docs/TRACE_RAW.md.
     """
     llm_settings = load_stored_llm_settings()
     request_payload = {
@@ -113,7 +120,7 @@ def _request_one_sample(
         "namespace": "cloudgraph-system",
         "error_logs": scenario["observed_symptoms"],
         "evidence_context": [],
-        "retrieval_context": {"results": retrieval_results or []},
+        "retrieval_context": _retrieval_envelope(retrieval_results),
         "llm_temperature": temperature,
         "llm_provider": llm_settings.get("provider"),
         "llm_api_key": llm_settings.get("api_key"),
@@ -196,6 +203,29 @@ def _request_one_sample(
 
 
 RETRY_BACKOFF_SECONDS = 4.0
+
+
+def _retrieval_envelope(retrieval_results):
+    """Build the retrieval_context payload for an /orchestrate request.
+
+    Carries BOTH "results" (the items, which the specialists inject into their
+    prompts) and "status" (the key the live path's envelope uses). Emitting
+    both keeps one contract for a field that previously had two: the research
+    path sent {"results": [...]} with no status, the investigation-engine
+    guard tested status only, and every retrieved item was dropped before
+    prompt construction. See investigation-engine `_retrieval_items()`.
+
+    "status" is "empty" rather than "success" when there is nothing to send,
+    so the `none` condition stays a true floor instead of injecting an empty
+    evidence block.
+    """
+    items = list(retrieval_results or [])
+    return {
+        "status": "success" if items else "empty",
+        "source": "evaluation-retrieval",
+        "summary": f"Retrieved {len(items)} evidence items for this scenario.",
+        "results": items,
+    }
 
 
 def _generate_one_sample(

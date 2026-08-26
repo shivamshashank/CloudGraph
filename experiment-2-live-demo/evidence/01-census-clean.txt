@@ -1,0 +1,16 @@
+CENSUS 01 — after cleanup, before any deployment
+captured: 2026-08-25T20:48:19Z
+
+== Neo4j node counts ==
+label, cnt
+"Settings", 1
+
+== benchmark residue (must be 0) ==
+is_benchmark_nodes
+0
+== stale GCP confidence (must be 0) ==
+nodes_with_confidence
+0
+
+== Qdrant ==
+evidence points: 0  status: green

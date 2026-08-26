@@ -139,7 +139,7 @@ cloudgraph ingest http://localhost:8000 /api/v1/telemetry/logs
 - **Full Installation Guide**: [INSTALLATION.md](./INSTALLATION.md)
 - **Helm Chart Docs**: [deployments/helm/cloudgraph/README.md](../../deployments/helm/cloudgraph/README.md)
 - **System Architecture**: [docs/architecture/system-overview.md](../architecture/system-overview.md)
-- **Implementation Details**: [project status](../project/STATUS.md)
+- **Implementation Details**: project status
 
 ## ❓ Troubleshooting
 

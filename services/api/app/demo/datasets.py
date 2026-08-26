@@ -3,13 +3,13 @@
 CloudGraph evaluates on **real telemetry only**: scenarios derived from
 chaos-injected failures in the RCAEval RE2 benchmark, where each case is
 a fault that actually occurred in a running Kubernetes system (see
-`rcaeval_dataset.py` and `experiments/DATA_PROVENANCE.md`).
+`rcaeval_dataset.py` and `experiment-1-benchmark/README.md`).
 
 An earlier hand-authored benchmark was retired. Its incidents were
 written rather than observed, so no result computed on it could speak to
 whether the system handles real telemetry — and its inputs had to be
 authored too, which is how a ground-truth leak got in unnoticed (see
-`dissertation/PROGRESS.md`, Week 9). Keeping it around would have
+see `rcaeval_dataset.py`). Keeping it around would have
 invited accidental use; git history retains it if it is ever needed.
 
 This module stays as the single access point rather than having callers

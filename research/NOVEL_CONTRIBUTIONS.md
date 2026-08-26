@@ -5,13 +5,13 @@ Five candidate publishable contributions, each with what it is, why it is novel 
 **The "what would have to be true" criteria were written before any valid
 measurement, and are kept unedited below.** That makes them usable as stated
 falsification conditions rather than post-hoc rationalisation. Judged against
-those criteria, the 36-scenario RCAEval run (`experiments/`) settled two and
+those criteria, the 36-scenario RCAEval run (`experiment-1-benchmark/`) settled two and
 left three untested:
 
 | # | Contribution | RQ | Verdict against its own stated criterion |
 |---|---|---|---|
 | 1 | Temporal Operational GraphRAG | RQ3 / v3 | **Partly settled, and against.** RQ3 closed the long-context control: ranked retrieval did not beat a raw evidence dump (Δ +0.024, CI [−0.028, +0.077], p=0.302). The *temporal-filtering* ablation specifically was never run — recency was fixed from inert (spread 0.000) to real (0.251), so the term now *does* something, but no with/without comparison exists and the "recent = relevant" confound the criterion demands be controlled has not been controlled. Carried to v3. |
-| 2 | GPCS as a distinct family from self-consistency | RQ1 / RQ7 | **Not established.** The two methods do behave differently and significantly so (70.3% vs 57.9% flagged, p<0.0001). But the criterion asks whether GPCS is better *aimed*, and on the labelled subset neither verifier separates correct claims from incorrect ones — both precision figures sit exactly on the base rate. Difference is demonstrated; advantage is not. The claim-type-stratified blind-spot analysis (**RQ7**, blocked on human labels) and a GPCS per-term ablation (semantic / proximity / reliability / path penalty) both remain undone. |
+| 2 | GPCS as a distinct family from self-consistency | RQ1 / RQ7 | **Not established.** The two methods do behave differently and significantly so (80.8% vs 52.3% flagged, in all 18 runs). But the criterion asks whether GPCS is better *aimed*, and on the labelled subset neither verifier separates correct claims from incorrect ones — both precision figures sit exactly on the base rate. Difference is demonstrated; advantage is not. The claim-type-stratified blind-spot analysis (**RQ7**, blocked on human labels) and a GPCS per-term ablation (semantic / proximity / reliability / path penalty) both remain undone. |
 | 3 | Neuro-symbolic ablation framing | RQ4 | **Falsified as stated.** The criterion was explicit: "If both ablations fail identically, the 'symbolic structure adds distinct value' claim is unsupported." Vector and hybrid retrieval were **byte-identical on all 36 scenarios** — same expected tags, same hit tags, mean recall 0.6065 each. The framing survives only for *claim scoring*, where the graph is load-bearing — not for retrieval. |
 | 4 | Calibrated GCP | RQ6 | **Untested — deferred to v2.** No weight fitting, no reliability diagram, no Brier score. Unchanged from when this was written. |
 | 5 | Multi-agent interaction vs independent ensemble | RQ5 | **Untested on valid data — deferred to v2.** The matched-compute control ran only under the pipeline later found to leak ground truth, so its numbers are not reported. Note the contribution already anticipates the negative result as publishable — that framing still holds. Cheapest of the three to close. |
@@ -82,4 +82,4 @@ That single sentence is narrower than the five contributions combined and
 better evidenced than any of them individually. It is the thesis v1 supports,
 and the three deferred questions (**RQ5–RQ7**) are precisely what would be
 needed to extend it — see
-[`RESEARCH_QUESTIONS.md`](RESEARCH_QUESTIONS.md).
+[`README.md`](README.md).

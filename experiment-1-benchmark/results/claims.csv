@@ -1,0 +1,662 @@
+scenario_id,system,target_entity,injected_fault,context_condition,claim_id,claim_text,gpcs_trust_score,gpcs_unsupported,sc_recurrence_rate,sc_unsupported,verifiers_agree,joint_verdict,correctness_label,label_reason,evaluable
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,none,claim-1,Pod 'ts-order-service' is located on node 'node-work,0.708,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,none,claim-2,Pod 'ts-order-service' has Failed state,0.708,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,none,claim-3,Pod 'ts-order-service' failed due to isolated CPU-bo,0.708,FALSE,0.0,TRUE,FALSE,sc_only_flagged,consistent,names the injected mechanism (cpu,TRUE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,none,claim-4,Failure is classified as CPU Saturation Noisy Neighb,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,none,claim-5,Impact is isolated to ts-order-service,0.708,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,none,claim-6,There were no cascading failures to 8 other co-locat,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,none,claim-7,8 other co-located services show 4-13x latency impro,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,none,claim-8,Failure is a performance/resource exhaustion failure,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,none,claim-9,Failure is not a code deployment event,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,none,claim-10,Failure is not a security event,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,none,claim-11,LOGS Agent reported with confidence 0.89,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,none,claim-12,Isolated degradation occurred post-1705935125,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,none,claim-13,CPU mean increased from 5.289 to 37.52 (+609%),0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,none,claim-14,Latency p50 increased from 0.01019 to 0.03552 (3.48x,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,none,claim-15,Latency p90 increased from 0.03546 to 0.08698 (2.45x,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,none,claim-16,Disk IO decreased from 1.216e+06 to 5.201e+04 (-95.7,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,none,claim-17,Disk IO decrease is consistent with CPU starvation/b,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,consistent,names the injected mechanism (cpu,TRUE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,none,claim-18,Service was burning CPU and not performing IO,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,none,claim-19,8 other services' p50/p90 latencies all decreased 4-,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,none,claim-20,ts-user-service p90 decreased from 0.3185 to 0.02313,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,none,claim-21,Anomaly is isolated to ts-order-service,0.708,FALSE,0.0,TRUE,FALSE,sc_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,none,claim-22,TOPOLOGY Agent reported with confidence 0.95,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,none,claim-23,Pod 'ts-order-service' is the sole entry in noisy_ne,0.708,FALSE,0.5,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,none,claim-24,Pod 'ts-order-service' has no dependencies,0.708,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,none,claim-25,"Pod 'ts-order-service' is the SOURCE of contention,",0.708,FALSE,0.0,TRUE,FALSE,sc_only_flagged,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,none,claim-26,Zero ts-order-service error logs were present,0.708,FALSE,0.5,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,none,claim-27,12 sampled logs are all INFO Success from other serv,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,none,claim-28,Failure was a silent saturation failure without logg,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,none,claim-29,MONITORING Agent reported insufficient_data with con,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,none,claim-30,MONITORING insufficient_data signal is discounted,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,none,claim-31,DEPLOYMENTS Agent reported Degraded status with conf,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,none,claim-32,DEPLOYMENTS Degraded status cannot be correlated to,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,none,claim-33,Git metadata sha is null,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,none,claim-34,Git metadata commit_msg is null,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,none,claim-35,SECURITY Agent with confidence 0.8 rules out breach/,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,none,claim-36,SECURITY rules out breach,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,none,claim-37,SECURITY rules out RBAC issues,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,none,claim-38,SECURITY rules out secret issues,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,raw,claim-1,Pod ts-order-service Failed at 1705935125,0.708,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,raw,claim-2,Pod ts-order-service failure caused Deployment ts-or,0.708,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,raw,claim-3,Pod ts-order-service failure caused service unavaila,0.708,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,raw,claim-4,Deployment ts-order-service-deploy is Degraded,0.700,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,raw,claim-5,Severe CPU-bound performance regression was isolated,0.708,FALSE,0.0,TRUE,FALSE,sc_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,raw,claim-6,Latency degradation p50 increased by +248%,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,raw,claim-7,Latency degradation p90 increased by +145%,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,raw,claim-8,Disk IO collapse occurred isolated to pod ts-order-s,0.708,FALSE,0.0,TRUE,FALSE,sc_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,raw,claim-9,There was no node-wide impact,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,raw,claim-10,There was no downstream peer impact,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,raw,claim-11,Self-induced CPU saturation occurred at 1705935125,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,raw,claim-12,CPU mean increased from 5.289 to 37.52,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,raw,claim-13,CPU spike was 7.1x,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,raw,claim-14,CPU saturation caused starvation-induced latency deg,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,consistent,names the injected mechanism (cpu,TRUE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,raw,claim-15,latency-50 increased from 0.01019 to 0.03552 (3.48x),0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,raw,claim-16,latency-90 increased from 0.03546 to 0.08698 (2.45x),0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,raw,claim-17,CPU saturation caused disk IO collapse,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,consistent,names the injected mechanism (cpu,TRUE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,raw,claim-18,Disk IO collapsed by -95.7% from 1.216e+06 to 5.201e,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,raw,claim-19,CPU exhaustion prevented IO,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,consistent,names the injected mechanism (cpu,TRUE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,raw,claim-20,Node node-worker-01 status is Ready,0.710,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,raw,claim-21,Service status is Active,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,raw,claim-22,"Topology noisy_neighbors is [""ts-order-service""]",0.708,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,raw,claim-23,noisy_neighbors contains only self-reference,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,raw,claim-24,Topology dependencies is [],0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,raw,claim-25,Empty dependencies indicates no external contention,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,raw,claim-26,All downstream/peer services show counter-trend late,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,raw,claim-27,ts-user-service p90 decreased from 0.3185 to 0.02313,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,raw,claim-28,ts-assurance p90 decreased from 0.2479 to 0.01962 af,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,raw,claim-29,No application ERROR logs exist for ts-order-service,0.708,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,raw,claim-30,"Only INFO Success logs exist from ts-travel-service,",0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,raw,claim-31,Absence of ERROR logs suggests resource exhaustion/h,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,raw,claim-32,Git commit sha-rcaeval-03 has message 'routine depen,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,raw,claim-33,Git commit sha-rcaeval-03 occurred at 1705589525,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,raw,claim-34,Git commit sha-rcaeval-03 predates incident by ~4 da,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,raw,claim-35,Deployment sha is null,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,raw,claim-36,Deployment commit_msg is null,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,raw,claim-37,Null deployment sha/commit_msg rules out direct git-,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,raw,claim-38,Fault is isolated to pod/deployment resource exhaust,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,raw,claim-39,Fault is not due to infrastructure,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,raw,claim-40,Fault is not due to noisy-neighbor,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,raw,claim-41,Fault is not due to security breach,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,hybrid,claim-1,Pod 'ts-order-service' has Failed,0.708,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,hybrid,claim-2,At timestamp 1705935125 CPU usage spiked 7.1x on ts-,0.708,FALSE,0.0,TRUE,FALSE,sc_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,hybrid,claim-3,CPU mean jumped from 5.289 to 37.52 at timestamp 170,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,hybrid,claim-4,p50 latency increased from 0.01019 to 0.03552 (3.48x,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,hybrid,claim-5,p90 latency increased from 0.03546 to 0.08698 (2.45x,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,hybrid,claim-6,Disk I/O collapsed from 1.216e+06 to 5.201e+04 (-95.,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,hybrid,claim-7,CPU spike at 1705935125 caused p50 latency degradati,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,hybrid,claim-8,CPU starvation caused disk I/O collapse of 95.7%,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,consistent,names the injected mechanism (cpu,TRUE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,hybrid,claim-9,Severe isolated internal resource contention caused,0.708,FALSE,0.0,TRUE,FALSE,sc_only_flagged,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,hybrid,claim-10,Internal CPU-bound resource contention/saturation wi,0.708,FALSE,1.0,FALSE,TRUE,both_supported,consistent,names the injected mechanism (cpu,TRUE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,hybrid,claim-11,Order service became unavailable,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,hybrid,claim-12,Impact is isolated to ts-order-service pod only,0.708,FALSE,0.5,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,hybrid,claim-13,All other services improved after timestamp 17059351,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,hybrid,claim-14,ts-user-service p90 latency improved from 0.3185 to,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,hybrid,claim-15,ts-assurance-service p90 latency improved from 0.247,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,hybrid,claim-16,ts-consign-price-service p90 latency improved from 0,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,hybrid,claim-17,Only ts-order-service degraded while other services,0.708,FALSE,0.0,TRUE,FALSE,sc_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,hybrid,claim-18,No application ERROR logs were present,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,hybrid,claim-19,Benchmark flagged the metric anomaly as ERROR,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,hybrid,claim-20,ts-order-service pod is located on node-worker-01,0.708,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,hybrid,claim-21,TOPOLOGY noisy_neighbors list contains only self-ref,0.708,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,hybrid,claim-22,There are no co-located pods on node-worker-01 with,0.710,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,hybrid,claim-23,ts-order-service has no dependencies,0.708,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,hybrid,claim-24,TOPOLOGY excludes noisy-neighbor contention as a cau,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,hybrid,claim-25,DEPLOYMENTS status is Degraded,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,hybrid,claim-26,DEPLOYMENTS sha is null,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,hybrid,claim-27,DEPLOYMENTS commit_msg is null,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,hybrid,claim-28,No Git evidence correlates to a deployment regressio,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,hybrid,claim-29,DEPLOYMENTS excludes deployment regression as a caus,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,hybrid,claim-30,"SECURITY excludes breach, RBAC, and secret issues as",0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,hybrid,claim-31,Root cause is not external factors,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,hybrid,claim-32,Pattern is consistent with an internal CPU hot-loop,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,hybrid,claim-33,Pattern is consistent with an infinite loop,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,hybrid,claim-34,Pattern is consistent with thread contention,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-03,Train Ticket,ts-order-service,cpu_exhaustion,hybrid,claim-35,Insufficient CPU limits/requests leading to throttli,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,none,claim-1,Pod 'carts' has Failed,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,none,claim-2,Pod 'carts' failure was due to severe internal resou,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,none,claim-3,Internal resource exhaustion caused ~15x CPU saturat,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,contradicted,"names cpu as cause, injected fault was mem",TRUE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,none,claim-4,Internal resource exhaustion caused ~7x memory press,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,consistent,names the injected mechanism (mem,TRUE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,none,claim-5,Resource exhaustion resulted in 5.5x p90 latency deg,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,none,claim-6,Failure had downstream impact on orders service,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,none,claim-7,orders_latency-90 degraded from 0.076s to 0.225s,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,none,claim-8,Service is unavailable,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,none,claim-9,"Post-1705845578, pod 'carts' entered a resource exha",0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,none,claim-10,carts_cpu spiked from 4.715 to 72.36 (15.3x),0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,none,claim-11,carts_mem grew from 2.097e+08 to 1.448e+09 (209MB to,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,none,claim-12,Memory pressure / probable memory leak led to CPU sa,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,consistent,names the injected mechanism (mem,TRUE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,none,claim-13,Resource exhaustion drove severe performance degrada,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,none,claim-14,carts_latency-90 increased from 0.02096 to 0.1153 (5,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,none,claim-15,carts_latency-50 increased from 0.009179 to 0.01841,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,none,claim-16,carts_socket increased from 9.746 to 17.02,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,none,claim-17,carts-db_cpu increased from 1.485 to 2.208,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,none,claim-18,Topology confirms the failure is internally generate,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,none,claim-19,Pod 'carts' is isolated on node-worker-01,0.710,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,none,claim-20,Pod 'carts' has no dependencies,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,none,claim-21,noisy_neighbors is ['carts'] only,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,none,claim-22,There is no external noisy neighbor contention,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,none,claim-23,Pod 'carts' itself is the source of noise,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,none,claim-24,No direct error logs were sampled,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,none,claim-25,Metrics are conclusive,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,none,claim-26,Deployment regression is ruled out as root cause,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,none,claim-27,Security breach is ruled out as root cause,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-1,Pod 'carts' failed,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-2,Pod 'carts' was hosted on node 'node-worker-01',0.710,FALSE,0.5,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-3,Pod 'carts' failed at timestamp 1705845578,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-4,Pod 'carts' failed at 2024-01-21T13:59:38Z,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-5,Deployment 'carts-deploy' became Degraded,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-6,Pod 'carts' failure caused Deployment 'carts-deploy',0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-7,Severe internal resource saturation caused 5.5x p90,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-8,Severe internal resource saturation caused the pod c,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-9,No node-level failure occurred,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-10,No external interference occurred,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-11,Service remains impacted,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-12,Deployment availability is degraded,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-13,Internal resource exhaustion is the root cause of th,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-14,Node failure is not the root cause,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-15,Noisy-neighbor is not the root cause,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-16,Security-related issue is not the root cause,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-17,"At 1705845578, carts CPU usage increased from 4.715",0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-18,CPU increase was 15.3x,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-19,container_cpu_usage_seconds_total was 72.36,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-20,Memory usage increased from 2.097e+08 to 1.448e+09,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-21,Memory increase was 6.9x,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-22,p90 latency increased from 0.02096 to 0.1153,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-23,p90 latency increase was 5.5x,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-24,p50 latency increased from 0.009179 to 0.01841,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-25,p50 latency increase was 2x,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-26,Socket count increased from 9.746 to 17.02,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-27,Socket increase was +74%,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-28,Downstream carts-db_cpu increased from 1.485 to 2.20,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-29,Node 'node-worker-01' remained in Ready state,0.710,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-30,Node 'node-worker-01' Service remained Active,0.710,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-31,Node remaining Ready and Service Active excludes inf,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-32,TOPOLOGY data shows no external noisy neighbor,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-33,noisy_neighbors value ['carts'] is a self-reference,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-34,dependencies list was empty ([]),0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-35,Only pod 'carts' was evidenced on node 'node-worker-,0.710,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-36,"Pod 'carts' is the source of pressure, not the victi",0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-37,LOGS show no carts application ERROR logs,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-38,Front-end operation POST /addresses returned 200,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-39,Front-end operation POST /cards returned 200,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-40,Front-end operation DELETE /cart returned 202,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-41,Catalogue operation Get returned err=null,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-42,Absence of ERROR logs and normal front-end/catalogue,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-43,DEPLOYMENTS data correlates the failure to Deploymen,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-44,The only recent change was Git commit sha-rcaeval-14,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-45,Git commit sha-rcaeval-14 message is 'routine depend,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-46,Git commit sha-rcaeval-14 occurred on 2024-01-18 at,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-47,Git commit occurred 3 days prior to the pod failure,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-48,Deployment SHA was null,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-49,Null deployment SHA indicates an unlinked/manifest-o,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-50,The pattern is consistent with a dependency/manifest,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-51,The resource leak/regression was introduced by the ',0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,raw,claim-52,"The resource leak led to progressive saturation, lat",0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,hybrid,claim-1,Pod 'carts' is on node-worker-01,0.710,FALSE,0.5,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,hybrid,claim-2,Pod 'carts' Failed at timestamp 1705845578,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,hybrid,claim-3,Pod 'carts' experienced severe internal CPU exhausti,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,hybrid,claim-4,Pod 'carts' experienced severe internal memory exhau,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,hybrid,claim-5,Internal CPU/memory exhaustion caused cascading perf,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,consistent,names the injected mechanism (mem,TRUE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,hybrid,claim-6,p90 latency increased by 5.5x,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,hybrid,claim-7,p50 latency increased by 2x,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,hybrid,claim-8,Socket pressure increased by +74%,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,hybrid,claim-9,Downstream carts-db CPU increased by +48.7%,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,hybrid,claim-10,Service is degraded/unavailable,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,hybrid,claim-11,Root cause is internal resource exhaustion / CPU sat,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,contradicted,"names cpu as cause, injected fault was mem",TRUE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,hybrid,claim-12,Root cause is not external contention,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,hybrid,claim-13,Root cause is not code deployment,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,hybrid,claim-14,At 1705845578 container_cpu_usage_seconds_total spik,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,hybrid,claim-15,container_cpu_usage_seconds_total increase was 15.3x,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,hybrid,claim-16,Memory usage increased from 2.097e+08 to 1.448e+09 (,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,hybrid,claim-17,p90 latency increased from 0.02096 to 0.1153 (5.5x),0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,hybrid,claim-18,p50 latency increased from 0.009179 to 0.01841 (2x),0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,hybrid,claim-19,Socket count increased from 9.746 to 17.02,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,hybrid,claim-20,carts-db CPU increased from 1.485 to 2.208,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,hybrid,claim-21,All 5 graph evidence logs are ERROR-level,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,hybrid,claim-22,All 5 graph evidence logs have hop_distance=1,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,hybrid,claim-23,All 5 graph evidence logs directly GENERATES from Po,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,hybrid,claim-24,All 5 graph evidence logs occurred at the same windo,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,hybrid,claim-25,CPU exhaustion caused performance degradation,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,contradicted,"names cpu as cause, injected fault was mem",TRUE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,hybrid,claim-26,Topology shows noisy_neighbors=['carts'] self-refere,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,hybrid,claim-27,Topology shows dependencies=[] (no dependencies),0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,hybrid,claim-28,There was no external noisy-neighbor contention on n,0.710,FALSE,0.0,TRUE,FALSE,sc_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,hybrid,claim-29,"Pod 'carts' itself is the hog, not a victim",0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,hybrid,claim-30,Deployment 'carts-deploy' is Degraded,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,hybrid,claim-31,Deployment 'carts-deploy' has null Git metadata sha:,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,hybrid,claim-32,Deployment 'carts-deploy' has null Git metadata comm,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,hybrid,claim-33,No code push occurred to attribute regression to,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,hybrid,claim-34,Deployment-induced regression is ruled out despite t,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,hybrid,claim-35,"Security agent confirms no breaches, secret or RBAC",0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-14,Sock Shop,carts,memory_exhaustion,hybrid,claim-36,Security/compromise vector is ruled out,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-1,Pod 'checkoutservice' is located on node 'node-worke,0.708,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-2,Pod 'checkoutservice' has Failed,0.708,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-3,The failure started after timestamp 1705373910,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-4,The failure was caused by severe internal CPU/memory,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,contradicted,"names mem as cause, injected fault was disk",TRUE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-5,The failure is isolated to checkoutservice,0.708,FALSE,0.0,TRUE,FALSE,sc_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-6,The failure caused p50 latency degradation of +30.7%,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-7,The failure caused a pod crash,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-8,Co-located pods had no impact on the failure,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-9,Downstream dependencies had no impact on the failure,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-10,Checkout functionality is disrupted,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-11,Other services remain healthy,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-12,LOGS evidence with correlation 0.93 isolates root ca,0.708,FALSE,0.0,TRUE,FALSE,sc_only_flagged,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-13,TOPOLOGY evidence with correlation 0.99 isolates roo,0.708,FALSE,0.0,TRUE,FALSE,sc_only_flagged,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-14,The resource exhaustion is internal to checkoutservi,0.708,FALSE,0.0,TRUE,FALSE,sc_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-15,The resource exhaustion is non-load-induced,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-16,"After timestamp 1705373910, CPU mean surged from 0.4",0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-17,"After timestamp 1705373910, memory mean surged from",0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-18,"After timestamp 1705373910, socket count increased f",0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-19,"After timestamp 1705373910, p50 latency increased fr",0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-20,"After timestamp 1705373910, p90 latency increased fr",0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-21,"After timestamp 1705373910, workload decreased from",0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-22,The resource exhaustion was not caused by increased,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-23,The pattern is consistent with a runaway process,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-24,The pattern is consistent with an infinite loop,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-25,The pattern is consistent with a thread leak,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-26,The pattern is consistent with a memory leak,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-27,TOPOLOGY with correlation 0.99 confirms no external,0.710,FALSE,0.5,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-28,The noisy_neighbors list contains only checkoutservi,0.708,FALSE,0.5,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-29,The dependencies list is empty,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-30,Node-level CPU contention is ruled out as a cause,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-31,Node-level memory contention is ruled out as a cause,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-32,Node-level IO contention is ruled out as a cause,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-33,Downstream dependency contention is ruled out as a c,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-34,cartservice remains stable,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-35,paymentservice remains stable,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-36,productcatalogservice remains stable,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-37,SECURITY with correlation 0.8 rules out breach as a,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-38,SECURITY rules out RBAC compromise,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-39,SECURITY rules out secret compromise,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-40,DEPLOYMENTS with correlation 0.3 reports Degraded,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-41,DEPLOYMENTS has null SHA,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-42,DEPLOYMENTS has null commit_msg,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-43,DEPLOYMENTS has low confidence (0.3) and no verifiab,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-44,Deployment regression cannot be confirmed or ruled o,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-45,Deployment regression is not the primary driver of t,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-46,MONITORING with correlation 0.15 reports insufficien,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-47,redis_diskio increased from 2970 to 4542,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,none,claim-48,The redis_diskio increase is a secondary effect of t,0.708,FALSE,0.0,TRUE,FALSE,sc_only_flagged,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-1,Pod 'checkoutservice' is on node-worker-01,0.708,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-2,Pod 'checkoutservice' has Failed,0.708,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-3,Failure type is Intrinsic CPU/Memory Exhaustion Fail,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-4,Deployment 'checkoutservice-deploy' became Degraded,0.700,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-5,Deployment degradation occurred at timestamp 1705373,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-6,Pod 'checkoutservice' failure caused Deployment 'che,0.708,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-7,Isolated catastrophic resource surge occurred in che,0.708,FALSE,0.0,TRUE,FALSE,sc_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-8,Resource surge caused p50 latency to rise,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-9,p50 latency rose from 0.2745 to 0.3588,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-10,p90 latency rose from 0.7253 to 0.7752,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-11,Resource surge caused p90 latency to rise,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-12,No impact to cartservice,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-13,No impact to paymentservice,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-14,No impact to productcatalogservice,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-15,Intrinsic application-level resource exhaustion occu,0.708,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-16,Intrinsic resource exhaustion occurred at 1705373910,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-17,Resource exhaustion is characterized as CPU hog / me,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-18,container_cpu_usage_seconds_total spiked 43.7x,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-19,container_cpu_usage_seconds_total mean increased fro,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-20,Memory spiked 12.5x,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-21,Memory increased from 1.047e+07 to 1.314e+08,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-22,CPU and memory spikes occurred within a 12min window,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-23,Socket count increased from 9 to 11.96,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-24,Socket increase correlated with latency degradation,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-25,Workload decreased from 0.9243 to 0.8874,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-26,Failure is NOT load-driven,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-27,Last commit is sha-rcaeval-07,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-28,Last commit message is 'routine dependency and manif,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-29,Last commit occurred at 1704855510,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-30,Last commit predates incident by ~6 days,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-31,sha:null and commit_msg:null shows no recent rollout,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-32,Failure is NOT a deployment regression,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-33,Topology shows dependencies=[] for checkoutservice,0.708,FALSE,0.0,TRUE,FALSE,sc_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-34,noisy_neighbors=['checkoutservice'] is a self-refere,0.708,FALSE,0.5,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-35,node-worker-01 status is Ready,0.710,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-36,Only checkoutservice is evidenced on node-worker-01,0.708,FALSE,0.5,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-37,Failure is NOT noisy-neighbor contention,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-38,"No breaches, RBAC, or secret alerts occurred",0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-39,Failure is NOT security-related,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-40,Resource surge is isolated to checkoutservice,0.708,FALSE,0.0,TRUE,FALSE,sc_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-41,Other services showed <10% change,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,raw,claim-42,Isolation confirms internal leak/hog rather than ext,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,hybrid,claim-1,Pod 'checkoutservice' has Failed,0.708,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,hybrid,claim-2,Pod 'checkoutservice' failure was due to severe inte,0.708,FALSE,0.5,FALSE,TRUE,both_supported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,hybrid,claim-3,Severe internal resource exhaustion centered at 1705,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,hybrid,claim-4,CPU spiked ~43.7x,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,hybrid,claim-5,Memory spiked ~12.5x,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,hybrid,claim-6,Latency p50 degraded by +30.7% correlated with resou,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,hybrid,claim-7,Socket count degraded by +32.9% correlated with reso,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,hybrid,claim-8,Root cause is self-generated internal resource exhau,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,hybrid,claim-9,Root cause involves CPU spin/infinite loop with memo,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,contradicted,"names cpu as cause, injected fault was disk",TRUE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,hybrid,claim-10,At 1705373910 container_cpu_usage_seconds_total surg,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,hybrid,claim-11,CPU surge represents ~43.7x / +4268% increase,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,hybrid,claim-12,Memory surged from 1.047e+07 to 1.314e+08 at 1705373,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,hybrid,claim-13,Memory surge represents ~12.5x increase,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,hybrid,claim-14,Socket count increased from 9 to 11.96 (+32.9%),0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,hybrid,claim-15,Latency p50 increased from 0.2745 to 0.3588 (+30.7%),0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,hybrid,claim-16,Latency p90 increased from 0.7253 to 0.7752 (+6.9%),0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,hybrid,claim-17,Workload decreased from 0.9243 to 0.8874 (-4.0%) acr,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,hybrid,claim-18,Workload decrease occurred simultaneously with resou,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,hybrid,claim-19,Anomaly is not load-driven,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,hybrid,claim-20,Pod 'checkoutservice' is isolated on node-worker-01,0.708,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,hybrid,claim-21,Pod 'checkoutservice' has dependencies=[],0.708,FALSE,0.5,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,hybrid,claim-22,"Pod 'checkoutservice' has noisy_neighbors=[""checkout",0.708,FALSE,0.5,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,hybrid,claim-23,Noisy-neighbor contention is ruled out,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,hybrid,claim-24,Deployment 'checkoutservice-deploy' is Degraded,0.700,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,hybrid,claim-25,Deployment 'checkoutservice-deploy' has null SHA,0.700,FALSE,0.0,TRUE,FALSE,sc_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,hybrid,claim-26,Deployment 'checkoutservice-deploy' has null commit_,0.700,FALSE,0.0,TRUE,FALSE,sc_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,hybrid,claim-27,No Git commit can be attributed to the deployment,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,hybrid,claim-28,Code-change causation cannot be established despite,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,hybrid,claim-29,Temporal correlation with regression window exists,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,hybrid,claim-30,Security agent confirms no breaches,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,hybrid,claim-31,Security agent confirms no secret warnings,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,hybrid,claim-32,Security agent confirms no RBAC alerts,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-07,Online Boutique,checkoutservice,disk_saturation,hybrid,claim-33,Internal process failure (memory leak / CPU spin) ca,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,contradicted,"names cpu as cause, injected fault was disk",TRUE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,none,claim-1,Pod 'checkoutservice' has Failed,0.713,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,none,claim-2,Pod 'checkoutservice' is located on node 'node-worke,0.713,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,none,claim-3,Checkoutservice experienced severe checkout-flow per,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,none,claim-4,Checkoutservice did not experience a crash,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,none,claim-5,Checkoutservice did not produce a user-visible error,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,none,claim-6,Checkoutservice latency spiked ~19x after timestamp,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,none,claim-7,Checkoutservice p50 latency increased from 0.1071s t,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,none,claim-8,Checkoutservice p90 latency increased from 0.2227s t,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,none,claim-9,Checkoutservice latency spike caused correlated down,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,none,claim-10,Frontend remained stable during the incident,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,none,claim-11,Impact is isolated to the checkout path,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,none,claim-12,Root cause is a non-CPU performance bottleneck / res,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,none,claim-13,Root cause is identified as noisy-neighbor behavior,0.720,FALSE,0.5,FALSE,TRUE,both_supported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,none,claim-14,Checkoutservice p50 latency increased 19.6x,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,none,claim-15,Checkoutservice p90 latency increased 18.6x,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,none,claim-16,Checkoutservice CPU usage changed minimally from 0.4,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,none,claim-17,Minimal CPU change rules out CPU saturation as the c,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,none,claim-18,Bottleneck indicates possible thread-pool exhaustion,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,contradicted,"names mem as cause, injected fault was delay",TRUE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,none,claim-19,Emailservice p90 latency spiked 46x from 0.0046s to,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,none,claim-20,Paymentservice p90 latency spiked 37x from 0.0057s t,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,none,claim-21,Shippingservice p90 latency spiked 27x from 0.0046s,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,none,claim-22,Cartservice p90 remained stable,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,none,claim-23,Currencyservice p90 remained stable,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,none,claim-24,Frontend p90 remained stable,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,none,claim-25,Frontend-external_error dropped from 0.00277 to 0,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,none,claim-26,"Stable cartservice, currencyservice and frontend p90",0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,none,claim-27,Topology with confidence 1.0 confirms checkoutservic,0.713,FALSE,0.5,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,none,claim-28,Checkoutservice has no declared dependencies,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,none,claim-29,Zero checkoutservice error logs were observed,0.713,FALSE,0.5,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,none,claim-30,Zero error logs confirms timeout/degradation versus,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,none,claim-31,Deployment degradation has low confidence 0.35,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,none,claim-32,Deployment has null sha/commit_msg,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,none,claim-33,Deployment cannot be correlated to a code regression,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,none,claim-34,Security agent with confidence 0.8 excludes breach/R,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,raw,claim-1,Pod 'checkoutservice' status is 'Failed',0.708,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,raw,claim-2,Pod 'checkoutservice' failed at timestamp 1705666511,0.708,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,raw,claim-3,Deployment 'checkoutservice-deploy' status is 'Degra,0.700,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,raw,claim-4,Pod 'checkoutservice' is hosted on node-worker-01,0.708,FALSE,0.5,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,raw,claim-5,Failure is isolated to pod/deployment-level on node-,0.710,FALSE,0.0,TRUE,FALSE,sc_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,raw,claim-6,Pod 'checkoutservice' failure caused ~19.6x p50 late,0.708,FALSE,0.0,TRUE,FALSE,sc_only_flagged,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,raw,claim-7,Pod 'checkoutservice' failure caused service degrada,0.708,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,raw,claim-8,Pod 'checkoutservice' failure caused cascading laten,0.708,FALSE,0.5,FALSE,TRUE,both_supported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,raw,claim-9,Downstream dependencies of checkoutservice include e,0.708,FALSE,0.0,TRUE,FALSE,sc_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,raw,claim-10,request_duration_seconds_p50/checkoutservice_latency,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,raw,claim-11,checkoutservice p90 latency spiked 18.6x from 0.2227,0.708,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,raw,claim-12,"CPU usage changed from 0.4229 to 0.4736, an increase",0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,raw,claim-13,Failure is NOT due to CPU saturation,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,raw,claim-14,Node node-worker-01 status remains 'Ready',0.710,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,raw,claim-15,Failure is NOT due to node-level pressure,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,raw,claim-16,checkoutservice dependencies is an empty list [],0.708,FALSE,0.5,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,raw,claim-17,noisy_neighbors is ['checkoutservice'] self-referenc,0.708,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,raw,claim-18,Failure is NOT due to noisy-neighbor contention,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,raw,claim-19,No security alerts were present,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,raw,claim-20,Failure is NOT due to security breach,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,raw,claim-21,sha is null,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,raw,claim-22,Commit sha-rcaeval-04 is a routine dependency/manife,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,raw,claim-23,Commit sha-rcaeval-04 occurred at timestamp 17049753,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,raw,claim-24,There is no evidence of functional code change,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,raw,claim-25,emailservice_latency-90 spiked 46x from 0.004624s to,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,raw,claim-26,paymentservice_latency-90 spiked 37x from 0.00574s t,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,raw,claim-27,shippingservice_latency-90 spiked 27x from 0.004628s,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,raw,claim-28,frontend remained stable with no latency spike,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,raw,claim-29,cartservice remained stable with no latency spike,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,raw,claim-30,checkoutservice is the bottleneck causing cascading,0.708,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,raw,claim-31,checkoutservice failure is the root cause rather tha,0.708,FALSE,0.0,TRUE,FALSE,sc_only_flagged,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,hybrid,claim-1,Pod checkoutservice entered Failed status at 1705666,0.708,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,hybrid,claim-2,Pod checkoutservice status is Failed,0.708,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,hybrid,claim-3,checkoutservice experienced severe intrinsic latency,0.708,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,hybrid,claim-4,checkoutservice experienced severe intrinsic latency,0.708,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,hybrid,claim-5,checkoutservice caused cascading latency degradation,0.708,FALSE,0.5,FALSE,TRUE,both_supported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,hybrid,claim-6,checkoutservice caused cascading latency degradation,0.708,FALSE,0.5,FALSE,TRUE,both_supported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,hybrid,claim-7,checkoutservice caused cascading latency degradation,0.708,FALSE,0.0,TRUE,FALSE,sc_only_flagged,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,hybrid,claim-8,Failure is isolated to the checkoutservice applicati,0.708,FALSE,0.0,TRUE,FALSE,sc_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,hybrid,claim-9,Failure is not caused by infrastructure contention,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,hybrid,claim-10,Failure is not caused by security breach,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,hybrid,claim-11,Root cause is an intrinsic application-layer perform,0.708,FALSE,0.5,FALSE,TRUE,both_supported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,hybrid,claim-12,Root cause occurred at 1705666511,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,hybrid,claim-13,checkoutservice_latency-50 mean spiked from baseline,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,hybrid,claim-14,checkoutservice_latency-90 mean spiked from 0.2227 t,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,hybrid,claim-15,checkoutservice_cpu increased modestly from 0.4229 t,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,hybrid,claim-16,Latency is not caused by CPU saturation,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,hybrid,claim-17,checkoutservice is located on node-worker-01,0.708,FALSE,0.5,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,hybrid,claim-18,checkoutservice dependencies=[] (no dependencies),0.708,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,hybrid,claim-19,checkoutservice noisy_neighbors=['checkoutservice'],0.708,FALSE,0.5,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,hybrid,claim-20,No noisy neighbor contention exists,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,hybrid,claim-21,No node saturation exists,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,hybrid,claim-22,paymentservice p50 spiked from 0.003266 to 0.03369 (,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,hybrid,claim-23,paymentservice p90 spiked from 0.00574 to 0.2135 (37,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,hybrid,claim-24,emailservice p90 spiked from 0.004624 to 0.2134,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,hybrid,claim-25,shippingservice p90 spiked from 0.004628 to 0.1259,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,hybrid,claim-26,"checkoutservice is the source of cascading failure,",0.708,FALSE,0.0,TRUE,FALSE,sc_only_flagged,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,hybrid,claim-27,Deployment 'checkoutservice-deploy' status is Degrad,0.700,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,hybrid,claim-28,git metadata sha is null,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,hybrid,claim-29,git metadata commit_msg is null,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,hybrid,claim-30,Regression cannot be attributed to a specific code d,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,hybrid,claim-31,Regression points to a runtime/application logic iss,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,contradicted,"names socket as cause, injected fault was delay",TRUE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,hybrid,claim-32,"Regression is not due to infrastructure compromise,",0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-04,Online Boutique,checkoutservice,network_delay,hybrid,claim-33,"Regression is not due to security compromise, which",0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,none,claim-1,Pod 'catalogue' failed after timestamp 1705602312,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,none,claim-2,Pod 'catalogue' experienced severe performance degra,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,none,claim-3,Catalogue p90 latency spiked ~282x,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,none,claim-4,Catalogue experienced socket pressure,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,none,claim-5,Catalogue workload dropped by ~65%,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,none,claim-6,Catalogue pod is located on node-worker-01,0.710,FALSE,0.5,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,none,claim-7,Catalogue acted as a noisy neighbor on node-worker-0,0.710,FALSE,0.0,TRUE,FALSE,sc_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,none,claim-8,Catalogue as noisy neighbor triggered upstream backp,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,none,claim-9,Catalogue triggered front-end errors increasing from,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,none,claim-10,Catalogue triggered ~4x increase in front-end latenc,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,none,claim-11,"Catalogue triggered workload drops across orders, sh",0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,none,claim-12,Root cause is resource contention originating from t,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,none,claim-13,Resource contention occurred on node-worker-01,0.710,FALSE,0.0,TRUE,FALSE,sc_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,none,claim-14,TOPOLOGY identifies catalogue as having empty depend,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,none,claim-15,TOPOLOGY identifies catalogue as the noisy neighbor,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,none,claim-16,TOPOLOGY confidence is 0.95,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,none,claim-17,LOGS confidence is 0.93,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,none,claim-18,MONITORING confidence is 0.87,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,none,claim-19,After 1705602312 catalogue_latency-90 mean increased,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,none,claim-20,After 1705602312 catalogue_latency-50 increased from,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,none,claim-21,After 1705602312 catalogue_socket increased from 6 t,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,none,claim-22,After 1705602312 catalogue_workload decreased from 4,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,none,claim-23,Catalogue unresponsiveness caused cascading upstream,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,none,claim-24,front-end_error increased from 0 to 0.2691 due to ca,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,none,claim-25,front-end_latency-90 increased from 0.05254 to 0.215,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,none,claim-26,front-end_socket increased from 7.585 to 25.51,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,none,claim-27,front-end_mem doubled from 1.033e+08 to 2.001e+08,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,none,claim-28,"Workload drops in orders, shipping, payment, user, a",0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,none,claim-29,DEPLOYMENTS shows Degraded status,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,none,claim-30,DEPLOYMENTS sha is null,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,none,claim-31,DEPLOYMENTS commit_msg is null,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,none,claim-32,Code regression cannot be confirmed due to null sha,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,none,claim-33,Code regression hypothesis is deprioritized versus s,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,none,claim-34,DEPLOYMENTS confidence is 0.35,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,none,claim-35,SECURITY confirms no credential leaks attributable t,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,none,claim-36,No catalogue logs were present for security analysis,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,none,claim-37,Front-end password exposure is out-of-scope for cata,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,none,claim-38,SECURITY confidence is 0.99,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,none,claim-39,Failure is classified as infrastructure/application,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,none,claim-40,Failure is not deployment-related,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,none,claim-41,Failure is not security-related,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,raw,claim-1,Pod 'catalogue' status is Failed,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,raw,claim-2,Deployment 'catalogue-deploy' status is Degraded,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,raw,claim-3,Pod 'catalogue' Failed at timestamp 1705602312,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,raw,claim-4,Deployment 'catalogue-deploy' Degraded at timestamp,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,raw,claim-5,Catalogue p90 latency increased from 0.004629s to 1.,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,raw,claim-6,Catalogue p90 latency increase is 281x,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,raw,claim-7,Catalogue p50 latency increased from 0.003016s to 0.,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,raw,claim-8,Catalogue p50 latency increase is 55x,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,raw,claim-9,Catalogue workload throughput decreased from 4.088 t,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,raw,claim-10,Catalogue workload throughput decrease is -66%,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,raw,claim-11,Catalogue experienced socket pressure,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,raw,claim-12,Front-end error rate increased from 0 to 0.269,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,raw,claim-13,Front-end p90 latency increased 4x,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,raw,claim-14,Front-end sockets increased from 7.5 to 25.5,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,raw,claim-15,Front-end memory usage increased 2x,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,raw,claim-16,Root cause is an internal runtime/application failur,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,raw,claim-17,Root cause is not an external trigger,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,raw,claim-18,Pattern of latency spiking 281x while workload simul,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,raw,claim-19,Catalogue service was not overloaded by traffic,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,raw,claim-20,Only commit associated is sha-rcaeval-29 with messag,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,raw,claim-21,Commit sha-rcaeval-29 timestamp is 1704738312,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,raw,claim-22,Commit sha-rcaeval-29 occurred ~10 days prior to inc,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,raw,claim-23,Deployment sha is null,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,raw,claim-24,Deployment commit_msg is null,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,raw,claim-25,Benign commit message and age rule out code regressi,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,raw,claim-26,No noisy-neighbor contention exists,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,raw,claim-27,Node node-worker-01 status is Ready,0.710,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,raw,claim-28,Node node-worker-01 dependencies is empty list,0.710,FALSE,0.5,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,raw,claim-29,noisy_neighbors value is ['catalogue'],0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,raw,claim-30,noisy_neighbors=['catalogue'] is a self-reference,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,raw,claim-31,No other pods co-located on node-worker-01,0.710,FALSE,0.5,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,raw,claim-32,No credential leak/security trigger exists,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,raw,claim-33,No secrets found in [catalogue] logs,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,raw,claim-34,The only plaintext password found is from [front-end,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,raw,claim-35,Plaintext password from [front-end] is unrelated to,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,raw,claim-36,Pod Failed status is an effect of internal degradati,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,raw,claim-37,Deployment Degraded status is an effect of internal,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,raw,claim-38,request_duration_seconds_p90 value of 1.304s is an e,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,raw,claim-39,Internal degradation in catalogue propagated to fron,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,raw,claim-40,Catalogue and front-end have a service dependency re,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,hybrid,claim-1,Pod 'catalogue' failed at timestamp 1705602312,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,hybrid,claim-2,Catalogue experienced catastrophic latency regressio,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,hybrid,claim-3,Catalogue throughput collapsed by 65.8%,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,hybrid,claim-4,Catalogue failure caused connection saturation/backp,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,hybrid,claim-5,Catalogue failure caused downstream front-end errors,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,hybrid,claim-6,Catalogue failure caused front-end p90 latency to in,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,hybrid,claim-7,Correlated consensus confirms intrinsic service degr,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,hybrid,claim-8,The failure was not load-driven,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,hybrid,claim-9,The failure was not externally induced,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,hybrid,claim-10,MONITORING (0.95) confirms severe regression,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,hybrid,claim-11,LOGS (0.92) confirms severe regression,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,hybrid,claim-12,catalogue_latency-90 increased from 0.004629s to 1.3,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,hybrid,claim-13,catalogue_latency-50 increased from 0.003016s to 0.1,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,hybrid,claim-14,catalogue_socket doubled from 6 to 11.63,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,hybrid,claim-15,catalogue_socket increase indicates connection satur,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,hybrid,claim-16,catalogue_workload dropped from 4.088 to 1.399 (-65.,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,hybrid,claim-17,catalogue_workload drop proves throttling/failure to,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,hybrid,claim-18,Downstream impact is corroborated by front-end_error,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,hybrid,claim-19,TOPOLOGY (0.92) rules out noisy-neighbor contention,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,hybrid,claim-20,Catalogue dependencies = [],0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,hybrid,claim-21,noisy_neighbors = ['catalogue'] is self-reference on,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,hybrid,claim-22,No co-located pods on node-worker-01,0.710,FALSE,0.5,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,hybrid,claim-23,All 1-hop graph logs are catalogue-intrinsic,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,hybrid,claim-24,SECURITY (0.98) rules out credential leak/compromise,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,hybrid,claim-25,All catalogue logs are numeric performance metrics w,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,hybrid,claim-26,The only credential seen belongs to front-end,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,hybrid,claim-27,DEPLOYMENTS (0.82) shows catalogue-deploy is Degrade,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,hybrid,claim-28,catalogue-deploy sha is null,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,hybrid,claim-29,catalogue-deploy commit_msg is null,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,hybrid,claim-30,Deployment-induced code regression cannot be confirm,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,hybrid,claim-31,Attribution requires further Git/deployment log corr,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,hybrid,claim-32,Failure pattern is intrinsic application/infra satur,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-29,Sock Shop,catalogue,packet_loss,hybrid,claim-33,Intrinsic saturation led to latency collapse and thr,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,none,claim-1,Pod 'ts-auth-service' is in Failed state,0.708,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,none,claim-2,Pod 'ts-auth-service' failure is due to performance,0.708,FALSE,0.5,FALSE,TRUE,both_supported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,none,claim-3,p50 latency increased 5.3x from 0.24 to 1.29 post-17,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,none,claim-4,p90 latency increased 3.3x from 0.69 to 2.27 post-17,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,none,claim-5,CPU usage increased 2.6x from 14.48 to 37.14 post-17,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,none,claim-6,Socket pressure increased 2.3x from 12.54 to 28.8 po,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,none,claim-7,Disk IO dropped by 98.8% post-1705981508,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,none,claim-8,Performance degradation (CPU/socket pressure and lat,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,none,claim-9,Impact is isolated to pod/service 'ts-auth-service',0.708,FALSE,0.0,TRUE,FALSE,sc_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,none,claim-10,There is no cluster-wide noisy neighbor impact,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,none,claim-11,There is no security impact,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,none,claim-12,Auth service availability is degraded,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,none,claim-13,Deployment 'ts-auth-service-deploy' is in Degraded s,0.700,FALSE,0.5,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,none,claim-14,Deployment 'ts-auth-service-deploy' has null SHA,0.700,FALSE,0.5,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,none,claim-15,Deployment 'ts-auth-service-deploy' has null commit_,0.700,FALSE,0.5,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,none,claim-16,Pod 'ts-auth-service' is associated with Deployment,0.708,FALSE,0.0,TRUE,FALSE,sc_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,none,claim-17,Root cause is failed/incomplete rollout of Deploymen,0.700,FALSE,0.5,FALSE,TRUE,both_supported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,none,claim-18,Missing Git metadata prevents regression verificatio,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,none,claim-19,Missing Git metadata indicates uninstrumented or inc,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,none,claim-20,No ERROR/WARN/exception entries were found in logs,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,none,claim-21,Logs contain only 2 INFO entries from TokenServiceIm,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,none,claim-22,Pod 'ts-auth-service' is isolated on node-worker-01,0.708,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,none,claim-23,No external noisy neighbors exist; noisy neighbor li,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,none,claim-24,List containing only itself indicates self-contentio,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,none,claim-25,Topology rules out external contention as cause,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,none,claim-26,Security confirms no credential leak,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,none,claim-27,Sensitive data is properly redacted as <JWT_REDACTED,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,none,claim-28,Monitoring reports potential_anomaly with confidence,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,none,claim-29,Failure is caused by internal deployment-induced res,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,none,claim-30,Failure is not caused by log-level application error,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,raw,claim-1,Pod ts-auth-service Failed at timestamp 1705981508,0.708,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,raw,claim-2,Deployment ts-auth-service-deploy is in Degraded sta,0.700,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,raw,claim-3,Impact is an isolated service-level outage,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,raw,claim-4,p50 latency increased by 433% from 0.2436s to 1.299s,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,raw,claim-5,p90 latency increased by 227% from 0.6941s to 2.273s,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,raw,claim-6,CPU usage increased by 156% from 14.48 to 37.14,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,raw,claim-7,Socket usage increased by 130% from 12.54 to 28.8,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,raw,claim-8,Disk I/O collapsed by ~98.8% from 8.197e+06 to 9.874,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,raw,claim-9,Downstream service ts-ui-dashboard shows correlated,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,raw,claim-10,Node node-worker-01 remains in Ready state,0.710,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,raw,claim-11,No node-level failure occurred,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,raw,claim-12,Root cause is intrinsic performance saturation/resou,0.708,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,raw,claim-13,Root cause is not node failure,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,raw,claim-14,Root cause is not noisy-neighbor interference,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,raw,claim-15,Correlated metric step-change occurred at timestamp,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,raw,claim-16,At 1705981508 CPU and socket exhaustion occurred,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,raw,claim-17,At 1705981508 latency explosion occurred,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,raw,claim-18,At 1705981508 disk I/O collapse occurred,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,raw,claim-19,Metric pattern indicates thread/connection pool exha,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,consistent,names the injected mechanism (socket,TRUE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,raw,claim-20,Application logs at 2024-01-23 03:44:07.751 contain,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,raw,claim-21,Application logs at 2024-01-23 03:44:07.751 contain,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,raw,claim-22,Log pattern indicates silent saturation rather than,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,raw,claim-23,Pod ts-auth-service is hosted on Node node-worker-01,0.708,FALSE,0.5,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,raw,claim-24,Pod Failed while its host Node node-worker-01 remain,0.710,FALSE,0.5,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,raw,claim-25,"No distinct co-located noisy neighbors exist, noisy_",0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,raw,claim-26,Service ts-preserve-other-service CPU decreased from,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,raw,claim-27,Service ts-consign-service CPU decreased from 0.606,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,raw,claim-28,Decreased CPU in other co-located services contradic,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,raw,claim-29,The only recent change is commit sha-rcaeval-18 with,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,raw,claim-30,Commit sha-rcaeval-18 occurred at timestamp 17051175,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,raw,claim-31,Commit sha-rcaeval-18 has deployment sha null,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,raw,claim-32,Commit sha-rcaeval-18 contains no feature code chang,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,raw,claim-33,Dependency/manifest change or resource limits manife,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,raw,claim-34,Security findings confirm no credential leak,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,raw,claim-35,"No security-induced failure occurred, ruling out cre",0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,hybrid,claim-1,Pod 'ts-auth-service' is located on node-worker-01,0.708,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,hybrid,claim-2,Pod 'ts-auth-service' has Failed,0.708,FALSE,1.0,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,hybrid,claim-3,Critical internal performance degradation was center,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,hybrid,claim-4,p50 latency spiked 5.33x from 0.24s to 1.30s,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,hybrid,claim-5,p90 latency spiked 3.3x from 0.69s to 2.27s,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,hybrid,claim-6,CPU saturated with a +156% increase,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,hybrid,claim-7,Socket count surged +130%,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,hybrid,claim-8,Disk I/O collapsed -98.8%,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,hybrid,claim-9,The auth service was rendered unresponsive and degra,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,hybrid,claim-10,Root cause is internal resource exhaustion / CPU sat,0.708,FALSE,0.0,TRUE,FALSE,sc_only_flagged,contradicted,"names cpu as cause, injected fault was socket",TRUE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,hybrid,claim-11,Root cause is not external contention,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,hybrid,claim-12,Root cause is not deployment regression,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,hybrid,claim-13,"At 1705981508, CPU mean jumped from 14.48 to 37.14 (",0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,hybrid,claim-14,CPU mean jump triggered request queuing,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,hybrid,claim-15,"p50 latency increased from 0.2436s to 1.299s (+433%,",0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,hybrid,claim-16,p90 latency increased from 0.6941s to 2.273s (+227%),0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,hybrid,claim-17,Socket count increased from 12.54 to 28.8 (+130%),0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,hybrid,claim-18,Socket count increase indicates connection/thread po,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,hybrid,claim-19,Disk I/O collapsed from 8.197e+06 to 9.874e+04 (-98.,0.000,TRUE,1.0,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,hybrid,claim-20,Disk I/O collapse is consistent with I/O starvation,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,contradicted,"names cpu as cause, injected fault was socket",TRUE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,hybrid,claim-21,Node-worker-01 has no noisy neighbors other than ts-,0.708,FALSE,0.0,TRUE,FALSE,sc_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,hybrid,claim-22,ts-auth-service has no dependencies (dependencies=[],0.708,FALSE,0.5,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,hybrid,claim-23,All 5 evidence items are self-generated 1-hop ERROR,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,hybrid,claim-24,Co-located pod interference is excluded as a cause,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,hybrid,claim-25,Deployment ts-auth-service-deploy is in Degraded sta,0.700,FALSE,0.5,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,hybrid,claim-26,Deployment ts-auth-service-deploy has sha=null,0.700,FALSE,0.5,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,hybrid,claim-27,Deployment ts-auth-service-deploy has commit_msg=nul,0.700,FALSE,0.5,FALSE,TRUE,both_supported,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,hybrid,claim-28,No attributable code/commit regression exists,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,hybrid,claim-29,"The regression is runtime, not deployment-induced",0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,hybrid,claim-30,Security agent rules out credential leak as a factor,0.000,TRUE,0.5,FALSE,FALSE,gpcs_only_flagged,unverifiable,not a causal claim,FALSE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,hybrid,claim-31,Internal CPU contention leads to cascading latency,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,contradicted,"names cpu as cause, injected fault was socket",TRUE
+rcaeval-18,Train Ticket,ts-auth-service,socket_exhaustion,hybrid,claim-32,Cascading latency leads to eventual pod failure,0.000,TRUE,0.0,TRUE,TRUE,both_unsupported,unverifiable,no mechanism or service identifiable,FALSE

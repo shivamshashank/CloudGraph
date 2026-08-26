@@ -3,9 +3,11 @@
 Covers both Neo4j graph nodes and Qdrant dense-vector documents.
 """
 
+import hashlib
 import logging
+import re
 import uuid
-from typing import Any, Dict
+from typing import Any, Dict, Optional, Tuple
 
 from qdrant_client.models import (
     FieldCondition,
@@ -26,8 +28,95 @@ logger = logging.getLogger(__name__)
 # 60s gives a real but not exaggerated recency spread.
 LOG_INTERVAL_SECONDS = 60
 
+# The seeded Commit predates its incident by 3-10 days rather than sharing its
+# timestamp.
+#
+# Why: RCAEval faults are chaos-injected. No deployment change occurs in any
+# scenario, so a commit stamped at incident_time whose message names the faulted
+# service's *configuration* is a fabricated causal attractor -- and an effective
+# one. Once retrieval delivery was fixed, the raw condition blamed this node in
+# 2/2 pilot scenarios ("Config-Induced CPU Exhaustion", "faulty config rollout
+# sha-rcaeval-02") and the recommendation led with "rollback sha-rcaeval-01",
+# an action that would do nothing. Because the template is identical for every
+# scenario, that confound would have applied uniformly across all 36.
+#
+# Dating it outside the incident window makes it temporally falsifiable from the
+# graph itself, and drops the hybrid ranker's recency term for it from 1.0
+# (age 0) to ~0. The offset is derived from a stable digest of the scenario id,
+# so it varies per scenario, is reproducible across processes, and does not
+# depend on PYTHONHASHSEED.
+COMMIT_MIN_AGE_DAYS = 3
+COMMIT_MAX_AGE_DAYS = 10
+COMMIT_MESSAGE = "routine dependency and manifest refresh"
 
+
+def _commit_age_seconds(scenario_id: str) -> int:
+    """Deterministic per-scenario commit age, in [COMMIT_MIN_AGE_DAYS,
+    COMMIT_MAX_AGE_DAYS] days. Uses sha256 rather than hash() because the
+    built-in is salted per process and would make seeding irreproducible."""
+    span = COMMIT_MAX_AGE_DAYS - COMMIT_MIN_AGE_DAYS + 1
+    digest = hashlib.sha256(scenario_id.encode("utf-8")).digest()
+    days = COMMIT_MIN_AGE_DAYS + (int.from_bytes(digest[:4], "big") % span)
+    return days * 86400
+
+
+# Prometheus-style names for the metric keys RCAEval emits, used only to label
+# the seeded node. The value and text always come from the scenario's telemetry.
+METRIC_NAMES = {
+    "cpu": "container_cpu_usage_seconds_total",
+    "mem": "container_memory_usage_bytes",
+    "diskio": "container_fs_io_time_seconds_total",
+    "socket": "container_network_tcp_usage_total",
+    "error": "request_errors_total",
+    "workload": "request_rate_per_second",
+    "latency-50": "request_duration_seconds_p50",
+    "latency-90": "request_duration_seconds_p90",
+}
+
+_METRIC_LINE = re.compile(
+    r"^metric\s+(?P<svc>[\w.-]+?)_(?P<key>cpu|mem|diskio|socket|error|workload"
+    r"|latency-50|latency-90):\s*mean\s+(?P<before>[-\d.e+]+)\s+in the \d+min"
+    r"\s+before\s+\d+,\s*(?P<after>[-\d.e+]+)\s+in the \d+min after",
+    re.IGNORECASE,
+)
+
+
+def _observed_target_metric(
+    target_service: str, symptoms: list[str]
+) -> Optional[Tuple[str, float, str]]:
+    """Pick the target service's most-changed metric from its own telemetry.
+
+    Returns (key, value_after, original_symptom_line) or None. Selection is by
+    largest relative change, which is a property of the *observation*, not of
+    the injected-fault label -- so it introduces no ground-truth leakage beyond
+    what the symptom list already contains.
+    """
+    best_change = -1.0
+    best: Optional[Tuple[str, float, str]] = None
+    for line in symptoms:
+        m = _METRIC_LINE.match(line.strip())
+        if not m or m.group("svc") != target_service:
+            continue
+        try:
+            before = float(m.group("before"))
+            after = float(m.group("after"))
+        except ValueError:
+            continue
+        if before == 0:
+            continue
+        change = abs(after / before - 1.0)
+        if change > best_change:
+            best_change = change
+            best = (m.group("key"), after, line.strip())
+    return best
+
+
+# Seeding one scenario means writing Pod, Service, Deployment, Node, Commit,
+# Log and Metric records that must share the same ids and timestamps, so the
+# locals are the shared state of a single transaction rather than separable
+# steps. Splitting it would pass the arguments around instead.
 def seed_scenario_data(scenario: Dict[str, Any]) -> None:
+    # pylint: disable=too-many-locals
     """Seed Neo4j graph nodes and Qdrant semantic vectors for a benchmark
     scenario.
 
@@ -36,13 +125,44 @@ def seed_scenario_data(scenario: Dict[str, Any]) -> None:
     `ground_truth_claims`, which is the held-out answer key used only for
     scoring extracted claims after the fact. Conflating the two is a
     data-leakage bug: see `rcaeval_dataset.py`'s module docstring and
-    `dissertation/PROGRESS.md` (Week 9).
+    the module docstring in `rcaeval_dataset.py`.
     """
     scenario_id = scenario["id"]
     target_service = scenario["target_service"]
     target_entity = scenario["target_entity"]
     symptoms = scenario["observed_symptoms"]
     incident_time = scenario_incident_time(scenario)
+    node_name = scenario.get("node_name", "node-worker-01")
+
+    # The seeded Metric is derived from the scenario's OWN observed telemetry,
+    # never from a hardcoded template and never from the ground-truth label.
+    #
+    # Two defects motivated this. (1) The previous branch read
+    # `injected_fault`/`fault`, keys the RCAEval dataset does not carry -- it
+    # stores `root_cause` -- so `fault` was always "" and 11 of 36 scenarios,
+    # including every network_delay and packet_loss case, were seeded with a
+    # fabricated "container CPU usage seconds total is 95 percent". That string
+    # ranked #1 in hybrid retrieval and drove a wrong CPU diagnosis on
+    # rcaeval-04. (2) A symptom heuristic (`any("mem" in s ...)`) decided the
+    # branch for the rest, which is arbitrary: every fault family emits both cpu
+    # and mem symptoms, so rcaeval-01 got a memory metric on a CPU fault.
+    #
+    # Reading `root_cause` and templating per family would fix (1) but introduce
+    # ground-truth leakage -- seeding "network latency is 5.0s" on a delay fault
+    # hands the model the answer, the same P0 defect that invalidated the
+    # original hand-authored benchmark. Deriving from observed telemetry avoids
+    # both: the value is real, and it reveals nothing the 26 symptoms already
+    # given to the agents do not.
+    observed = _observed_target_metric(target_service, symptoms)
+    if observed is not None:
+        metric_key, metric_value, metric_text = observed
+        metric_name = METRIC_NAMES.get(
+            metric_key, f"service_{metric_key.replace('-', '_')}"
+        )
+    else:
+        # No parsable metric line for the target service. Seed nothing rather
+        # than invent a value; a missing node is honest, a fabricated one is not.
+        metric_name = metric_value = metric_text = None
 
     # 1. Seed Neo4j properties
     if neo4j_client.driver:
@@ -52,21 +172,24 @@ def seed_scenario_data(scenario: Dict[str, Any]) -> None:
                 """
                 MERGE (p:Pod {name: $pod_name})
                 SET p.status = 'Failed',
-                    p.nodeName = 'node-worker-01',
+                    p.nodeName = $node_name,
                     p.is_benchmark = true,
                     p.scenario_id = $scenario_id,
                     p.id = $pod_name
                 MERGE (s:Service {name: $svc_name})
                 SET s.is_benchmark = true,
-                    s.scenario_id = $scenario_id
-                MERGE (n:Node {name: 'node-worker-01'})
+                    s.scenario_id = $scenario_id,
+                    s.id = $svc_name
+                MERGE (n:Node {name: $node_name})
                 SET n.status = 'Ready',
                     n.is_benchmark = true,
-                    n.scenario_id = $scenario_id
+                    n.scenario_id = $scenario_id,
+                    n.id = $node_name
                 MERGE (d:Deployment {name: $deploy_name})
                 SET d.status = 'Degraded',
                     d.is_benchmark = true,
-                    d.scenario_id = $scenario_id
+                    d.scenario_id = $scenario_id,
+                    d.id = $deploy_name
 
                 MERGE (p)-[:BELONGS_TO {is_benchmark: true}]->(s)
                 MERGE (p)-[:RUNS_ON {is_benchmark: true}]->(n)
@@ -77,23 +200,31 @@ def seed_scenario_data(scenario: Dict[str, Any]) -> None:
                     "svc_name": target_service,
                     "deploy_name": f"{target_service}-deploy",
                     "scenario_id": scenario_id,
+                    "node_name": node_name,
                 },
             )
 
-            # Commit message does not name the root cause; a real one wouldn't.
+            # Commit message names neither the root cause nor the faulted
+            # service, and the node carries an explicit timestamp days before
+            # the incident so its irrelevance is checkable from the graph
+            # rather than assumed. See COMMIT_MIN_AGE_DAYS.
+            commit_time = incident_time - _commit_age_seconds(scenario_id)
             neo4j_client.execute_query(
                 """
                 MERGE (c:Commit {sha: $commit_sha})
                 SET c.message = $commit_msg,
+                    c.timestamp = $commit_time,
                     c.is_benchmark = true,
-                    c.scenario_id = $scenario_id
+                    c.scenario_id = $scenario_id,
+                    c.id = $commit_sha
                 WITH c
                 MATCH (d:Deployment {name: $deploy_name})
                 MERGE (c)-[:TRIGGERED_BY {is_benchmark: true}]->(d)
                 """,
                 {
                     "commit_sha": f"sha-{scenario_id}",
-                    "commit_msg": f"update {target_service} configuration",
+                    "commit_msg": COMMIT_MESSAGE,
+                    "commit_time": commit_time,
                     "deploy_name": f"{target_service}-deploy",
                     "scenario_id": scenario_id,
                 },
@@ -126,50 +257,57 @@ def seed_scenario_data(scenario: Dict[str, Any]) -> None:
                     },
                 )
 
-            # Create Metric linked to Pod
-            neo4j_client.execute_query(
-                """
+            # Create Metric linked to Pod — skipped when the scenario has no
+            # parsable target-service metric line (see _observed_target_metric).
+            if metric_name is not None:
+                neo4j_client.execute_query(
+                    """
                 MATCH (p:Pod {name: $pod_name})
                 CREATE (m:Metric {
                     id: $metric_id,
-                    name: 'container_cpu_usage_seconds_total',
-                    value: 95.0,
+                    name: $metric_name,
+                    value: $metric_value,
                     timestamp: $timestamp,
                     is_benchmark: true,
                     scenario_id: $scenario_id
                 })
                 CREATE (p)-[:GENERATES {is_benchmark: true}]->(m)
                 """,
-                {
-                    "pod_name": target_entity,
-                    "metric_id": f"metric-{scenario_id}",
-                    "timestamp": incident_time,
-                    "scenario_id": scenario_id,
-                },
-            )
+                    {
+                        "pod_name": target_entity,
+                        "metric_id": f"metric-{scenario_id}",
+                        "metric_name": metric_name,
+                        "metric_value": metric_value,
+                        "timestamp": incident_time,
+                        "scenario_id": scenario_id,
+                    },
+                )
             logger.info("Successfully seeded Neo4j for scenario %s", scenario_id)
         except (RuntimeError, OSError) as exc:
             logger.error("Failed to seed Neo4j for scenario %s: %s", scenario_id, exc)
 
     # 2. Seed Qdrant Vector Store and local fallback cache
     try:
-        # Index Commit — same non-revealing message as the Neo4j node.
+        # Index Commit — same message and same pre-incident timestamp as the
+        # Neo4j node. The timestamp must match: stamping the vector copy at
+        # incident_time (as this did) gave the hybrid ranker's recency term its
+        # maximum value for the one item guaranteed to be causally irrelevant.
+        commit_time = incident_time - _commit_age_seconds(scenario_id)
         semantic_store.index_document(
             doc_id=f"commit-{scenario_id}",
-            text=(
-                f"Git revision commit sha-{scenario_id}"
-                f" update {target_service} configuration"
-            ),
+            text=f"Git revision commit sha-{scenario_id} {COMMIT_MESSAGE}",
             metadata={
                 "is_benchmark": True,
                 "scenario_id": scenario_id,
                 "label": "Commit",
                 "name": f"commit-{scenario_id}",
+                "timestamp": commit_time,
             },
         )
 
         # Index logs from observed symptoms, not ground truth (module docstring).
         for idx, symptom in enumerate(symptoms):
+            age = (len(symptoms) - 1 - idx) * LOG_INTERVAL_SECONDS
             semantic_store.index_document(
                 doc_id=f"log-{scenario_id}-{idx}",
                 text=symptom,
@@ -179,24 +317,33 @@ def seed_scenario_data(scenario: Dict[str, Any]) -> None:
                     "label": "Log",
                     "name": target_entity,
                     "pod_name": target_entity,
+                    "timestamp": incident_time - age,
                 },
             )
 
-        # Index Metric
-        semantic_store.index_document(
-            doc_id=f"metric-{scenario_id}",
-            text=(
-                "container CPU usage seconds total is 95 percent"
-                f" on service {target_service}"
-            ),
-            metadata={
-                "is_benchmark": True,
-                "scenario_id": scenario_id,
-                "label": "Metric",
-                "name": "container_cpu_usage_seconds_total",
-                "pod_name": target_entity,
-            },
-        )
+        # Index Metric — skipped when the scenario has no parsable target-service
+        # metric line, AND when its text is already indexed as a symptom.
+        #
+        # The second guard exists because metric_text is now DERIVED from the
+        # symptom list rather than templated, so it is byte-identical to one of
+        # the Log documents indexed above. Indexing both put the same sentence in
+        # the corpus twice and hybrid retrieval duly returned it twice: in
+        # rcaeval-04 the top-5 held items [1] and [3] as the same document,
+        # spending 20% of the ranked window on a duplicate. The Neo4j Metric node
+        # is still created either way, so graph structure is unaffected.
+        if metric_text is not None and metric_text not in set(symptoms):
+            semantic_store.index_document(
+                doc_id=f"metric-{scenario_id}",
+                text=metric_text,
+                metadata={
+                    "is_benchmark": True,
+                    "scenario_id": scenario_id,
+                    "label": "Metric",
+                    "name": metric_name,
+                    "pod_name": target_entity,
+                    "timestamp": incident_time,
+                },
+            )
         logger.info(
             "Successfully indexed vector documents for scenario %s", scenario_id
         )
@@ -231,8 +378,28 @@ def teardown_benchmark_data() -> None:
         semantic_store.persist()
         logger.info("Cleared local fallback JSON documents: %s", benchmark_doc_ids)
 
-        # 3. Teardown Qdrant points
+        # 3. Teardown Qdrant points (via payload filter and point IDs)
         if qdrant_client.client:
+            for collection in qdrant_client.collection_names:
+                try:
+                    qdrant_client.client.delete(
+                        collection_name=collection,
+                        points_selector=FilterSelector(
+                            filter=Filter(
+                                must=[
+                                    FieldCondition(
+                                        key="is_benchmark",
+                                        match=MatchValue(value=True),
+                                    )
+                                ]
+                            )
+                        ),
+                    )
+                except (RuntimeError, OSError, ValueError) as exc:
+                    logger.debug(
+                        "Qdrant payload filter delete on %s: %s", collection, exc
+                    )
+
             point_ids = []
             for doc_id in benchmark_doc_ids:
                 # Reconstruct point_id using same uuid5 strategy from qdrant.py
@@ -241,10 +408,15 @@ def teardown_benchmark_data() -> None:
 
             if point_ids:
                 for collection in qdrant_client.collection_names:
-                    qdrant_client.client.delete(
-                        collection_name=collection,
-                        points_selector=PointIdsList(points=point_ids),
-                    )
+                    try:
+                        qdrant_client.client.delete(
+                            collection_name=collection,
+                            points_selector=PointIdsList(points=point_ids),
+                        )
+                    except (RuntimeError, OSError, ValueError) as exc:
+                        logger.debug(
+                            "Qdrant point ID delete on %s: %s", collection, exc
+                        )
                 logger.info("Deleted Qdrant points: %s", point_ids)
     except (RuntimeError, OSError, ValueError) as exc:
         logger.error("Failed to teardown Qdrant benchmark points: %s", exc)

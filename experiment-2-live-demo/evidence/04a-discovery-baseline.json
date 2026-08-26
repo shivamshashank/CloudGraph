@@ -1,0 +1,14 @@
+{
+ "status": "success",
+ "discovered": {
+  "nodes": 1,
+  "deployments": 7,
+  "services": 12,
+  "pods": 9
+ },
+ "linking": {
+  "pods_to_nodes": 9,
+  "pods_to_services": 10,
+  "deployments_to_pods": 7
+ }
+}

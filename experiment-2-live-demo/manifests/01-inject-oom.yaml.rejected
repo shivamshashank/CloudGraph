@@ -1,0 +1,59 @@
+# THE INJECTED FAULT — deterministic OOMKill.
+#
+# `tail /dev/zero` allocates without bound. Under a 32Mi hard limit the kernel
+# OOM-kills it within seconds, the pod restarts, and CrashLoopBackOff follows.
+# That produces exactly the evidence the ingestion pipeline should capture:
+#   - pod status OOMKilled
+#   - a climbing restart count
+#   - container memory at the limit
+#   - Kubernetes events
+#
+# Why not testing/intensive/manifests/demo_incident_oom-killed.yaml:
+# that one runs redis at an 8Mi limit and was observed sitting at 1/1 Running
+# on 2026-08-22 — redis started and idled without allocating, so no OOM occurred.
+# An injected fault that does not fire is worse than no fault at all.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: live-checkout
+  namespace: cloudgraph-system
+  labels:
+    app: live-checkout
+    tier: backend
+    injected-fault: oom
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: live-checkout
+  template:
+    metadata:
+      labels:
+        app: live-checkout
+        tier: backend
+        injected-fault: oom
+    spec:
+      containers:
+        - name: checkout
+          image: busybox:1.36
+          command: ["sh", "-c"]
+          args: ["echo 'checkout worker starting'; tail /dev/zero"]
+          resources:
+            limits:
+              memory: "32Mi"
+              cpu: "100m"
+            requests:
+              memory: "32Mi"
+              cpu: "50m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: live-checkout
+  namespace: cloudgraph-system
+spec:
+  selector:
+    app: live-checkout
+  ports:
+    - port: 80
+      targetPort: 80

@@ -1,0 +1,24 @@
+POD STATE after fault injection
+captured: 2026-08-25T21:01:19Z
+injection time: 1787691624 (2026-08-25T21:00:24Z)
+
+live-cart-74df49844-8lt8t              1/1   Running     1 (10m ago)    12m     192.168.194.30   orbstack   <none>   <none>
+live-catalogue-8fdd55bd4-fbc6z         1/1   Running     1              12m     192.168.194.25   orbstack   <none>   <none>
+live-checkout-86d9bbdccb-gjk2l         0/1   OOMKilled   3 (37s ago)    55s     192.168.194.34   orbstack   <none>   <none>
+
+== container state for the injected pod ==
+name=checkout
+restartCount=3
+lastState.terminated.reason=OOMKilled
+lastState.terminated.exitCode=137
+
+== memory limit ==
+32Mi
+
+== events ==
+54s         Normal    Pulling     pod/live-checkout-86d9bbdccb-gjk2l   Pulling image "busybox:1.36"
+51s         Normal    Pulled      pod/live-checkout-86d9bbdccb-gjk2l   Successfully pulled image "busybox:1.36" in 3.536s (3.536s including waiting). Image size: 1906887 bytes.
+16s         Normal    Created     pod/live-checkout-86d9bbdccb-gjk2l   Container created
+16s         Normal    Pulled      pod/live-checkout-86d9bbdccb-gjk2l   Container image "busybox:1.36" already present on machine and can be accessed by the pod
+15s         Normal    Started     pod/live-checkout-86d9bbdccb-gjk2l   Container started
+15s         Warning   BackOff     pod/live-checkout-86d9bbdccb-gjk2l   Back-off restarting failed container checkout in pod live-checkout-86d9bbdccb-gjk2l_cloudgraph-system(09fdaafc-0abc-4c24-b7ad-527d2c4de15e)

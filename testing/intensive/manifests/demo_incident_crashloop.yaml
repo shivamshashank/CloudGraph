@@ -18,7 +18,7 @@ spec:
           image: busybox:latest
           command: ["sh", "-c"]
           args:
-            - "echo 'FATAL: unhandled exception in checkout worker, exiting' >&2; exit 1"
+            - "echo 'FATAL: unhandled exception in checkout worker' >&2; exit 1"
           env:
             - name: QUEUE_HOST
               value: rabbitmq.cloudgraph-system.svc.cluster.local

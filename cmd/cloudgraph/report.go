@@ -373,7 +373,7 @@ func saveReport(result *reportResult) (string, error) {
 	var conditionLines strings.Builder
 	for _, condition := range contextConditions {
 		if s, ok := result.ContextConditionSummary[condition]; ok {
-			conditionLines.WriteString(fmt.Sprintf("  context=%-6s %s\n", condition, s))
+			fmt.Fprintf(&conditionLines, "  context=%-6s %s\n", condition, s)
 		}
 	}
 
