@@ -38,7 +38,7 @@ It is *"can we tell whether it made that up?"*
 
 <br />
 
-**Experiment 1** · 6 RCAEval RE2 scenarios × 3 conditions · 18 runs · 661 claims · 129 tests
+**Experiment 1** · 18 RCAEval RE2 scenarios × 3 conditions · 54 runs · 1,950 claims · 129 tests
 
 </div>
 
@@ -65,22 +65,27 @@ experiment.
 
 > **Two properties of the implementation that bound how the results read.**
 >
-> **Metrics are synthetic.** `_simulate_pod_metrics()`
-> (`services/api/app/adapters/k8s_discovery.py:236`) is the only source of
-> `Metric` nodes, and it generates values with `random.uniform()`. There is no
-> Prometheus or metrics-server path, so no metric figure in any diagnosis
-> reflects measured telemetry. Metric evidence is excluded from retrieval and
-> from provenance scoring in Experiment 2.
+> **Metrics are synthetic on the live-cluster path.** Experiment 1 seeds real
+> RCAEval telemetry into its `Metric` nodes
+> (`services/api/app/demo/seeding.py`), so its metric evidence is measured data.
+> Experiment 2 has no such source: every `Metric` node there is produced by
+> `_simulate_pod_metrics()`
+> (`services/api/app/adapters/k8s_discovery.py:236`), which generates values
+> with `random.uniform()`. A Prometheus ingestion endpoint exists
+> (`POST /api/v1/telemetry/metrics`) but nothing calls it and no metrics-server
+> is deployed, so no metric figure in an Experiment 2 diagnosis reflects
+> measured telemetry. Metric evidence is excluded from retrieval and from
+> provenance scoring in Experiment 2 for that reason.
 >
 > **GPCS's semantic term is a constant in Experiment 1.** Its evidence comes
 > from graph traversal, which assigns a fixed score (`0.75` within two hops,
 > `0.6` beyond) rather than a measured similarity. The trust score is therefore
 > determined by graph reachability:
 > `0.45×0.75 + 0.35×0.50 + 0.25×0.81 − 0.15×0.05 = 0.7075 ≈ 0.708`, which is the
-> value taken by 85 of the 661 claims. Read those results as measuring
+> value taken by 85 of the 1,950 claims. Read those results as measuring
 > **reachability**, not semantic provenance.
 
-**The headline result is a measurement, not a win.** Only **3.3%** of the claims
+**The headline result is a measurement, not a win.** Only **4.8%** of the claims
 an LLM generates about an incident can be adjudicated at all using standard RCA
 benchmark metadata. That ceiling — not the choice of verifier — is what binds
 this whole line of work, and it applies to any claim-level verifier evaluated
@@ -88,8 +93,8 @@ this way.
 
 | | |
 |---|---|
-| **Evaluation** | 6 RCAEval RE2 scenarios × 3 retrieval conditions · 18 runs · 661 claims |
-| **Adjudicable** | 22 of 661 claims (3.3%) |
+| **Evaluation** | 18 RCAEval RE2 scenarios × 3 retrieval conditions · 54 runs · 1,950 claims |
+| **Adjudicable** | 93 of 1,950 claims (4.8%) |
 | **Tests** | 129 |
 | **Deployment** | Kubernetes via Helm — verified on kubeadm and OrbStack |
 
@@ -102,8 +107,8 @@ this way.
 | **Purpose** | measure verification | demonstrate the pipeline |
 | **Evidence comes from** | an RCAEval file, seeded into the stores | the real cluster, via the ingestion pipeline |
 | **Exercises ingestion?** | **no** | **yes** |
-| **Ground truth** | labelled, 661 claims | known but unlabelled |
-| **Scale** | 6 faults x 3 conditions = 18 runs | 1 fault |
+| **Ground truth** | labelled, 1,950 claims | known but unlabelled |
+| **Scale** | 18 faults x 3 conditions = 54 runs | 1 fault |
 | **Produces results?** | **yes — every number in this README** | **no** |
 
 ```mermaid
@@ -148,36 +153,62 @@ Every number below is derived from the 18 run logs across 6 benchmark scenarios 
 
 ### 1. Retrieval Condition Breakdown (`NONE` vs `RAW` vs `HYBRID`)
 
-| Metric | `NONE` (No Context) | `RAW` (Full Dump) | `HYBRID` (Ranked Graph) | Best Observed & Takeaway |
+| Metric | `NONE` (No Context) | `RAW` (Full Dump) | `HYBRID` (Ranked Graph) | Takeaway |
 |---|---:|---:|---:|---|
-| **Total Claims Extracted** | 218 | 241 | **202** | **HYBRID:** Reduces claim volume and noise (33.7 claims/run). |
-| **GPCS Unsupported % (Pooled)** | 83.5% | 80.1% | **78.7%** | **HYBRID:** Strictest evidence check with lowest false rejection. |
-| **Self-Consistency Unsupported %**| 59.6% | **47.3%** | 50.5% | **RAW:** Highest recurrence across multi-run sampling. |
-| **Mean Specialist Prompt Size** | 1,101 ch | 30,655 ch | **13,808 ch** | **HYBRID: 55.0% smaller prompts** than `RAW` (Token cost winner!). |
-| **Evaluable Correctness Coverage**| 3.2% (7/218) | 1.7% (4/241) | **5.4% (11/202)** | **HYBRID: 3× higher coverage** than `RAW` (guides LLMs to direct root causes). |
+| **Total Claims Extracted** | 628 | 703 | **619** | **HYBRID:** fewest claims (36.1/run pooled). |
+| **GPCS Unsupported % (Pooled)** | 78.3% | 80.1% | 79.3% | Flat across conditions. |
+| **Self-Consistency Unsupported %**| 57.0% | **49.2%** | 53.3% | **RAW:** highest recurrence. |
+| **Mean Request Payload** | 1,651 ch | 27,406 ch | **13,196 ch** | **HYBRID: 51.9% smaller** than `RAW`. |
+| **Evaluable Correctness Coverage**| 4.8% (30/628) | 3.6% (25/703) | **6.1% (38/619)** | **HYBRID:** most adjudicable claims. |
+| **Consistent : Contradicted** | **14 : 16** | 10 : 15 | 12 : 26 | **NONE:** best ratio; HYBRID worst. |
 
 ---
 
 ### 2. Research Questions (RQ) Support Matrix
 
-| Research Question | Status | Key Experimental Evidence & Findings |
+The project has **one** research-question register, RQ1-RQ7, defined in
+[`docs/PROJECT_EXPLAINED.md`](docs/PROJECT_EXPLAINED.md). Every verdict below
+comes from the 18-scenario evaluation, which computes **no inferential statistics**
+
+- no verdict here rests on a *p*-value or a confidence interval.
+
+| RQ | Question | Verdict |
 |---|---|---|
-| **E1-RQ1: Pipeline Reliability** | **Supported** | All 18 runs (6 scenarios × 3 conditions) completed reliably with zero execution timeouts, producing paired GPCS and Self-Consistency verdicts for all 661 claims. |
-| **E1-RQ2 & RQ3: Retrieval Strategy** | **Supported** | `HYBRID` context retrieval reduces prompt size by **55.0% relative to RAW** while achieving **3× higher evaluable coverage (5.4% vs 1.7%)**. Injected commit distractors (102 exposures) were unanimously discounted (100% rejection). |
-| **E1-RQ4: Joint Verifier Filter** | **Supported** | **RQ:** *To what extent does combining GPCS and Self-Consistency into a joint filter isolate high-confidence claims and reduce LLM noise?*<br/>**Finding:** Yields a high-precision candidate set with an **84.2% reduction in raw LLM claim noise** (isolating a ~15.8% candidate set). |
-| **E1-RQ5 & RQ6: Verifier Parity & Cost** | **Supported** | **RQ:** *Can graph-based provenance verification (GPCS) match LLM self-consistency accuracy while eliminating API token overhead?*<br/>**Finding:** GPCS achieves near-identical accuracy to Self-Consistency (**~52% vs 50% precision**, identical **81.8% false rejection rate**) at **ZERO additional LLM call cost** (vs 3× token costs for Self-Consistency). |
+| **RQ1** | Does GPCS behave differently from self-consistency, and does either flag track claim correctness? | **Partly against.** Distinct - 79.3% vs 53.0% unsupported, stricter in all 54 runs. But on 93 adjudicable claims neither tracks correctness (GPCS +5.1 pp at 0.627 precision, SC -0.7 pp at 0.610, base rate 0.613). |
+| **RQ2** | Is the measured result real end-to-end, not an artefact of a simulated scorer? | **Yes.** 54/54 runs completed, zero fallbacks or timeouts, paired verdicts for all 1,950 claims, deterministic labeller, `claims.csv` regenerable by committed script. |
+| **RQ3** | Does graph-structured retrieval beat dumping all evidence into context? | **Cost win only.** HYBRID cuts the request payload **51.9% vs RAW** and gives the best evaluable coverage (6.1%), but the worst consistent:contradicted ratio (12:26). No accuracy advantage. |
+| **RQ4** | Is any retrieval benefit symbolic-structural or neural-semantic? | **Not measured.** No retrieval ablation was run. Highest-value experiment outstanding. |
+| **RQ5** | Does the five-agent architecture beat a single model at matched compute? | Deferred to v2. |
+| **RQ6** | Are the confidence scores calibrated, and would fitted weights beat hand-set ones? | Deferred to v2. |
+| **RQ7** | Which claim types are each verifier's blind spot? | Deferred to v2 - 4.8% coverage is still too thin to stratify. |
+
+**What the evaluation establishes operationally** - engineering results, not
+research claims: the pipeline runs reliably end-to-end across 54 runs and 1,057
+LLM calls with zero failures; GPCS supplies an evidence gate at **zero
+additional LLM cost** against self-consistency's 2 extra generations per claim;
+and requiring both verifiers to accept keeps just **308 of 1,950 claims — an
+84.2% reduction** in volume.
 
 ---
 
-### 3. Key Positive Findings
+### 3. The five hypotheses
 
-1. **GPCS Factual Grounding at Zero LLM Cost:** GPCS validates claims directly against Neo4j knowledge graph nodes and Qdrant vector embeddings via fast database queries (**0 additional LLM API calls**).
-2. **Self-Consistency Model Reproducibility:** Identifies unstable, one-off model hallucinations by sampling 2 additional generations at $T=0.8$ (costing $2\times$ extra LLM calls).
-3. **GPCS Aggressive Evidence Strictness:** Stricter than Self-Consistency in **18/18 runs** (**80.8% pooled unsupported rate** vs **52.3%**). This tests evidence grounding rather than phrasing bias.
-4. **HYBRID Context Efficiency Leader:** Reduces prompt token size by **55.0% compared to RAW**, cuts claim noise, and achieves **3× higher evaluable coverage (5.4% vs 1.7%)**.
-5. **Unanimous Red Herring Rejection:** Decoy commit timestamps injected into 102 `RAW` prompts were correctly recognized and rejected in **100% of cases**, demonstrating strong prompt reasoning integrity.
-6. **Complementary Dual-Verifier Signal:** GPCS verifies *factual database provenance* while Self-Consistency verifies *output stability*. Claims clearing both filters represent high-confidence candidate facts.
-7. **Deterministic Ground-Truth Evaluation (Step 8):** Uses an objective, 100% Python string/regex evaluator (`services/api/scripts/label_claim_correctness.py`) based on scenario metadata (`target_service` & `root_cause`) to prevent LLM grading bias.
+The project rests on five claims. **Four are supported; one is refuted** — and
+the refuted one is the claim the whole design was built on.
+
+| # | Hypothesis | Verdict | Evidence |
+|---|---|---|---|
+| **H1** | An operational system already carries a real dependency graph, obtainable free rather than at extra cost. | ✅ **Supported** | All 54 runs built a typed property graph from RCAEval telemetry with no annotation step. |
+| **H2** | The pipeline runs reliably end to end at scale. | ✅ **Supported** | 54/54 runs completed. **Zero** fallbacks or timeouts across 1,057 LLM calls and 5.20 h, producing paired verdicts for all 1,950 claims. |
+| **H3** | A graph can verify generated claims at no additional model cost. | ✅ **Supported** | GPCS scores every claim by database query at **0 extra LLM calls**, against self-consistency's 2 extra generations. It also behaves distinctly: 79.3% unsupported vs 53.0%. |
+| **H4** | Ranked graph retrieval reduces context cost against dumping all evidence. | ✅ **Supported** | HYBRID cuts the mean request payload **51.9%** (13,196 vs 27,406 chars), produces the fewest claims, and gives the best evaluable coverage (6.1%). |
+| **H5** | A claim traceable to nearby graph evidence is more likely to be **true**. | ❌ **Refuted** | On 93 adjudicable claims GPCS's flag-rate gap is **+5.1 pp** at precision **0.627** against a **0.613** base rate — the score for flagging everything. Self-consistency is **−0.7 pp**. |
+
+**H5 is the load-bearing one.** H1–H4 establish that the graph is free, the
+system is reliable, verification is cheap and ranked retrieval is cheaper. None
+of that matters much if traceable evidence does not indicate a true claim — and
+it does not. **Provenance predicts reachability, not truth.** That is the
+finding, and it is negative.
 
 **→ [Full Pooled Results](experiment-1-benchmark/results/EXPERIMENT_FINAL_RESULTS.md)** ·
 [Joint-Verifier Comparison](experiment-1-benchmark/results/EXPERIMENT_JOINT_VERIFIER_COMPARISON.md) ·
@@ -189,10 +220,10 @@ Every number below is derived from the 18 run logs across 6 benchmark scenarios 
 
 To keep evaluation findings honest and transparent, here is what the results do **not** claim:
 
-1. **Strictness ≠ Superior Accuracy:** GPCS is stricter than Self-Consistency (rejection rate 80.8% vs 52.3%), but flagging more claims reflects a stricter database evidence gate—not higher accuracy. Across the 22 ground-truth claims, both verifiers differ by only 1 claim net.
+1. **Strictness ≠ Superior Accuracy:** GPCS is stricter than Self-Consistency (rejection rate 79.3% vs 53.0%), but flagging more claims reflects a stricter database evidence gate—not higher accuracy. Across the 22 ground-truth claims, both verifiers differ by only 1 claim net.
 2. **Single-Run Flag Rates Are Not Accuracy:** A single scenario run measures verifier strictness, not overall Precision/Recall. True verifier accuracy is evaluated over the combined 6-scenario dataset.
 3. **Fault Diagnosis, Not Service Localization:** The benchmark identifies the affected target service (`ts-order-service`, `carts`, etc.) in advance. The system diagnoses *how/why* the service failed, not *which* service failed across the cluster.
-4. **Coarse Evidence Gate (Binary Thresholding):** GPCS trust scores operate as a strict pass/fail evidence gate (80.8% of claims score `0.000` because no graph evidence cleared the vector similarity floor), rather than a calibrated continuous confidence score.
+4. **Coarse Evidence Gate (Binary Thresholding):** GPCS trust scores operate as a strict pass/fail evidence gate (79.3% of claims score `0.000` because no graph evidence cleared the vector similarity floor), rather than a calibrated continuous confidence score.
 
 ---
 
@@ -346,7 +377,7 @@ flowchart TB
 
     GV --> CMP{{"Concordance — same verdict?"}}
     SV --> CMP
-    CMP --> R["<b>80.8% vs 52.3% flagged unsupported</b><br/>pooled over 661 claims · stricter in 18/18 runs"]
+    CMP --> R["<b>79.3% vs 53.0% flagged unsupported</b><br/>pooled over 1,950 claims · stricter in 54/54 runs"]
 
     classDef contrib fill:#fde68a,stroke:#b45309,stroke-width:3px,color:#451a03
     classDef result fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px,color:#172554
@@ -449,8 +480,11 @@ testing/                 End-to-end runbook and reproduction scripts
 ## 🔬 Reproducing the Evaluation
 
 The logs **cannot** be reproduced byte-for-byte: generation runs at temperature
-0.8, and identical configurations were measured to vary by ~15 pp on verifier
-rates. What *is* reproducible is the analysis.
+0.8, and identical configurations were measured to vary by up to **25.7 pp** on
+verifier rates — three runs of `rcaeval-03`/`hybrid` gave concordance of 68.6%,
+42.9% and 68.4% with nothing changed between them. Treat any single
+scenario-condition cell as uninformative on its own. What *is* reproducible is
+the analysis.
 
 ```bash
 gunzip -k experiment-1-benchmark/logs/*.gz
@@ -516,8 +550,8 @@ go build ./... && go test ./...
 | Limitation | Consequence |
 |---|---|
 | **Six scenarios, one sample per cell** | Results are counts and rates. No inferential statistics are reported, and the N1 null is underpowered. |
-| **3.3% adjudicable coverage** | Verifier comparisons rest on 22 labelled claims. GPCS can be shown *stricter*, not better *aimed*. |
-| **GPCS resolution** | Trust takes six distinct values, 80.8% of them exactly `0.000`. It is a gate, not a continuous confidence. |
+| **4.8% adjudicable coverage** | Verifier comparisons rest on 93 labelled claims. GPCS can be shown *stricter*, not better *aimed*. |
+| **GPCS resolution** | Trust takes eight distinct values, 79.3% of them exactly `0.000`. It is a gate, not a continuous confidence. |
 | **Nothing is calibrated** | GPCS thresholds (0.30 floor, 0.50 cut) and GCP edge weights are hand-set defaults. No reliability diagrams or Brier scores. |
 | **Metrics are synthetic** | No metric-based diagnosis is grounded in measured telemetry. |
 | **Scope is resource and network faults** | RCAEval RE2 has no config errors, security events, deployment failures, DNS faults or certificate expiry. |

@@ -1,166 +1,246 @@
-# Experiment 1 - Final Six-Scenario Results
+# Experiment 1 — RCAEval Evaluation
 
-This is the canonical combined result for all six Experiment 1 scenarios. It is
-derived from the 18 recorded run logs: three conditions (`NONE`, `RAW`, and
-`HYBRID`) for each scenario. Percentages are calculated from the integer counts
-in the logs; pooled percentages use all claims as the denominator, while mean
-percentages give each scenario-condition run equal weight.
+Eighteen RCAEval RE2 scenarios × three context conditions = **54 runs, 1,950
+claims, zero fallbacks**. A complete 3×6 factorial: three systems × six fault
+families, one scenario per cell, every cell filled.
 
-## Scope and scenarios
+> **One sample per cell.** **No inferential statistics are computed** and none
+> should be quoted from here. Running the same scenario twice with nothing
+> changed moves verifier concordance by up to **25.7 points**, so a single
+> scenario-condition cell is uninformative on its own. Only pooled figures are
+> reported.
+>
+> **No infrastructure data is involved.** Every scenario's telemetry is seeded
+> from the RCAEval RE2 file and torn down after the run. Retrieval is scoped by
+> `scenario_id` on both stores, and each log prints the store census before and
+> after seeding. No host-cluster data reaches any prompt.
+>
+> **No manual labelling.** Correctness verdicts come from the deterministic
+> Python labeller run during each scenario, and `claims.csv` is rebuilt from the
+> logs by `services/api/scripts/build_claims_csv.py`. Nothing is hand-scored.
 
-| Scenario | System | Target | Injected fault |
-|---|---|---|---|
-| `rcaeval-03` | Train Ticket | `ts-order-service` | `cpu_exhaustion` |
-| `rcaeval-14` | Sock Shop | `carts` | `memory_exhaustion` |
-| `rcaeval-07` | Online Boutique | `checkoutservice` | `disk_saturation` |
-| `rcaeval-04` | Online Boutique | `checkoutservice` | `network_delay` |
-| `rcaeval-29` | Sock Shop | `catalogue` | `packet_loss` |
-| `rcaeval-18` | Train Ticket | `ts-auth-service` | `socket_exhaustion` |
+## Scope
 
-`rcaeval-07` is retained for completeness, but its disk metric has a NaN
-baseline and is removed before sampling. Its injected fault is therefore not
-observable in the input data.
+| | |
+|---|---|
+| Scenarios | 18 (3 systems × 6 fault families, one per cell) |
+| Conditions | `none` · `raw` · `hybrid` |
+| Runs | 54 |
+| Claims scored | 1,950 |
+| LLM calls | 1,057 |
+| Wall clock | 18,734 s (5.20 h) |
+| Fallbacks / timeouts | 0 |
+
+## Where the claims go
+
+Most generated claims cannot be judged. This is the central result, so it is
+worth seeing as a shape rather than a percentage:
+
+```mermaid
+flowchart LR
+    A["<b>1,950 claims</b><br/>from 54 runs"] --> B{"Causal claim?"}
+    B -->|"no — 1,486"| X1["unverifiable<br/>76.2%"]
+    B -->|"yes — 464"| C{"Names a mechanism<br/>or service?"}
+    C -->|"no — 371"| X2["unverifiable<br/>19.0%"]
+    C -->|"yes — 93"| D["<b>adjudicable<br/>93 = 4.8%</b>"]
+    D --> E["36 consistent"]
+    D --> F["57 contradicted"]
+
+    style D fill:#dcefe6,stroke:#1f6f5c
+    style E fill:#dcefe6,stroke:#1f6f5c
+    style F fill:#f8dde3,stroke:#9b2242
+    style X1 fill:#eef1f5,stroke:#5a6270
+    style X2 fill:#eef1f5,stroke:#5a6270
+```
+
+**95.2% of what the model writes cannot be checked** against the benchmark. Every
+correctness number in this document rests on the 93 that can.
 
 ## Per-run data
 
-`GPCS` and `SC` are reported as unsupported counts over the total extracted
-claims. `Cons` and `Contra` are the deterministic correctness labels; all other
-claims are unverifiable and excluded from correctness ratios.
-
-| Scenario | Condition | Claims | GPCS unsupported | SC unsupported | Cons | Contra | Evaluable |
-|---|---|---:|---:|---:|---:|---:|---:|
-| `rcaeval-03` | NONE | 38 | 29 (76.3%) | 27 (71.1%) | 2 | 0 | 5.3% |
-| `rcaeval-03` | RAW | 41 | 32 (78.0%) | 24 (58.5%) | 3 | 0 | 7.3% |
-| `rcaeval-03` | HYBRID | 35 | 25 (71.4%) | 20 (57.1%) | 2 | 0 | 5.7% |
-| `rcaeval-14` | NONE | 27 | 26 (96.3%) | 12 (44.4%) | 2 | 1 | 11.1% |
-| `rcaeval-14` | RAW | 52 | 48 (92.3%) | 30 (57.7%) | 0 | 0 | 0.0% |
-| `rcaeval-14` | HYBRID | 36 | 34 (94.4%) | 23 (63.9%) | 1 | 2 | 8.3% |
-| `rcaeval-07` | NONE | 48 | 39 (81.2%) | 32 (66.7%) | 0 | 1 | 2.1% |
-| `rcaeval-07` | RAW | 42 | 31 (73.8%) | 22 (52.4%) | 0 | 0 | 0.0% |
-| `rcaeval-07` | HYBRID | 33 | 25 (75.8%) | 14 (42.4%) | 0 | 2 | 6.1% |
-| `rcaeval-04` | NONE | 34 | 29 (85.3%) | 12 (35.3%) | 0 | 1 | 2.9% |
-| `rcaeval-04` | RAW | 31 | 16 (51.6%) | 10 (32.3%) | 0 | 0 | 0.0% |
-| `rcaeval-04` | HYBRID | 33 | 19 (57.6%) | 14 (42.4%) | 0 | 1 | 3.0% |
-| `rcaeval-29` | NONE | 41 | 38 (92.7%) | 30 (73.2%) | 0 | 0 | 0.0% |
-| `rcaeval-29` | RAW | 40 | 37 (92.5%) | 14 (35.0%) | 0 | 0 | 0.0% |
-| `rcaeval-29` | HYBRID | 33 | 32 (97.0%) | 17 (51.5%) | 0 | 0 | 0.0% |
-| `rcaeval-18` | NONE | 30 | 21 (70.0%) | 17 (56.7%) | 0 | 0 | 0.0% |
-| `rcaeval-18` | RAW | 35 | 29 (82.9%) | 14 (40.0%) | 1 | 0 | 2.9% |
-| `rcaeval-18` | HYBRID | 32 | 24 (75.0%) | 14 (43.8%) | 0 | 3 | 9.4% |
+| Scenario | System | Fault | Cond | Claims | GPCS unsup | SC unsup | Agree | Eval |
+|---|---|---|---|---:|---:|---:|---:|---:|
+| `rcaeval-03` | Train Ticket | cpu | NONE | 38 | 29 (76.3%) | 27 (71.1%) | 30 (78.9%) | 2 |
+| `rcaeval-03` | Train Ticket | cpu | RAW | 41 | 32 (78.0%) | 24 (58.5%) | 29 (70.7%) | 3 |
+| `rcaeval-03` | Train Ticket | cpu | HYBRID | 35 | 25 (71.4%) | 20 (57.1%) | 24 (68.6%) | 2 |
+| `rcaeval-14` | Sock Shop | memory | NONE | 27 | 26 (96.3%) | 12 (44.4%) | 13 (48.1%) | 3 |
+| `rcaeval-14` | Sock Shop | memory | RAW | 52 | 48 (92.3%) | 30 (57.7%) | 34 (65.4%) | 0 |
+| `rcaeval-14` | Sock Shop | memory | HYBRID | 36 | 34 (94.4%) | 23 (63.9%) | 23 (63.9%) | 3 |
+| `rcaeval-07` | Online Boutique | disk | NONE | 48 | 39 (81.2%) | 32 (66.7%) | 31 (64.6%) | 1 |
+| `rcaeval-07` | Online Boutique | disk | RAW | 42 | 31 (73.8%) | 22 (52.4%) | 27 (64.3%) | 0 |
+| `rcaeval-07` | Online Boutique | disk | HYBRID | 33 | 25 (75.8%) | 14 (42.4%) | 18 (54.5%) | 2 |
+| `rcaeval-04` | Online Boutique | network | NONE | 34 | 29 (85.3%) | 12 (35.3%) | 17 (50.0%) | 1 |
+| `rcaeval-04` | Online Boutique | network | RAW | 31 | 16 (51.6%) | 10 (32.3%) | 17 (54.8%) | 0 |
+| `rcaeval-04` | Online Boutique | network | HYBRID | 33 | 19 (57.6%) | 14 (42.4%) | 22 (66.7%) | 1 |
+| `rcaeval-29` | Sock Shop | packet | NONE | 41 | 38 (92.7%) | 30 (73.2%) | 29 (70.7%) | 0 |
+| `rcaeval-29` | Sock Shop | packet | RAW | 40 | 37 (92.5%) | 14 (35.0%) | 17 (42.5%) | 0 |
+| `rcaeval-29` | Sock Shop | packet | HYBRID | 33 | 32 (97.0%) | 17 (51.5%) | 18 (54.5%) | 0 |
+| `rcaeval-18` | Train Ticket | socket | NONE | 30 | 21 (70.0%) | 17 (56.7%) | 22 (73.3%) | 0 |
+| `rcaeval-18` | Train Ticket | socket | RAW | 35 | 29 (82.9%) | 14 (40.0%) | 20 (57.1%) | 1 |
+| `rcaeval-18` | Train Ticket | socket | HYBRID | 32 | 24 (75.0%) | 14 (43.8%) | 18 (56.2%) | 3 |
+| `rcaeval-01` | Online Boutique | cpu | NONE | 32 | 22 (68.8%) | 21 (65.6%) | 25 (78.1%) | 2 |
+| `rcaeval-01` | Online Boutique | cpu | RAW | 42 | 28 (66.7%) | 23 (54.8%) | 29 (69.0%) | 1 |
+| `rcaeval-01` | Online Boutique | cpu | HYBRID | 36 | 30 (83.3%) | 19 (52.8%) | 21 (58.3%) | 4 |
+| `rcaeval-13` | Online Boutique | memory | NONE | 34 | 25 (73.5%) | 18 (52.9%) | 23 (67.6%) | 0 |
+| `rcaeval-13` | Online Boutique | memory | RAW | 30 | 17 (56.7%) | 12 (40.0%) | 21 (70.0%) | 2 |
+| `rcaeval-13` | Online Boutique | memory | HYBRID | 39 | 32 (82.1%) | 24 (61.5%) | 29 (74.4%) | 3 |
+| `rcaeval-10` | Online Boutique | packet | NONE | 27 | 5 (18.5%) | 8 (29.6%) | 18 (66.7%) | 0 |
+| `rcaeval-10` | Online Boutique | packet | RAW | 42 | 33 (78.6%) | 20 (47.6%) | 21 (50.0%) | 0 |
+| `rcaeval-10` | Online Boutique | packet | HYBRID | 36 | 22 (61.1%) | 17 (47.2%) | 19 (52.8%) | 0 |
+| `rcaeval-16` | Online Boutique | socket | NONE | 46 | 39 (84.8%) | 25 (54.3%) | 30 (65.2%) | 0 |
+| `rcaeval-16` | Online Boutique | socket | RAW | 32 | 17 (53.1%) | 18 (56.2%) | 27 (84.4%) | 1 |
+| `rcaeval-16` | Online Boutique | socket | HYBRID | 41 | 31 (75.6%) | 24 (58.5%) | 28 (68.3%) | 2 |
+| `rcaeval-02` | Sock Shop | cpu | NONE | 37 | 34 (91.9%) | 20 (54.1%) | 23 (62.2%) | 5 |
+| `rcaeval-02` | Sock Shop | cpu | RAW | 34 | 32 (94.1%) | 18 (52.9%) | 20 (58.8%) | 2 |
+| `rcaeval-02` | Sock Shop | cpu | HYBRID | 9 | 8 (88.9%) | 7 (77.8%) | 8 (88.9%) | 1 |
+| `rcaeval-08` | Sock Shop | disk | NONE | 33 | 30 (90.9%) | 22 (66.7%) | 23 (69.7%) | 5 |
+| `rcaeval-08` | Sock Shop | disk | RAW | 38 | 35 (92.1%) | 21 (55.3%) | 24 (63.2%) | 2 |
+| `rcaeval-08` | Sock Shop | disk | HYBRID | 35 | 33 (94.3%) | 16 (45.7%) | 16 (45.7%) | 0 |
+| `rcaeval-05` | Sock Shop | network | NONE | 27 | 26 (96.3%) | 14 (51.9%) | 15 (55.6%) | 1 |
+| `rcaeval-05` | Sock Shop | network | RAW | 38 | 37 (97.4%) | 17 (44.7%) | 18 (47.4%) | 0 |
+| `rcaeval-05` | Sock Shop | network | HYBRID | 35 | 32 (91.4%) | 17 (48.6%) | 16 (45.7%) | 5 |
+| `rcaeval-17` | Sock Shop | socket | NONE | 36 | 35 (97.2%) | 21 (58.3%) | 22 (61.1%) | 4 |
+| `rcaeval-17` | Sock Shop | socket | RAW | 44 | 42 (95.5%) | 20 (45.5%) | 22 (50.0%) | 6 |
+| `rcaeval-17` | Sock Shop | socket | HYBRID | 38 | 37 (97.4%) | 20 (52.6%) | 21 (55.3%) | 2 |
+| `rcaeval-15` | Train Ticket | memory | NONE | 38 | 25 (65.8%) | 23 (60.5%) | 30 (78.9%) | 2 |
+| `rcaeval-15` | Train Ticket | memory | RAW | 41 | 31 (75.6%) | 22 (53.7%) | 26 (63.4%) | 1 |
+| `rcaeval-15` | Train Ticket | memory | HYBRID | 41 | 29 (70.7%) | 31 (75.6%) | 33 (80.5%) | 4 |
+| `rcaeval-09` | Train Ticket | disk | NONE | 36 | 22 (61.1%) | 20 (55.6%) | 32 (88.9%) | 2 |
+| `rcaeval-09` | Train Ticket | disk | RAW | 32 | 23 (71.9%) | 17 (53.1%) | 22 (68.8%) | 1 |
+| `rcaeval-09` | Train Ticket | disk | HYBRID | 40 | 27 (67.5%) | 15 (37.5%) | 26 (65.0%) | 2 |
+| `rcaeval-06` | Train Ticket | network | NONE | 31 | 24 (77.4%) | 15 (48.4%) | 20 (64.5%) | 0 |
+| `rcaeval-06` | Train Ticket | network | RAW | 53 | 45 (84.9%) | 29 (54.7%) | 37 (69.8%) | 0 |
+| `rcaeval-06` | Train Ticket | network | HYBRID | 40 | 33 (82.5%) | 27 (67.5%) | 28 (70.0%) | 1 |
+| `rcaeval-12` | Train Ticket | packet | NONE | 33 | 23 (69.7%) | 21 (63.6%) | 25 (75.8%) | 2 |
+| `rcaeval-12` | Train Ticket | packet | RAW | 36 | 30 (83.3%) | 15 (41.7%) | 21 (58.3%) | 5 |
+| `rcaeval-12` | Train Ticket | packet | HYBRID | 27 | 18 (66.7%) | 11 (40.7%) | 18 (66.7%) | 3 |
 
 ## NONE vs RAW vs HYBRID
 
-| Metric | NONE | RAW | HYBRID | Best observed |
+| Measure | NONE | RAW | HYBRID | Best |
 |---|---:|---:|---:|---|
-| Total claims | 218 | 241 | 202 | HYBRID: 33.7 claims/run |
-| GPCS unsupported, pooled | 182/218 (83.5%) | 193/241 (80.1%) | 159/202 (78.7%) | HYBRID, lowest rejection |
-| GPCS unsupported, mean of runs | 83.6% | 78.5% | 78.5% | RAW/HYBRID tie |
-| SC unsupported, pooled | 130/218 (59.6%) | 114/241 (47.3%) | 102/202 (50.5%) | RAW, lowest rejection |
-| SC unsupported, mean of runs | 57.9% | 46.0% | 50.2% | RAW |
-| GPCS supported, pooled | 36/218 (16.5%) | 48/241 (19.9%) | 43/202 (21.3%) | HYBRID |
-| SC supported, pooled | 88/218 (40.4%) | 127/241 (52.7%) | 100/202 (49.5%) | RAW |
-| Evaluable correctness coverage | 7/218 (3.2%) | 4/241 (1.7%) | 11/202 (5.4%) | HYBRID |
-| Consistent : contradicted | 4 : 3 | 4 : 0 | 3 : 8 | RAW, among labelled claims |
+| Claims extracted | 628 | 703 | **619** | HYBRID (fewest) |
+| Mean request size | 1,651 ch | 27,406 ch | **13,196 ch** | HYBRID: **51.9% smaller than RAW** |
+| GPCS unsupported | 78.3% | 80.1% | 79.3% | |
+| Self-consistency unsupported | 57.0% | 49.2% | 53.3% | |
+| Verifier concordance | 68.2% | 61.5% | 62.4% | |
+| Evaluable coverage | 30 (4.8%) | 25 (3.6%) | **38 (6.1%)** | HYBRID |
+| Consistent : contradicted | 14 : 16 | 10 : 15 | 12 : 26 | NONE |
 
-HYBRID reduces the mean specialist prompt size by 55.0% relative to RAW. It
-also produces 16.2% fewer claims than RAW (202 versus 241) and 7.3% fewer than
-NONE (202 versus 218). These are efficiency and coverage results, not proof of
-diagnostic accuracy.
+**HYBRID buys context cost, not accuracy.** It more than halves the request
+payload against RAW and yields the most adjudicable claims, but its
+consistent-to-contradicted ratio (12:26) is the **worst** of the three. With 38
+labelled claims in that cell it is a weak signal, but it points away from the
+idea that ranked retrieval helps the model reason better.
 
-## GPCS vs Self-Consistency
+## GPCS vs self-consistency
 
-Across all 18 runs there are 661 claims:
+| | GPCS | Self-consistency |
+|---|---|---|
+| Unsupported, pooled | **1546/1950 = 79.3%** | 1034/1950 = 53.0% |
+| Extra LLM calls | **0** | 2 generations per claim |
+| Mechanism | graph + vector evidence | model repetition |
+| Concordance (both) | — | 1246/1950 = 63.9% |
 
-| Verifier | Unsupported | Supported | Unsupported rate | Supported rate |
-|---|---:|---:|---:|---:|
-| GPCS | 534 | 127 | 80.8% | 19.2% |
-| Self-Consistency | 346 | 315 | 52.3% | 47.7% |
-
-GPCS marked more claims unsupported than Self-Consistency in **18/18 runs**.
-The pooled difference is 28.4 percentage points (80.8% versus 52.3%). This is
-strictness, not correctness: GPCS tests graph provenance, while Self-Consistency
-tests recurrence across two additional generations.
-
-On the 22 claims that received a deterministic correctness label (11
-consistent and 11 contradicted):
-
-| Verifier | Correct claims flagged unsupported | Wrong claims flagged unsupported | Flag-rate gap |
-|---|---:|---:|---:|
-| GPCS | 9/11 (81.8%) | 10/11 (90.9%) | +9.1 percentage points |
-| Self-Consistency | 9/11 (81.8%) | 9/11 (81.8%) | 0.0 percentage points |
-
-GPCS precision for detecting contradicted claims is 10/19 = 52.6%;
-Self-Consistency precision is 9/18 = 50.0%. The sample is too small to claim a
-reliable verifier accuracy advantage. Both methods reject many correct claims.
+| Joint verdict | Claims |
+|---|---:|
+| `both_supported` | 308 |
+| `gpcs_only_flagged` | 608 |
+| `sc_only_flagged` | 96 |
+| `both_unsupported` | 938 |
 
 ## Correctness result
 
-The labeller marked 22/661 claims as evaluable (3.3%): 11 consistent and 11
-contradicted. The remaining 639 claims were unverifiable, primarily because
-they were descriptive rather than causal or did not identify a mechanism or
-service. Therefore, the `Consistent : Contradicted` ratios above must not be
-read as root-cause accuracy over all generated claims.
+The labeller marked **93 of 1950 claims (4.8%)** adjudicable:
+**36 consistent, 57 contradicted** — a base rate of 61.3% incorrect.
+The remaining 1857 were unverifiable, overwhelmingly because they were
+descriptive rather than causal, or named no mechanism.
 
-The only clear scenario-level pattern is that all three conditions identify
-the CPU fault cleanly in `rcaeval-03`, while the disk fault in `rcaeval-07` is
-unobservable because the benchmark's disk telemetry baseline is NaN. The
-remaining fault families provide too few labelled claims for a stable
-per-family conclusion.
+| Verifier | Flags incorrect | Flags correct | Gap | Precision |
+|---|---|---|---|---|
+| GPCS | 91.2% (52/57) | 86.1% (31/36) | **+5.1 pp** | 0.627 |
+| Self-consistency | 63.2% (36/57) | 63.9% (23/36) | **-0.7 pp** | 0.610 |
 
-## Research Questions (RQ) Support Matrix
+A verifier flagging *everything* scores **0.613** precision on this set.
+GPCS's 0.627 and self-consistency's 0.610 both sit at that floor.
 
-| Research Question | Status | Key Experimental Evidence & Findings |
-|---|---|---|
-| **E1-RQ1: Pipeline Reliability** | **Supported** | All 18 runs (6 scenarios × 3 conditions) completed reliably with zero timeouts or connection failures, producing paired GPCS and Self-Consistency verdicts for all 661 claims. |
-| **E1-RQ2 & RQ3: Context Cost & Retrieval Strategy** | **Supported** | `HYBRID` context retrieval reduces prompt size by **55.0% relative to RAW** (and claim count from 241 to 202) while achieving the **highest evaluable coverage (5.4%)**. The injected commit red herring was unanimously discounted across all 102 RAW prompt exposures (100% rejection). |
-| **E1-RQ4: Joint Verifier Filter** | **Supported** | Claims accepted by **both** GPCS and Self-Consistency form a high-confidence candidate set (e.g., 6 of 38 claims in `rcaeval-03-NONE`, an 84.2% noise reduction). |
-| **E1-RQ5 & RQ6: Verifier Performance & Cost** | **Supported** | GPCS provides a strict evidence gate at **0 additional LLM call cost**, flagging claims unsupported in **18/18 runs (80.8% pooled rejection)** versus Self-Consistency's **52.3%** ($2\times$ LLM cost). They act as complementary signals (Provenance vs. Reproducibility). |
+**Neither verifier tracks correctness.** Self-consistency's gap is −0.7 pp —
+it flags correct and incorrect claims at the same rate, so its verdict carries
+no information about truth. GPCS leans the right way by 5.1 pp, but on 93
+claims that is roughly three claims, and its precision is within noise of the
+base rate. **GPCS is stricter, not sharper.**
 
----
+## The five hypotheses
 
-## 📊 Evaluable Coverage Breakdown
+The project rests on five claims. **Four are supported by this evaluation; one
+is refuted** — and the refuted one is the claim the design was built on.
 
-**Evaluable Coverage** is the percentage of extracted atomic claims that express clear, explicit causal assertions adjudicable as **`CONSISTENT`** (Right) or **`CONTRADICTED`** (Wrong) by the deterministic Step 8 Python labeller. The remaining 96.7% of claims across the corpus were labeled **`UNVERIFIABLE`** because they described true telemetry symptoms (e.g. latency spikes) without explicitly naming the root cause mechanism.
-
-$$\text{Evaluable Coverage} = \frac{\text{Consistent Claims} + \text{Contradicted Claims}}{\text{Total Claims Extracted}} \times 100\%$$
-
-| Retrieval Condition | Total Claims Extracted | Labeled (`Cons` + `Contra`) | Evaluable Coverage % | Primary Cause of Unverifiable Claims |
-|---|---:|---:|---:|---|
-| **`HYBRID`** | **202** | **11** | **5.4% (Best Coverage)** | Focused top-5 graph context helps LLMs state direct root causes. |
-| **`NONE`** | **218** | **7** | **3.2%** | Zero context baseline; relies on parametric memory. |
-| **`RAW`** | **241** | **4** | **1.7% (Lowest Coverage)** | Unranked telemetry dump causes wordy, descriptive symptom filler. |
-| **Pooled Dataset** | **661** | **22** | **3.3%** | 639/661 claims were descriptive observations rather than explicit cause statements. |
-
----
-
-## 💡 Key Positive Findings
-
-1. **GPCS Factual Grounding at Zero LLM Cost:** GPCS validates claims directly against Neo4j knowledge graph nodes and Qdrant vector embeddings. It executes via database queries in milliseconds with **0 additional LLM call cost**.
-2. **Self-Consistency Reproducibility:** Self-Consistency measures whether a claim recurs across 2 independent generations at temperature $T=0.8$. It identifies unstable, one-off model hallucinations at the cost of $2\times$ additional LLM calls.
-3. **GPCS Aggressive Evidence Strictness:** GPCS marked claims unsupported in **18/18 runs** (**80.8% pooled unsupported rate** vs **52.3%** for Self-Consistency). This demonstrates strict evidence-grounding rather than model wording bias.
-4. **Complementary Dual-Verifier Signal:** GPCS tests *factual database provenance* while Self-Consistency tests *multi-run reproducibility*. Claims supported by **both** verifiers represent high-confidence candidate facts.
-5. **HYBRID Retrieval Efficiency Leader:** `HYBRID` achieves the best balance between token cost and claim quality: it cuts prompt size by **55.0% relative to RAW**, reduces total claim volume to 202, and achieves **3× higher evaluable coverage (5.4% vs 1.7%)**.
-6. **Unanimous Red Herring Rejection:** Injected commit distractors (present in 102 `RAW` prompts) were recognized and discounted in 100% of cases, demonstrating strong prompt integrity against noisy context.
-7. **Deterministic Ground-Truth Evaluation (Step 8):** Established an objective, 100% Python string and regex ground-truth evaluator (`services/api/scripts/label_claim_correctness.py`) that reads scenario metadata directly, eliminating LLM grading bias.
-
----
-
-## ⚔️ Direct Component Comparison
-
-| Component | Primary Benefit | Best Observed Result | Recommended Real-World Role |
+| # | Hypothesis | Verdict | Evidence |
 |---|---|---|---|
-| **`NONE`** | Clean zero-context baseline | 65.1% pooled concordance | Experimental baseline for measuring retrieval lift. |
-| **`RAW`** | Maximum telemetry availability | 4:0 consistent:contradicted ratio among 4 labeled claims | Reference dump when context cost is unconstrained. |
-| **`HYBRID`** | Ranked evidence, minimal noise & cost | **55.0% smaller prompts than RAW; 5.4% evaluable coverage** | **Production Winner:** Primary retrieval engine for cost-effective RCA. |
-| **`GPCS`** | Database evidence gate | **0 additional LLM calls; stricter in 18/18 runs (80.8% rejection)** | **Primary Verifier:** Fast, free evidence-grounding gate. |
-| **`Self-Consistency`** | Multi-generation stability | 52.3% rejection rate; identifies model hallucination drift | **Secondary Verifier:** Multi-run stability filter for critical claims. |
+| **H1** | An operational system already carries a real dependency graph, obtainable as a by-product rather than at extra cost. | ✅ **Supported** | All 54 runs built a typed property graph from RCAEval telemetry with no annotation step. True by construction, and it held at scale. |
+| **H2** | The pipeline runs reliably end to end at scale. | ✅ **Supported** | 54/54 runs completed. **Zero** fallbacks or timeouts across 1,057 LLM calls and 5.20 h of wall clock, producing paired verdicts for all 1,950 claims. |
+| **H3** | A graph can verify generated claims at no additional model cost. | ✅ **Supported** | GPCS scores every claim by Neo4j and Qdrant query in milliseconds, at **0 extra LLM calls**, against self-consistency's 2 extra generations per claim. It also behaves distinctly: 79.3% unsupported vs 53.0%. |
+| **H4** | Ranked graph retrieval reduces context cost against dumping all evidence. | ✅ **Supported** | HYBRID cuts the mean request payload **51.9%** against RAW (13,196 vs 27,406 chars), produces the fewest claims (619 vs 703), and yields the highest evaluable coverage (6.1% vs 3.6%). |
+| **H5** | A claim traceable to nearby graph evidence is more likely to be **true**. | ❌ **Refuted** | On the 93 adjudicable claims, GPCS's flag-rate gap is **+5.1 pp** at precision **0.627**, against a **0.613** base rate — the score for flagging everything. Self-consistency is **−0.7 pp**. Provenance predicts reachability, not truth. |
 
----
+```mermaid
+flowchart LR
+    H1["<b>H1</b> graph is free"] --> OK["✅ SUPPORTED"]
+    H2["<b>H2</b> runs reliably"] --> OK
+    H3["<b>H3</b> verifies at zero cost"] --> OK
+    H4["<b>H4</b> ranked retrieval is cheaper"] --> OK
+    H5["<b>H5</b> traceable ⇒ true"] --> NO["❌ REFUTED"]
+    OK --> C["a cheap, fast, reliable way<br/>to compute a number"]
+    NO --> D["...that does not indicate<br/>whether the claim is true"]
 
-## 🎯 Final Interpretation & Presentation Recommendations
+    style OK fill:#dcefe6,stroke:#1f6f5c
+    style NO fill:#f8dde3,stroke:#9b2242
+    style D fill:#fdf0e4,stroke:#a8560c
+```
 
-1. **`HYBRID` is the Production Winner:** For real-world deployment, `HYBRID` context retrieval is the most practical condition. It dramatically cuts LLM API token costs by 55.0% compared to dumping raw logs (`RAW`), while guiding the LLM to write 3× more evaluable, specific root-cause claims (5.4% vs 1.7%).
-2. **GPCS + Self-Consistency are Complementary:** Do not treat GPCS and Self-Consistency as rivals. GPCS verifies *telemetry evidence grounding* (for free), while Self-Consistency verifies *LLM output stability* (at $2\times$ cost). Using them together creates a high-precision joint filter.
-3. **Single-Run vs. Aggregated Metrics:** Single scenario runs evaluate verifier strictness and flag rates. Overall verifier accuracy (Precision, Recall, F1) should be interpreted across the aggregated 6-scenario dataset (22 ground-truth labeled claims), where both verifiers agree on 17 out of 22 claims.
+**H5 is the load-bearing one.** H1–H4 establish that the graph is free, the
+system is reliable, verification is cheap, and ranked retrieval is cheaper. None
+of that is worth much if traceable evidence does not indicate a true claim — and
+it does not. That is the finding, and it is negative.
 
-*Source evidence: Recorded run logs (`rcaeval-03` through `rcaeval-18`) and deterministic Python evaluator in `services/api/scripts/label_claim_correctness.py`.*
+## Research questions
+
+Verdicts against the project's single register, RQ1–RQ7, defined in
+`docs/PROJECT_EXPLAINED.md`. All figures are descriptive.
+
+| RQ | Question | Verdict | Evidence |
+|---|---|---|---|
+| **RQ1** | Does GPCS behave differently from self-consistency, and does either flag track correctness? | **Partly against** | Distinct: 79.3% vs 53.0% unsupported. But on 93 adjudicable claims neither tracks correctness (GPCS +5.1 pp at 0.627 precision, SC −0.7 pp at 0.610, base rate 0.613). |
+| **RQ2** | Is the measured result real end-to-end? | **Yes** | 54/54 runs, 0 fallbacks, deterministic labeller, `claims.csv` regenerable by committed script. |
+| **RQ3** | Does graph retrieval beat dumping all evidence into context? | **Cost win only** | 51.9% smaller payloads and the best evaluable coverage; but the worst consistent:contradicted ratio (12:26). No accuracy advantage. |
+| **RQ4** | Is any retrieval benefit symbolic or neural? | **Not measured** | No retrieval ablation was run. |
+| **RQ5** | Does the five-agent ensemble beat one model at matched compute? | Deferred |  |
+| **RQ6** | Are the confidence scores calibrated? | Deferred |  |
+| **RQ7** | Which claim types are each verifier's blind spot? | Deferred | 4.8% coverage is still too thin to stratify. |
+
+## Operational results
+
+Engineering findings, stated separately because they are not research claims:
+
+- **Zero-cost verification gate.** GPCS adds no LLM calls; self-consistency costs 2 extra generations per claim.
+- **Reliability.** 54 runs, 1,057 LLM calls, 5.20 h, 0 fallbacks or timeouts.
+- **Regenerable analysis.** `build_claims_csv.py` rebuilds `claims.csv` from the logs deterministically. The same logs always produce the same file.
+
+## Interpretation
+
+1. **The binding constraint is adjudicability, not verifier choice.** 95.2% of
+   generated claims cannot be judged against RCAEval metadata at all. Until that
+   changes, no claim-level verifier evaluated this way can be shown to separate
+   true claims from false ones. This is the result most worth reporting.
+2. **HYBRID is the cost winner and only that.** Recommend it on payload size;
+   do not claim it is more accurate.
+3. **Read pooled figures only.** Running the same scenario twice with nothing
+   changed moves verifier concordance by up to 25.7 points, so a single
+   scenario-condition cell carries no weight.
+4. **GPCS and self-consistency are complementary in mechanism, not proven
+   complementary in effect.** Requiring both is sharply selective, but this run
+   cannot show the survivors are more often correct.
+
+*Source: 54 run logs under `../logs/`, parsed by
+`services/api/scripts/build_claims_csv.py` into `claims.csv`. Correctness labels
+were produced by the deterministic labeller during each run. No step is manual.*

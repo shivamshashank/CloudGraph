@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Generate TRACE_<COND>.md from a live trace log. Nothing is truncated.
 
-Unlike experiment/traces/*.md, which were written by hand, these are generated
+Unlike experiment-1-benchmark/traces/*.md, which were written by hand, these
+are generated
 from the logs, so every figure is traceable and the documents can be rebuilt.
 """
 
@@ -105,7 +106,8 @@ def build(cond):  # pylint: disable=too-many-statements,too-many-locals
         f"`scripts/trace_live.py`. **Nothing in this document is truncated.**\n"
     )
     A(
-        "> **How this differs from `experiment/traces/`.** Those trace RCAEval "
+        "> **How this differs from `experiment-1-benchmark/traces/`.** "
+        "Those trace RCAEval "
         "scenarios whose telemetry is *seeded* into Neo4j and Qdrant before each run, "
         "so retrieval re-selects from a fixed 26-item pool. Here the graph was built "
         "by the ingestion pipeline from a live cluster, nothing is seeded, and "
@@ -258,7 +260,8 @@ def build(cond):  # pylint: disable=too-many-statements,too-many-locals
     A("## What this trace does not contain\n")
     A(
         "There is **no ground-truth labelling step and no head-to-head evaluation** "
-        "(STEPs 8–9 in `experiment/traces/`). Claim correctness was not labelled "
+        "(STEPs 8–9 in `experiment-1-benchmark/traces/`). "
+        "Claim correctness was not labelled "
         "for this experiment, so the figures above are **inter-method concordance, "
         "not accuracy**. Both verifiers can be wrong about the same claim and it "
         "still counts as agreement. No claim is made here about which verifier is "

@@ -4,7 +4,7 @@ Complete input-to-output chain for **condition `HYBRID`** (ranked retrieval) on 
 
 Every value is quoted from `logs/live-HYBRID.log`, written live by `scripts/trace_live.py`. **Nothing in this document is truncated.**
 
-> **How this differs from `experiment/traces/`.** Those trace RCAEval scenarios whose telemetry is *seeded* into Neo4j and Qdrant before each run, so retrieval re-selects from a fixed 26-item pool. Here the graph was built by the ingestion pipeline from a live cluster, nothing is seeded, and retrieval is unscoped (`scenario_id=None`) against the whole graph.
+> **How this differs from `experiment-1-benchmark/traces/`.** Those trace RCAEval scenarios whose telemetry is *seeded* into Neo4j and Qdrant before each run, so retrieval re-selects from a fixed 26-item pool. Here the graph was built by the ingestion pipeline from a live cluster, nothing is seeded, and retrieval is unscoped (`scenario_id=None`) against the whole graph.
 
 > **Metric nodes are excluded throughout.** `k8s_discovery._simulate_pod_metrics()` generates every metric value with `random.uniform()`, so metric evidence is not telemetry and must not enter a prompt or a provenance score.
 
@@ -1896,4 +1896,4 @@ LLM Agent call failed: HTTPSConnectionPool(host='api.meta.ai', port=443): Read t
 
 ## What this trace does not contain
 
-There is **no ground-truth labelling step and no head-to-head evaluation** (STEPs 8–9 in `experiment/traces/`). Claim correctness was not labelled for this experiment, so the figures above are **inter-method concordance, not accuracy**. Both verifiers can be wrong about the same claim and it still counts as agreement. No claim is made here about which verifier is more accurate.
+There is **no ground-truth labelling step and no head-to-head evaluation** (STEPs 8–9 in `experiment-1-benchmark/traces/`). Claim correctness was not labelled for this experiment, so the figures above are **inter-method concordance, not accuracy**. Both verifiers can be wrong about the same claim and it still counts as agreement. No claim is made here about which verifier is more accurate.

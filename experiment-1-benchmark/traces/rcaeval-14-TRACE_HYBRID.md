@@ -37,7 +37,7 @@ All values are quoted directly from `02-rcaeval-14/rcaeval-14-HYBRID.log`, writt
 | **Observed Symptoms** | 26 telemetry symptom lines |
 | **Held-Out Ground Truth** | 2 claims — never prompted |
 
-**⚙️ EXECUTION** — `seed_scenario_data()` in [`services/api/app/demo/seeding.py`](../services/api/app/demo/seeding.py):
+**⚙️ EXECUTION** — `seed_scenario_data()` in [`services/api/app/demo/seeding.py`](../../services/api/app/demo/seeding.py):
 
 * Writes Cypher entities/relationships into **Neo4j**.
 * Writes 384-dim `all-MiniLM-L6-v2` embeddings into **Qdrant**.
@@ -46,7 +46,7 @@ All values are quoted directly from `02-rcaeval-14/rcaeval-14-HYBRID.log`, writt
 
 ## 🔍 STEP 2 — GraphRAG Hybrid Evidence Retrieval & Ranking
 
-**⚙️ EXECUTION** — `run_hybrid_search()` in [`services/api/app/research/evaluation.py:L160`](../services/api/app/research/evaluation.py#L160) delegates retrieval scoring to [`HybridRanker`](../services/api/app/retrieval/hybrid_ranker.py).
+**⚙️ EXECUTION** — `run_hybrid_search()` in [`services/api/app/research/evaluation.py:L160`](../../services/api/app/research/evaluation.py#L160) delegates retrieval scoring to [`HybridRanker`](../../services/api/app/retrieval/hybrid_ranker.py).
 
 The GraphRAG Hybrid Ranker fuses three orthogonal retrieval signals—semantic content similarity, topological graph proximity, and temporal recency—into a single composite score $S_{\text{hybrid}} \in [0.0, 1.0]$.
 
@@ -1569,7 +1569,7 @@ Your response MUST be a JSON object with fields:
 
 ## ✂️ STEP 5 — Atomic Claim Extraction (API / LLM Call)
 
-**⚙️ EXECUTION** — `GraphProvenanceClaimScorer.extract_claims()` in [`services/api/app/research/gpcs.py:L266`](../services/api/app/research/gpcs.py#L266) takes the Consensus Engine's synthesis output from Step 4.
+**⚙️ EXECUTION** — `GraphProvenanceClaimScorer.extract_claims()` in [`services/api/app/research/gpcs.py:L266`](../../services/api/app/research/gpcs.py#L266) takes the Consensus Engine's synthesis output from Step 4.
 
 ### 📥 INPUT PREPARATION
 
@@ -1577,7 +1577,7 @@ The `title`, `summary`, and `cause` fields from the consensus JSON response are 
 
 ### 🤖 LLM API CALL — `_extract_claims_with_llm()`
 
-The claim extraction layer invokes the LLM using `_extract_claims_with_llm()` in [`gpcs.py:L300`](../services/api/app/research/gpcs.py#L300):
+The claim extraction layer invokes the LLM using `_extract_claims_with_llm()` in [`gpcs.py:L300`](../../services/api/app/research/gpcs.py#L300):
 
 **System Prompt:**
 
@@ -2024,11 +2024,11 @@ additional LLM call.
 **This is a strictness and cost result, not an accuracy result.** The two
 verifiers measure different properties: GPCS asks whether a claim is traceable
 to graph or vector evidence; self-consistency asks whether it recurs across
-independent generations. Across the full six-scenario experiment they agree on
-17 of 22 labelled claims, and the net difference between them is **one claim out
-of 661** — which is why this project reports them as complementary signals
+independent generations. Across the full 18-scenario experiment they agree on
+61 of 93 labelled claims, and the net difference between them is small relative
+to 1,950 — which is why this project reports them as complementary signals
 rather than ranking one above the other.
 
-GPCS emits only **2 distinct trust values** in this run. Across all 661
-claims it emits six, with 80.8% at exactly `0.000`, so it cannot rank claims or
+GPCS emits only **2 distinct trust values** in this run. Across all 1,950
+claims it emits eight, with 79.3% at exactly `0.000`, so it cannot rank claims or
 be threshold-tuned on this evidence.

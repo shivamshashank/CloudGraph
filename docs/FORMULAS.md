@@ -88,12 +88,12 @@ $$\text{gpcs\_unsupported}(c_i) = \begin{cases} \text{False (SUPPORTED)} & \text
 
 Claim: *"checkoutservice resource utilization spiked"*:
 
-* `Vector_Sim = 0.7500`, `Min_Hop = 1` (`Graph_Prox = 0.5000`), `Source_Reliability = Metric (0.9500)`, `Penalty = 0.15 * (1 * 0.05) = 0.0075`.
+* `Vector_Sim = 0.7500`, `Min_Hop = 1` (`Graph_Prox = 0.5000`), `Source_Reliability = Metric (0.8500)`, `Penalty = 0.15 * (1 * 0.05) = 0.0075`.
 
 ```text
-Trust_Score = (0.45 * 0.7500) + (0.35 * 0.5000) + (0.25 * 0.9500) - 0.0075
-            = 0.3375 + 0.1750 + 0.2375 - 0.0075
-            = 0.7425  (--> SUPPORTED, since 0.7425 >= 0.50)
+Trust_Score = (0.45 * 0.7500) + (0.35 * 0.5000) + (0.25 * 0.8500) - 0.0075
+            = 0.3375 + 0.1750 + 0.2125 - 0.0075
+            = 0.7175  (--> SUPPORTED, since 0.7175 >= 0.50)
 ```
 
 ---

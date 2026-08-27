@@ -35,10 +35,10 @@ LOG_INTERVAL_SECONDS = 60
 # scenario, so a commit stamped at incident_time whose message names the faulted
 # service's *configuration* is a fabricated causal attractor -- and an effective
 # one. Once retrieval delivery was fixed, the raw condition blamed this node in
-# 2/2 pilot scenarios ("Config-Induced CPU Exhaustion", "faulty config rollout
-# sha-rcaeval-02") and the recommendation led with "rollback sha-rcaeval-01",
-# an action that would do nothing. Because the template is identical for every
-# scenario, that confound would have applied uniformly across all 36.
+# 2/2 pilot scenarios ("Config-Induced CPU Exhaustion", "faulty config
+# rollout") and the recommendation led with a rollback of that commit, an
+# action that would do nothing. Because the template is identical for every
+# scenario, that confound would have applied uniformly across all of them.
 #
 # Dating it outside the incident window makes it temporally falsifiable from the
 # graph itself, and drops the hybrid ranker's recency term for it from 1.0
@@ -139,13 +139,13 @@ def seed_scenario_data(scenario: Dict[str, Any]) -> None:
     #
     # Two defects motivated this. (1) The previous branch read
     # `injected_fault`/`fault`, keys the RCAEval dataset does not carry -- it
-    # stores `root_cause` -- so `fault` was always "" and 11 of 36 scenarios,
-    # including every network_delay and packet_loss case, were seeded with a
-    # fabricated "container CPU usage seconds total is 95 percent". That string
-    # ranked #1 in hybrid retrieval and drove a wrong CPU diagnosis on
+    # stores `root_cause` -- so `fault` was always "" and a large fraction of
+    # scenarios, including every network_delay and packet_loss case, were seeded
+    # with a fabricated "container CPU usage seconds total is 95 percent". That
+    # string ranked #1 in hybrid retrieval and drove a wrong CPU diagnosis on
     # rcaeval-04. (2) A symptom heuristic (`any("mem" in s ...)`) decided the
     # branch for the rest, which is arbitrary: every fault family emits both cpu
-    # and mem symptoms, so rcaeval-01 got a memory metric on a CPU fault.
+    # and mem symptoms, so a CPU-fault scenario could be given a memory metric.
     #
     # Reading `root_cause` and templating per family would fix (1) but introduce
     # ground-truth leakage -- seeding "network latency is 5.0s" on a delay fault

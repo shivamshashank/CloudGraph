@@ -15,7 +15,7 @@ whole system.
 | Purpose | measure verification | demonstrate the pipeline |
 | Evidence comes from | an RCAEval file, seeded in | the real cluster |
 | Exercises ingestion? | **no** | **yes** |
-| Scale | 6 faults × 3 conditions, 661 claims | 1 fault |
+| Scale | 18 faults × 3 conditions, 1,950 claims | 1 fault |
 | Produces results? | **yes** | **no** |
 
 ---
@@ -103,11 +103,14 @@ wrong about the same claim and it still counts as agreement.
 condition. Repeated runs of this identical setup produced materially different
 verifier outcomes, which is why no comparison table is published from it.
 
-**Nothing about metric-based diagnosis.** `k8s_discovery.py:236`
-`_simulate_pod_metrics()` is the only function creating `Metric` nodes and it
-generates every value with `random.uniform()`. There is no Prometheus or
-metrics-server path. Metric evidence is filtered out of retrieval and out of GPCS
-scoring throughout this experiment, because it is not telemetry.
+**Nothing about metric-based diagnosis.** Every `Metric` node in this experiment
+comes from `_simulate_pod_metrics()` ([`k8s_discovery.py:236`](../services/api/app/adapters/k8s_discovery.py)),
+which generates every value with `random.uniform()`. A Prometheus ingestion
+endpoint does exist (`POST /api/v1/telemetry/metrics`, backed by
+[`adapters/prometheus.py`](../services/api/app/adapters/prometheus.py)), but
+nothing here calls it and no metrics-server is deployed, so no real metric ever
+reaches the graph. Metric evidence is therefore filtered out of retrieval and out
+of GPCS scoring throughout this experiment, because it is not telemetry.
 
 ## What it does show
 

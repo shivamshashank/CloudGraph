@@ -4,19 +4,19 @@
 
 For each area: what exists in the literature, what CloudGraph has, and where the gap: i.e., the opportunity — sits.
 
-> **Status: v1 complete.** The literature positioning below is unchanged and
-> still holds. Three gaps have since been **closed by the 36-scenario
-> evaluation**, and the results are recorded inline where they land:
+> The literature positioning below still holds. The **18-scenario evaluation** in `experiment-1-benchmark/` bears on
+> three gaps, and the results are recorded inline where they land:
 >
-> | Gap | Closed by | Outcome |
+> | Gap | Bears on | Outcome |
 > |---|---|---|
 > | Real evaluation loop (was blocking) | **RQ2** | Closed: every baseline now invokes the real pipeline |
-> | Long-context / raw-context control | **RQ3** | Closed: **null**; structure did not beat a raw dump |
-> | Neuro-symbolic ablation | **RQ4** | Closed: **negative**; the symbolic component adds nothing to retrieval |
+> | Long-context / raw-context control | **RQ3** | Partly addressed: ranked retrieval is **51.9% cheaper**; no correctness advantage shown |
+> | Neuro-symbolic ablation | **RQ4** | **Still open** — no retrieval ablation is run |
 >
-> Two closed *against* the design's expectation. The remaining gaps map to
-> **RQ5–RQ7** (v2) and the v3 register in
-> the limitations section of the root `README.md`. See
+> The evaluation computes **no inferential statistics**: one sample per cell does
+> not support them. Nothing below should be read as a significance
+> result. The remaining gaps map to **RQ4–RQ7** and to the limitations section
+> of the root `README.md`. See
 > [`README.md`](README.md) for what the evaluation establishes.
 
 ---
@@ -61,14 +61,14 @@ For each area: what exists in the literature, what CloudGraph has, and where the
 
 **Gap — half closed.**
 
-1. ~~A "raw context" / long-context baseline.~~ **Closed by RQ3, and the answer was null.** Hybrid (ranked) context vs. raw (unranked) evidence dump: Δ +0.0240, 95% CI [−0.0280, +0.0773], *p* = 0.302. The interval spans zero: structured graph retrieval did **not** measurably outperform pasting all evidence into context. This is a real finding against the design, not a missing experiment.
-2. **Still open.** Allowing the orchestrator to *choose* which specialist agents to invoke and in what order based on early evidence, rather than always running all five: reframing orchestration as a planning problem. Deferred to v3 (`ROADMAP.md`); not in the seven-RQ register.
+1. ~~A "raw context" / long-context baseline.~~ **Run under RQ3; the answer is a cost win, not an accuracy win.** Hybrid (ranked) context versus a raw unranked dump: **51.9% smaller request payloads** and 11.9% fewer claims (619 vs 703), at verifier concordance of 62.4% against RAW's 61.5%. Structured retrieval is materially cheaper and no worse on agreement. Whether it is *more accurate* is unresolved: on the 93 adjudicable claims HYBRID has the worst consistent:contradicted ratio (12:26) and NONE the best (14:16). No interval or *p*-value is reported, because this pilot does not support one.
+2. **Still open.** Allowing the orchestrator to *choose* which specialist agents to invoke and in what order based on early evidence, rather than always running all five: reframing orchestration as a planning problem. Not in the seven-RQ register.
 
 ### 6. Root Cause Reasoning / AI for Systems
 
 **Literature.** MetaRCA (Liang et al., 2026) and agentic structured graph traversal for RCA (Cui et al., 2025) are close, recent competitors: both target graph-based RCA with agentic elements.
 
-**CloudGraph today.** Directly overlaps with this niche. Its own evaluation is now real: 36 RCAEval RE2 cases (`experiment-1-benchmark/README.md`), but it has still not been benchmarked against either system or their datasets.
+**CloudGraph today.** Directly overlaps with this niche. Its own evaluation is now real: an 18-scenario RCAEval RE2 evaluation (`experiment-1-benchmark/README.md`), but it has still not been benchmarked against either system or their datasets.
 
 **Gap.** The most direct competitive gap: CloudGraph must, at minimum, cite and ideally reproduce a comparison against these two systems (or their reported numbers on a shared or adapted dataset) to establish it is not redundant with existing 2025–2026 work. This is a literature-positioning risk, not just an implementation gap: a paper submission without this comparison will likely be rejected as incremental.
 
@@ -84,29 +84,29 @@ For each area: what exists in the literature, what CloudGraph has, and where the
 
 **Literature.** Neuro-symbolic systems combine learned components (LLMs, embeddings) with symbolic structure (graphs, logic rules) and reason about the *interface* between the two: a very active 2024–2026 direction.
 
-**CloudGraph today.** Is, in effect, already a neuro-symbolic system (symbolic Neo4j graph + rule-based edge weights + neural embeddings + LLM reasoning). The ablation has now been **run** (RQ4).
+**CloudGraph today.** Is, in effect, already a neuro-symbolic system (symbolic Neo4j graph + rule-based edge weights + neural embeddings + LLM reasoning). The ablation that would test the interface has **not** been run.
 
-**Gap — closed, and the result is negative.** Mean expected-tag recall across all 36 scenarios: keyword 0.4167, vector **0.6065**, hybrid **0.6065**. Hybrid beats keyword by Δ +0.1898, CI [+0.1157, +0.2685], *p* = 0.0003, the largest effect in the study. But **vector and hybrid are byte-identical on all 36 scenarios** (same expected tags, same hit tags). The entire gain over keyword comes from the embedding component; the symbolic graph contributes **nothing to retrieval** on this benchmark.
+**Gap — open, and it is the most important one.** Separating the symbolic contribution from the neural one requires a keyword / vector / hybrid retrieval ablation scored on expected-tag recall. The evaluation does not run it, so the repo holds **no evidence either way** on whether the graph adds retrieval value over embeddings alone.
 
-The neuro-symbolic framing therefore survives only for claim **scoring**, where the graph is load-bearing (GPCS proximity and hop-decay terms operate over graph structure, not embeddings). That is a narrower and more defensible thesis than the original: *the graph's value in this system is verification, not retrieval.*
+What the evaluation does show is that the graph is load-bearing for claim **scoring**: GPCS's proximity and hop-decay terms operate over graph structure and have no embedding equivalent, and in this run the semantic term is supplied entirely by graph traversal at a fixed 0.75. That supports a narrower thesis — *the graph's demonstrated value in this system is verification* — but leaves retrieval untested rather than refuted. Running this ablation is the highest-value experiment remaining, because the design's central claim depends on its outcome.
 
 ---
 
-## Summary table: status after v1
+## Summary table: where each area stands
 
-| Area | RQ | Status after the 36-scenario run |
+| Area | RQ | Status after the 18-scenario evaluation |
 |---|---|---|
 | Real evaluation loop (was blocking everything) | **RQ2** | ✅ **Closed.** Every baseline invokes the real pipeline; the fabricated-offset heuristics are gone. |
-| GPCS vs. self-consistency baseline | **RQ1** | ✅ **Closed, partly against.** Difference demonstrated (p<0.0001); advantage not — neither verifier tracks correctness. |
-| Long-context / raw-context control | **RQ3** | ✅ **Closed — null.** Structure did not beat a raw evidence dump. |
-| Neuro-symbolic framing + ablation | **RQ4** | ✅ **Closed — negative.** Vector ≡ hybrid; the symbolic component adds nothing to retrieval. |
-| Multi-agent interaction / matched-compute control | **RQ5** | ⏭ **v2.** Control ran only on the pre-fix pipeline; re-run is the cheapest remaining closure. |
-| GCP as calibrated probabilistic graphical inference | **RQ6** | ⏭ **v2.** No weight fitting, no reliability diagram, no Brier score. |
-| Calibration / uncertainty quantification | **RQ6** | ⏭ **v2.** Same gap; confidence scores exist but are never checked against correctness rates. |
-| Claim-type blind-spot stratification | **RQ7** | ⏭ **v2.** Blocked on human labels — 3.3% automatic coverage is too thin to stratify. |
-| Temporal/operational GraphRAG framing | — | ⏭ **v3.** Recency term now does real work (spread 0.251), but no with/without ablation was run. |
-| Adaptive/learned retrieval policy | — | ⏭ **v3.** Needs a policy layer over existing scorers. |
-| Agent-selection as planning | — | ⏭ **v3.** Needs new orchestration logic. |
+| GPCS vs. self-consistency baseline | **RQ1** | ✅ **Addressed, partly against.** Difference clear (79.3% vs 53.0% unsupported); advantage not — neither verifier tracks correctness on 93 claims. |
+| Long-context / raw-context control | **RQ3** | ◑ **Cost win only.** Ranked retrieval is 51.9% cheaper than a raw dump; no correctness advantage shown. |
+| Neuro-symbolic framing + ablation | **RQ4** | ⏭ **Open — not measured.** No retrieval ablation is run; highest-value remaining experiment. |
+| Multi-agent interaction / matched-compute control | **RQ5** | ⏭ **Open.** No matched-compute control is run; it is the cheapest remaining question to answer. |
+| GCP as calibrated probabilistic graphical inference | **RQ6** | ⏭ **Open.** No weight fitting, no reliability diagram, no Brier score. |
+| Calibration / uncertainty quantification | **RQ6** | ⏭ **Open.** Same gap; confidence scores exist but are never checked against correctness rates. |
+| Claim-type blind-spot stratification | **RQ7** | ⏭ **Open.** Blocked on label volume — 4.8% automatic coverage is still too thin to stratify. |
+| Temporal/operational GraphRAG framing | — | ⏭ **Open.** No with/without ablation of the recency term was run. |
+| Adaptive/learned retrieval policy | — | ⏭ **Open.** Needs a policy layer over existing scorers. |
+| Agent-selection as planning | — | ⏭ **Open.** Needs new orchestration logic. |
 | Comparison to MetaRCA / agentic graph-traversal RCA | — | ⏭ **v3 — positioning risk.** Cited, not reproduced. A submission claiming superiority over these would need it; v1 claims no such comparison. |
 
 **Reading the table:** four gaps closed, and three of the four closed

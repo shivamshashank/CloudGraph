@@ -5,10 +5,12 @@ mechanism that makes "we reduce hallucinations" a measured, named, citable
 claim instead of an assertion.
 
 > **Outcome (v1):** RQ1 is answered, and only half in this design's favour.
-> GPCS does behave distinctly from self-consistency: it flags 80.8% of claims
-> unsupported against 52.3%. But on the 3.3% of claims carrying
-> correctness labels, **neither verifier separates correct claims from
-> incorrect ones** (both gaps −0.8 pp). GPCS is *stricter, not sharper*. The
+> GPCS does behave distinctly from self-consistency: it flags 79.3% of claims
+> unsupported against 53.0%. But on the 4.8% of claims carrying correctness
+> labels (93 claims, 36 correct and 57 incorrect), **neither verifier separates
+> correct claims from incorrect ones** — self-consistency by −0.7 pp, GPCS by
+> +5.1 pp, both at a precision indistinguishable from the 0.613 base rate. GPCS
+> is *stricter, not sharper*. The
 > weights and thresholds below remain **hand-set and uncalibrated**: fitting
 > them is RQ6, deferred to v2. See
 > [`research/README.md`](../../research/README.md). It reuses primitives that already exist in

@@ -11,7 +11,7 @@ Usage:
   NEO4J_URI=bolt://127.0.0.1:7687 NEO4J_AUTH=neo4j/PASS \
   QDRANT_HOST=127.0.0.1 QDRANT_PORT=6333 \
   AGENT_ORCHESTRATOR_URL=http://localhost:8082 \
-  .venv/bin/python ../../scripts/trace_scenario.py rcaeval-01 hybrid out.log
+  .venv/bin/python ../../scripts/trace_scenario.py rcaeval-03 hybrid out.log
 """
 
 # This is an instrumentation script, not library code. It deliberately:
@@ -40,7 +40,7 @@ import collections
 
 sys.path.insert(0, ".")
 
-SCENARIO_ID = sys.argv[1] if len(sys.argv) > 1 else "rcaeval-01"
+SCENARIO_ID = sys.argv[1] if len(sys.argv) > 1 else "rcaeval-03"
 CONDITION = sys.argv[2] if len(sys.argv) > 2 else "hybrid"
 LOGPATH = pathlib.Path(
     sys.argv[3] if len(sys.argv) > 3 else "/tmp/cloudgraph-scenario.log"
@@ -636,10 +636,8 @@ try:
         raw(
             "   here at all. This is not a tie - it is an absence of evidence, and it is"  # noqa: E501
         )
-        raw(
-            "   exactly why the dissertation reports only 155 of 3,685 claims (4.2%) as"
-        )
-        raw("   evaluable across all 36 scenarios.")
+        raw("   exactly why the dissertation reports only 93 of 1950 claims (4.8%)")
+        raw("   as evaluable across all 18 scenarios.")
     else:
         base = sum(1 for r in evaluable if r["label"] == "contradicted")
         log(
@@ -689,10 +687,11 @@ try:
         f"self-consistency {su}/{len(s_)} = {su/len(s_)*100:.1f}%"
     )
     raw("")
-    raw("   On CORRECTNESS, see STEP 9. Across all 36 scenarios the answer is")
-    raw("   NEITHER: both verifiers post precision 0.681 on a set that is 68.4%")
-    raw("   incorrect - precisely the score for flagging everything - and both")
-    raw("   flag-rate gaps are -0.8 pp, pointing the WRONG way.")
+    raw("   On CORRECTNESS, see STEP 9. Across all 18 scenarios the answer is")
+    raw("   NEITHER: on 93 adjudicable claims (36 correct, 57 incorrect)")
+    raw("   self-consistency's flag-rate gap is -0.7 pp at precision 0.610,")
+    raw("   and GPCS's is +5.1 pp at precision 0.627,")
+    raw("   against a 0.500 base rate for flagging everything.")
     raw("")
     raw("   So the honest verdict is: GPCS is STRICTER, NOT SHARPER. Being")
     raw("   rejected by GPCS carries no measurable information about whether a")

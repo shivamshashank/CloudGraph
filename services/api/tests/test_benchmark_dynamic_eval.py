@@ -61,7 +61,7 @@ def test_benchmark_ground_truth_dataset_structure():
 
     Leakage separation is covered in tests/test_rcaeval_dataset.py,
     which owns the generated dataset's invariants."""
-    assert len(load_scenarios()) == 36
+    assert len(load_scenarios()) == 18
 
     required_keys = {
         "id",
@@ -160,7 +160,7 @@ def test_run_benchmark_endpoint_updates_state_and_logs():
 
     # Verify execution logs contain calculation step details
     log_text = " ".join(body["logs"])
-    assert "Processing scenario: rcaeval-01" in log_text
+    assert "Processing scenario: rcaeval-03" in log_text
     assert "Tearing down scenario" in log_text
     assert "Dynamic evaluation engine completed" in log_text
 

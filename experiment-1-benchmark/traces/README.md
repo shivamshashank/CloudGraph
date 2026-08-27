@@ -20,8 +20,8 @@ flowchart LR
     A["<b>Scenario</b><br/><small>RCAEval RE2 case<br/>26 observed symptoms</small>"]
     B["<b>trace_scenario.py</b><br/><small>instrumented runner<br/>wraps the real pipeline</small>"]
     C["<b>logs/*.log.gz</b><br/><small>raw evidence<br/>~3,000 lines/run</small>"]
-    D["<b>traces/*.md</b><br/><small>narrative walkthrough<br/>written by hand</small>"]
-    E["<b>results/claims.csv</b><br/><small>analysis substrate<br/>661 rows</small>"]
+    D["<b>traces/*.md</b><br/><small>narrative walkthrough<br/>written from the logs</small>"]
+    E["<b>results/claims.csv</b><br/><small>analysis substrate<br/>1,950 rows</small>"]
 
     A --> B --> C
     C -->|"read and narrated<br/>by a human"| D
@@ -37,7 +37,7 @@ The distinction matters and is easy to get wrong:
 |---|---|---|
 | `logs/*.log.gz` | **raw evidence** | No — generation runs at T=0.8, so a re-run produces different samples |
 | `results/claims.csv` | derived, mechanical | No script ships. Every field is in the logs, but the extraction was ad-hoc |
-| `traces/*.md` | **derived narrative** | No script ships. Written by hand against the log |
+| `traces/*.md` | **derived narrative** | No script ships. Written from the logs against the log |
 
 > **A trace is illustrative, not authoritative.** If a number in a trace disagrees
 > with the log it was written from, the log wins. Every figure quoted in a trace
@@ -305,7 +305,7 @@ Three different source systems and three different fault families — deliberate
 so the traces are not three views of the same failure mode.
 
 The experiment ran **six** scenarios (`-03`, `-04`, `-07`, `-14`, `-18`, `-29`),
-so `logs/` holds 18 runs. The remaining three were run and analysed but never
+so `logs/` holds 54 runs. The remaining scenarios were run and analysed but never
 narrated. `results/claims.csv` covers all six; the traces cover three. A count
 that disagrees between `traces/` and `results/` is explained by this, not by a
 missing run.
@@ -337,11 +337,11 @@ fails if the vector store holds any foreign scenario. Parallel runs break both.
   `none`, `raw` and `hybrid` once sent byte-identical prompts. See
   [`../README.md`](../README.md) and `research/LABELLING_POLICY.md`.
 - **GPCS resolution is coarse.** It emits only 6 distinct values across the
-  dataset and 80.8% of claims score exactly `0.000` — an early return when no
+  dataset and 79.3% of claims score exactly `0.000` — an early return when no
   evidence clears the 0.30 semantic floor. Step 6 of each trace shows this
   directly; do not read the score as a continuous confidence.
-- **Step 9's contingency table is per scenario and tiny.** Only 3.3% of claims
-  are adjudicable at all (22 of 661 across the whole experiment). A single
+- **Step 9's contingency table is per scenario and tiny.** Only 4.8% of claims
+  are adjudicable at all (93 of 1,950 across the whole experiment). A single
   scenario's 2×2 table is an illustration of the method, not a result. Pooled
   numbers live in `results/`.
 - **A trace shows one sample of three.** Steps 3–5 narrate the primary

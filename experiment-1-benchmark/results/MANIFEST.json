@@ -1,49 +1,115 @@
 {
- "title": "CloudGraph Experiment-1 — six-scenario empirical evaluation",
- "status": "PILOT — 6 scenarios, one sample per cell. No inferential statistics; see EXPERIMENT1_FINAL_RESULTS.md limitations.",
- "generated_at": "2026-08-20T18:38:39Z",
+ "title": "CloudGraph Experiment 1 — RCAEval evaluation",
+ "status": "18 scenarios x 3 context conditions, one sample per cell. No inferential statistics are computed; all figures are descriptive. See EXPERIMENT_FINAL_RESULTS.md limitations.",
+ "generated_at": "2026-08-27T19:26:31Z",
  "scenarios": [
   {
-   "dir": "01-rcaeval-03",
    "id": "rcaeval-03",
    "system": "Train Ticket",
    "target": "ts-order-service",
    "fault": "cpu_exhaustion"
   },
   {
-   "dir": "02-rcaeval-14",
    "id": "rcaeval-14",
    "system": "Sock Shop",
    "target": "carts",
    "fault": "memory_exhaustion"
   },
   {
-   "dir": "03-rcaeval-07",
    "id": "rcaeval-07",
    "system": "Online Boutique",
    "target": "checkoutservice",
    "fault": "disk_saturation"
   },
   {
-   "dir": "04-rcaeval-04",
    "id": "rcaeval-04",
    "system": "Online Boutique",
    "target": "checkoutservice",
    "fault": "network_delay"
   },
   {
-   "dir": "05-rcaeval-29",
    "id": "rcaeval-29",
    "system": "Sock Shop",
    "target": "catalogue",
    "fault": "packet_loss"
   },
   {
-   "dir": "06-rcaeval-18",
    "id": "rcaeval-18",
    "system": "Train Ticket",
    "target": "ts-auth-service",
    "fault": "socket_exhaustion"
+  },
+  {
+   "id": "rcaeval-01",
+   "system": "Online Boutique",
+   "target": "checkoutservice",
+   "fault": "cpu_exhaustion"
+  },
+  {
+   "id": "rcaeval-13",
+   "system": "Online Boutique",
+   "target": "checkoutservice",
+   "fault": "memory_exhaustion"
+  },
+  {
+   "id": "rcaeval-10",
+   "system": "Online Boutique",
+   "target": "checkoutservice",
+   "fault": "packet_loss"
+  },
+  {
+   "id": "rcaeval-16",
+   "system": "Online Boutique",
+   "target": "checkoutservice",
+   "fault": "socket_exhaustion"
+  },
+  {
+   "id": "rcaeval-02",
+   "system": "Sock Shop",
+   "target": "carts",
+   "fault": "cpu_exhaustion"
+  },
+  {
+   "id": "rcaeval-08",
+   "system": "Sock Shop",
+   "target": "carts",
+   "fault": "disk_saturation"
+  },
+  {
+   "id": "rcaeval-05",
+   "system": "Sock Shop",
+   "target": "carts",
+   "fault": "network_delay"
+  },
+  {
+   "id": "rcaeval-17",
+   "system": "Sock Shop",
+   "target": "carts",
+   "fault": "socket_exhaustion"
+  },
+  {
+   "id": "rcaeval-15",
+   "system": "Train Ticket",
+   "target": "ts-auth-service",
+   "fault": "memory_exhaustion"
+  },
+  {
+   "id": "rcaeval-09",
+   "system": "Train Ticket",
+   "target": "ts-auth-service",
+   "fault": "disk_saturation"
+  },
+  {
+   "id": "rcaeval-06",
+   "system": "Train Ticket",
+   "target": "ts-auth-service",
+   "fault": "network_delay"
+  },
+  {
+   "id": "rcaeval-12",
+   "system": "Train Ticket",
+   "target": "ts-auth-service",
+   "fault": "packet_loss"
   }
  ],
  "conditions": [
@@ -51,32 +117,36 @@
   "raw",
   "hybrid"
  ],
- "total_execution_runs": 18,
- "total_claims_scored": 661,
- "evaluable_claims": 22,
- "evaluable_coverage_pct": 3.3,
- "total_wall_clock_seconds": 5014.8,
- "total_llm_calls": 353,
+ "total_execution_runs": 54,
+ "total_claims_scored": 1950,
+ "evaluable_claims": 93,
+ "evaluable_coverage_pct": 4.8,
+ "total_wall_clock_seconds": 18734.0,
+ "total_llm_calls": 1057,
  "fallbacks_or_timeouts": 0,
- "pipeline_fixes_live": [
-  "retrieval_context delivery (_retrieval_items / _retrieval_envelope)",
-  "Commit re-dated 3-10 days pre-incident, neutral message",
-  "root_cause key read; hardcoded metric templates removed",
-  "PYTHONUNBUFFERED=1 (ends cross-scenario pod-log carryover)",
-  "duplicate Metric vector no longer indexed",
-  "labelling = v1 + D-1/D-2 negation fixes; v2 withdrawn (D-4)"
- ],
  "known_limitations": [
   "rcaeval-07 fault metric has a NaN baseline and is dropped before sampling; its ground truth is not observable in the input",
-  "evaluable coverage 3.3%: 76.6% of claims excluded as 'not a causal claim', 20.1% as 'no mechanism identifiable' -- both are labeller decisions, not data gaps",
-  "GPCS emits 6 distinct trust values with 80.8%% at exactly 0.000; it cannot rank or be threshold-tuned",
-  "run-to-run variance on an identical configuration measured at ~15 percentage points"
+  "evaluable coverage 4.8%: the remainder are excluded as 'not a causal claim' or 'no mechanism identifiable' -- both are labeller decisions, not data gaps",
+  "GPCS's semantic term does not vary: evidence arrives via graph traversal at a fixed 0.75, so trust measures graph reachability rather than semantic provenance",
+  "one sample per cell, and run-to-run variance on an identical configuration reached 25.7 pp on verifier concordance -- single scenario-condition cells are uninformative on their own",
+  "no retrieval ablation was run, so no result here separates the symbolic contribution from the neural one",
+  "no inferential statistics are computed; all figures are descriptive"
  ],
  "canonical_files": [
   "EXPERIMENT_FINAL_RESULTS.md",
   "EXPERIMENT_JOINT_VERIFIER_COMPARISON.md",
   "claims.csv"
  ],
- "removed_2026_08_20": "six 3-scenario files (EXECUTIVE_CONCLUSIONS.md, correctness_labels.md, significance_tests.md, summary.md, summary.txt, summary_table.csv) predated scenarios 5-6 and carried superseded figures",
- "claims_csv_boolean_encoding": "gpcs_unsupported, sc_unsupported, verifiers_agree and evaluable use TRUE/FALSE. Changed from 1/0 on 2026-08-21; values unchanged."
+ "design": "Complete 3x6 factorial: 3 systems x 6 fault families = 18 cells, one scenario per cell, each run under 3 context conditions = 54 runs.",
+ "headline": {
+  "gpcs_unsupported": "1546/1950 = 79.3%",
+  "self_consistency_unsupported": "1034/1950 = 53.0%",
+  "verifier_concordance": "1246/1950 = 63.9%",
+  "correctness_split": "36 consistent : 57 contradicted",
+  "gpcs_flag_rate_gap_pp": 5.1,
+  "self_consistency_flag_rate_gap_pp": -0.7
+ },
+ "claims_csv": "Regenerated from the run logs by services/api/scripts/build_claims_csv.py. Deterministic: the same logs always produce the same file. Boolean columns use TRUE/FALSE. No step is manual.",
+ "labelling": "Correctness verdicts come from the deterministic Python labeller (services/api/scripts/label_claim_correctness.py) executed during each run. No claim is scored by hand.",
+ "isolation": "Each scenario's telemetry is seeded from the RCAEval RE2 file and torn down after the run. Retrieval is scoped by scenario_id on both Neo4j and Qdrant. No host-cluster data reaches any prompt."
 }

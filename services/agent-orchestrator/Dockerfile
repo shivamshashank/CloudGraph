@@ -5,6 +5,6 @@ COPY main.py /usr/local/bin/agent-orchestrator
 # -u forces unbuffered stdout. Without it Python block-buffers when
 # stdout is a pipe, so [LLM REQUEST]/[LLM RESPONSE] lines flushed
 # minutes late and landed in a LATER scenario's `kubectl logs
-# --since-time window -- rcaeval-03 captured rcaeval-02 prompts.
+# --since-time window -- one scenario captured the previous scenario's prompts.
 ENV PYTHONUNBUFFERED=1
 CMD ["python", "-u", "/usr/local/bin/agent-orchestrator"]

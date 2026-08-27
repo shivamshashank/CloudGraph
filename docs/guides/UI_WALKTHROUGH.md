@@ -22,10 +22,8 @@ job. Where a screen has a placeholder, it is described in prose instead.
 **The Benchmark screen is hidden in this release** and deferred to the next
 version — see [§8](#8-benchmark--hidden-in-this-release).
 
-Each screen below lists the endpoint it calls. Four defects were found and
-**fixed** before these screenshots were taken — three of them are directly
-visible in the images (§1.1, §2.1, §4) and each is described where it applies.
-Remaining known issues are called out inline rather than deferred elsewhere.
+Each screen below lists the endpoint it calls. Known limitations are called out
+inline, next to the screen they affect.
 
 ---
 
@@ -428,8 +426,9 @@ it is **not citable as it stands**:
 - **Compute is confounded with architecture** — each rung adds LLM calls, so a
   gain cannot be attributed to the layer rather than the extra tokens. The
   **matched-compute control** is the correct instrument.
-- **Single pass per rung** — inside the measured ±12-point run-to-run variance
-  at temperature 0.8.
+- **Single pass per rung** — well inside the measured run-to-run variance at
+  temperature 0.8, which reached a 25.7-point spread across three runs of an
+  identical configuration (see `experiment-1-benchmark/README.md`).
 - **A different correctness construct** — `tp/fp/fn` against expected tags, not
   the claim-level verdicts the paper reports.
 
@@ -465,8 +464,8 @@ Present on every page, rendered by `app.js`.
 The evaluation in `experiment-1-benchmark/` was produced by `cloudgraph report` and the
 analysis scripts driving the same API this UI calls — **not** by clicking
 through these screens. Setup: provider `meta`, model
-`muse-spark-1.2-contributor`, temperature 0.8, 36 RCAEval RE2 scenarios,
-1,974 agent-side LLM calls.
+`muse-spark-1.2-contributor`, temperature 0.8, 6 RCAEval RE2 scenarios,
+1,057 LLM calls across 54 runs.
 
 The screens worth showing in a demo are the **Topology Map** (§1), the
 **AI Diagnosis** result (§2.1), and **GraphRAG Search** (§5.1) — the last

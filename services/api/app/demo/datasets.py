@@ -50,6 +50,6 @@ def load_scenarios() -> List[Dict[str, Any]]:
     if not scenarios:
         raise RuntimeError(
             "RCAEval scenarios have not been generated. Run:\n"
-            "  .venv/bin/python scripts/build_rcaeval_dataset.py --n-cases 36"
+            "  .venv/bin/python scripts/build_rcaeval_dataset.py --n-cases 18"
         )
     return scenarios

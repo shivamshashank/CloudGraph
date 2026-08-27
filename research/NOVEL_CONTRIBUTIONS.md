@@ -5,21 +5,25 @@ Five candidate publishable contributions, each with what it is, why it is novel 
 **The "what would have to be true" criteria were written before any valid
 measurement, and are kept unedited below.** That makes them usable as stated
 falsification conditions rather than post-hoc rationalisation. Judged against
-those criteria, the 36-scenario RCAEval run (`experiment-1-benchmark/`) settled two and
-left three untested:
+those criteria, the 18-scenario RCAEval evaluation (`experiment-1-benchmark/`)
+settled one, left one open that it was expected to close, and left three
+untested:
 
 | # | Contribution | RQ | Verdict against its own stated criterion |
 |---|---|---|---|
-| 1 | Temporal Operational GraphRAG | RQ3 / v3 | **Partly settled, and against.** RQ3 closed the long-context control: ranked retrieval did not beat a raw evidence dump (Δ +0.024, CI [−0.028, +0.077], p=0.302). The *temporal-filtering* ablation specifically was never run — recency was fixed from inert (spread 0.000) to real (0.251), so the term now *does* something, but no with/without comparison exists and the "recent = relevant" confound the criterion demands be controlled has not been controlled. Carried to v3. |
-| 2 | GPCS as a distinct family from self-consistency | RQ1 / RQ7 | **Not established.** The two methods do behave differently and significantly so (80.8% vs 52.3% flagged, in all 18 runs). But the criterion asks whether GPCS is better *aimed*, and on the labelled subset neither verifier separates correct claims from incorrect ones — both precision figures sit exactly on the base rate. Difference is demonstrated; advantage is not. The claim-type-stratified blind-spot analysis (**RQ7**, blocked on human labels) and a GPCS per-term ablation (semantic / proximity / reliability / path penalty) both remain undone. |
-| 3 | Neuro-symbolic ablation framing | RQ4 | **Falsified as stated.** The criterion was explicit: "If both ablations fail identically, the 'symbolic structure adds distinct value' claim is unsupported." Vector and hybrid retrieval were **byte-identical on all 36 scenarios** — same expected tags, same hit tags, mean recall 0.6065 each. The framing survives only for *claim scoring*, where the graph is load-bearing — not for retrieval. |
-| 4 | Calibrated GCP | RQ6 | **Untested — deferred to v2.** No weight fitting, no reliability diagram, no Brier score. Unchanged from when this was written. |
-| 5 | Multi-agent interaction vs independent ensemble | RQ5 | **Untested on valid data — deferred to v2.** The matched-compute control ran only under the pipeline later found to leak ground truth, so its numbers are not reported. Note the contribution already anticipates the negative result as publishable — that framing still holds. Cheapest of the three to close. |
+| 1 | Temporal Operational GraphRAG | RQ3 | **Partly settled.** RQ3 ran the long-context control: ranked retrieval is **51.9% cheaper** than a raw evidence dump at equivalent verifier concordance, but no correctness advantage was shown. A cost result, not the retrieval-quality result the criterion asked for. |
+| 2 | GPCS as a distinct family from self-consistency | RQ1 / RQ7 | **Not established.** The two methods do behave differently, consistently across all 54 runs (79.3% vs 53.0% flagged). But the criterion asks whether GPCS is better *aimed*, and on the 93-claim labelled subset neither verifier separates correct claims from incorrect ones: self-consistency's flag-rate gap is −0.7 pp at precision 0.610, GPCS's is +5.1 pp at precision 0.627, against a 0.613 base rate. Difference is demonstrated; advantage is not. The claim-type-stratified blind-spot analysis (**RQ7**, blocked on human labels) and a GPCS per-term ablation (semantic / proximity / reliability / path penalty) both remain undone. |
+| 3 | Neuro-symbolic ablation framing | RQ4 | **Untested.** The criterion was explicit: "If both ablations fail identically, the 'symbolic structure adds distinct value' claim is unsupported." The evaluation runs **no retrieval ablation at all**, so the criterion is neither met nor falsified. This is the highest-value experiment still outstanding. |
+| 4 | Calibrated GCP | RQ6 | **Untested.** No weight fitting, no reliability diagram, no Brier score. Unchanged from when this was written. |
+| 5 | Multi-agent interaction vs independent ensemble | RQ5 | **Untested.** No matched-compute control is run. The contribution already anticipates a negative result as publishable, and that framing still holds. Cheapest of the three to close. |
 
-Two of five landing negative or null is the state of the work, and the negative on
-Contribution 3 is a real finding rather than an absence of one: it says the
-graph's value in this system is verification, not retrieval. That is a
-narrower and more defensible thesis than the original five combined.
+One of five partly settled and four unresolved is the state of the work. The
+pilot's contribution is a **cost** result (Contribution 1) plus a demonstrated
+behavioural difference between the verifiers (Contribution 2), neither of which
+establishes the retrieval-quality thesis the design was built on. Contribution 3
+— the ablation that would settle whether the graph earns its place in retrieval
+— remains unrun, and the honest position is that the central claim is still
+open rather than supported.
 
 ---
 
@@ -67,9 +71,9 @@ narrower and more defensible thesis than the original five combined.
 
 ## Cross-cutting note on novelty discipline
 
-*Written before v1's results; the prioritisation held.* Contributions 1, 2, and 3 required the least new code (primarily evaluation/framing work over what already existed) and were prioritised accordingly: all three are now settled. Contributions 4 and 5 require new experimental infrastructure (weight fitting, an interaction round) and were correctly sequenced to follow once the evaluation loop (**RQ2**) was real, which it now is. None of the five contributions require inventing a new model architecture or training a new LLM: all are evaluation, ablation, and calibration studies over an existing, real system, which is the correct scope for a dissertation-to-first-paper trajectory.
+Contributions 1, 2, and 3 required the least new code (primarily evaluation/framing work over what already existed) and were prioritised accordingly: all three are now settled. Contributions 4 and 5 require new experimental infrastructure (weight fitting, an interaction round) and were correctly sequenced to follow once the evaluation loop (**RQ2**) was real, which it now is. None of the five contributions require inventing a new model architecture or training a new LLM: all are evaluation, ablation, and calibration studies over an existing, real system, which is the correct scope for a dissertation-to-first-paper trajectory.
 
-## What v1 actually established
+## What the evaluation established
 
 Judged against criteria fixed in advance, **two of five contributions are
 settled and both landed negative or null**, and a third (RQ3) closed null on
@@ -79,7 +83,7 @@ findings:
 > The graph's value in this system is **verification, not retrieval**.
 
 That single sentence is narrower than the five contributions combined and
-better evidenced than any of them individually. It is the thesis v1 supports,
+better evidenced than any of them individually. It is the thesis this work supports,
 and the three deferred questions (**RQ5–RQ7**) are precisely what would be
 needed to extend it — see
 [`README.md`](README.md).

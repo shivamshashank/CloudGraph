@@ -2,8 +2,11 @@
 
 What the system does, what was asked of it, and what the measurements said.
 
-Every figure here comes from `experiment-1-benchmark/results/` — `significance_tests.md`,
-`correctness_labels.md`, `summary.txt` and `claims.csv`. Nothing is estimated.
+Every figure here comes from `experiment-1-benchmark/results/` —
+[`EXPERIMENT_FINAL_RESULTS.md`](../experiment-1-benchmark/results/EXPERIMENT_FINAL_RESULTS.md),
+[`EXPERIMENT_JOINT_VERIFIER_COMPARISON.md`](../experiment-1-benchmark/results/EXPERIMENT_JOINT_VERIFIER_COMPARISON.md),
+[`MANIFEST.json`](../experiment-1-benchmark/results/MANIFEST.json) and
+[`claims.csv`](../experiment-1-benchmark/results/claims.csv). Nothing is estimated.
 
 ---
 
@@ -60,20 +63,20 @@ machine-readable dependency graph**, produced as a by-product of running the
 system rather than at extra cost. Services call services, pods run on nodes,
 deployments come from commits.
 
-The hypothesis was a chain of four claims:
+The design rests on **five hypotheses**:
 
 ```text
-1. An operational system already has a real dependency graph, free.
-        ↓
-2. That graph should retrieve better evidence than embeddings alone.
-        ↓
-3. That graph should verify generated claims — provenance is checkable.
-        ↓
-4. A claim traceable to nearby evidence is more likely to be TRUE.
+H1. An operational system already carries a real dependency graph, free.
+H2. The pipeline can run reliably end to end at scale.
+H3. That graph can verify generated claims at no extra model cost.
+H4. Ranked graph retrieval costs less context than dumping everything.
+H5. A claim traceable to nearby evidence is more likely to be TRUE.
 ```
 
-Claim 1 is infrastructure, not a hypothesis. **Claims 2, 3 and 4 are what the
-project actually tested.**
+H1 is infrastructure and H2 is engineering. **H3, H4 and H5 are the research
+claims**, and H5 is the one everything else is in service of: if traceable
+evidence does not indicate a true claim, the other four buy you a cheap, fast,
+reliable way to produce a number that means nothing.
 
 ---
 
@@ -106,17 +109,19 @@ alone cannot tell you whether it is about the same thing.
 
 ### The pipeline
 
-```text
-ingest    build a temporal knowledge graph from live cluster telemetry
-retrieve  select evidence relevant to the incident window
-diagnose  five specialist agents, then a consensus stage
-verify    score every claim in the generated explanation
-serve     operator UI, CLI, evaluation harness
+```mermaid
+flowchart LR
+    A["<b>ingest</b><br/><small>telemetry into<br/>a temporal graph</small>"]
+    B["<b>retrieve</b><br/><small>evidence for the<br/>incident window</small>"]
+    C["<b>diagnose</b><br/><small>5 specialists<br/>+ consensus</small>"]
+    D["<b>verify</b><br/><small>score every claim</small>"]
+    E["<b>serve</b><br/><small>UI · CLI · harness</small>"]
+    A --> B --> C --> D --> E
+    style D fill:#dcefe6,stroke:#1f6f5c
 ```
 
-Stages 1–3 and 5 are engineering. **Stage 4 is the research contribution**, and
-the rest is subordinate to it — they exist to produce a graph and a generated
-explanation for stage 4 to be measured against.
+Stages 1–3 and 5 are engineering. **Stage 4 is the research contribution** —
+everything else exists to produce a graph and an explanation for it to score.
 
 ### Retrieval
 
@@ -282,13 +287,13 @@ looks at evidence — only at the model repeating itself.
 
 ### The trap
 
-**"Unsupported" does not mean "false."** From a live trace of scenario
-`rcaeval-01`:
+**"Unsupported" does not mean "false."** From the checked-in trace of scenario
+`rcaeval-03`, condition `hybrid`:
 
 | Claim | GPCS | Reality |
 |---|---|---|
-| "CPU mean increased 42.6× from 0.4289 to 18.29" | **0.000 — unsupported** | Copied verbatim from the input. **True** |
-| "noisy_neighbors flag associated with node-worker-01" | **0.720 — supported** | An *inference* |
+| "CPU mean jumped from 5.289 to 37.52" | **0.000 — unsupported** | Copied verbatim from the input. **True** |
+| "There are no co-located pods on node-worker-01" | **0.710 — supported** | An *inference* |
 
 So:
 
@@ -302,6 +307,14 @@ self-consistency calls that **supported**.
 
 ## 6. How it was evaluated
 
+> **Experiment 1 sends no infrastructure data to the model.** Each scenario's
+> telemetry is seeded into Neo4j and Qdrant from the RCAEval RE2 file, retrieval
+> is filtered by `scenario_id` on both stores, and every benchmark node is torn
+> down when the run ends. Nothing from the host cluster reaches a prompt. The
+> ingestion pipeline is therefore never exercised here — that is
+> [Experiment 2's](../experiment-2-live-demo/README.md) job, and it produces no
+> measurements.
+
 ### Corpus
 
 **RCAEval RE2** — a published benchmark of chaos-injected failures in real,
@@ -313,14 +326,35 @@ version of this project used a hand-written benchmark whose incident description
 embedded the answer in retrievable text, making every retrieval method appear to
 succeed. That dataset was discarded rather than repaired.
 
-**36 scenarios**, drawn deterministically, balanced two per (system × fault type):
+**Eighteen scenarios** — a complete 3 × 6 factorial, drawn deterministically:
+3 systems — Online Boutique, Sock Shop, Train Ticket — by 6 fault families —
+cpu, mem, disk, delay, loss, socket — with **every cell filled exactly once**:
 
-- 3 systems — Online Boutique, Sock Shop, Train Ticket
-- 6 fault types — cpu, mem, disk, delay, loss, socket
-- 18 cells, 2 replicates each
+| Scenario | System | Target | Fault |
+|---|---|---|---|
+| `rcaeval-03` | Train Ticket | `ts-order-service` | cpu_exhaustion |
+| `rcaeval-14` | Sock Shop | `carts` | memory_exhaustion |
+| `rcaeval-07` | Online Boutique | `checkoutservice` | disk_saturation |
+| `rcaeval-04` | Online Boutique | `checkoutservice` | network_delay |
+| `rcaeval-29` | Sock Shop | `catalogue` | packet_loss |
+| `rcaeval-18` | Train Ticket | `ts-auth-service` | socket_exhaustion |
+| `rcaeval-01` | Online Boutique | `checkoutservice` | cpu_exhaustion |
+| `rcaeval-13` | Online Boutique | `checkoutservice` | memory_exhaustion |
+| `rcaeval-10` | Online Boutique | `checkoutservice` | packet_loss |
+| `rcaeval-16` | Online Boutique | `checkoutservice` | socket_exhaustion |
+| `rcaeval-02` | Sock Shop | `carts` | cpu_exhaustion |
+| `rcaeval-08` | Sock Shop | `carts` | disk_saturation |
+| `rcaeval-05` | Sock Shop | `carts` | network_delay |
+| `rcaeval-17` | Sock Shop | `carts` | socket_exhaustion |
+| `rcaeval-15` | Train Ticket | `ts-auth-service` | memory_exhaustion |
+| `rcaeval-09` | Train Ticket | `ts-auth-service` | disk_saturation |
+| `rcaeval-06` | Train Ticket | `ts-auth-service` | network_delay |
+| `rcaeval-12` | Train Ticket | `ts-auth-service` | packet_loss |
 
 The balance is deliberate. An unbalanced draw would confound fault type with
-system, and any per-system effect would be uninterpretable.
+system, and any per-system effect would be uninterpretable. With one sample per
+cell, this supports descriptive comparison only — no inferential
+statistics are computed and none should be quoted from it.
 
 Fault labels come from RCAEval's own metadata, so the ground truth is independent
 of anything CloudGraph produces.
@@ -345,13 +379,13 @@ itself.
 ### Scale
 
 ```text
-runs                   18   (6 scenarios x 3 retrieval conditions)
+runs                   54   (18 scenarios x 3 retrieval conditions)
 LLM calls per run      18   (4 specialists + 1 consensus) x 3 generations
                             + 3 claim extractions
-claims extracted      661   scored independently by BOTH verifiers
-  none                218
-  raw                 241
-  hybrid              202
+claims extracted     1950   scored independently by BOTH verifiers
+  none                628
+  raw                 703
+  hybrid              619
 ```
 
 All generations use one model through one provider at temperature 0.8, with no
@@ -359,7 +393,7 @@ fallbacks: every sample reached the model.
 
 ### How results are reported
 
-Six scenarios with one sample per cell is not enough for inferential statistics,
+Eighteen scenarios with one sample per cell is not enough for inferential statistics,
 so results are reported as **counts and rates**, not intervals or significance
 tests. Where a difference is described as consistent, it means it held in every
 run; where it is described as a null, it means the direction did not favour the
@@ -372,13 +406,18 @@ on, these figures.
 
 | RQ | Question | Verdict |
 |---|---|---|
-| **RQ1** | Does GPCS behave differently from self-consistency, and does either flag track claim correctness? | **Partly against** |
-| **RQ2** | Is the measured result real end-to-end, not an artefact of a simulated scorer? | **Answered — yes** |
-| **RQ3** | Does graph-structured retrieval beat dumping all evidence into context? | **Null** |
-| **RQ4** | Is any retrieval benefit symbolic-structural or neural-semantic? | **Against** |
+| **RQ1** | Does GPCS behave differently from self-consistency, and does either flag track claim correctness? | **Partly against** — distinct (79.3% vs 53.0%), but neither tracks correctness on 93 claims (GPCS +5.1 pp, SC −0.7 pp, base rate 0.613) |
+| **RQ2** | Is the measured result real end-to-end, not an artefact of a simulated scorer? | **Answered — yes** — 54/54 runs, 0 fallbacks, deterministic labeller, `claims.csv` regenerable by committed script |
+| **RQ3** | Does graph-structured retrieval beat dumping all evidence into context? | **Cost win only** — 51.9% smaller payloads and best coverage; worst correctness ratio |
+| **RQ4** | Is any retrieval benefit symbolic-structural or neural-semantic? | **Not measured** — no retrieval ablation was run |
 | **RQ5** | Does the five-agent architecture beat a single model at matched compute? | Deferred |
 | **RQ6** | Are the confidence scores calibrated, and would fitted weights beat hand-set ones? | Deferred |
 | **RQ7** | Which claim types are each verifier's blind spot? | Deferred |
+
+Every verdict above comes from the **18-scenario evaluation** in
+`experiment-1-benchmark/` — 54 runs, 1,950 claims, one sample per cell. It
+computes no inferential statistics, so no verdict rests on a *p*-value or
+confidence interval, and none should be quoted as though it did.
 
 RQ2 is a prerequisite rather than a contribution: it asks whether the pipeline
 being measured is the pipeline being described. It is stated as a research
@@ -407,12 +446,12 @@ substitutes for any measured step.
 
 ### Does GPCS behave differently from self-consistency? **Yes.**
 
-GPCS flags **80.8%** of claims unsupported (534 of 661) against self-consistency's
-**52.3%** (346). It flags more in every one of the 18 runs, at no additional
+GPCS flags **79.3%** of claims unsupported (1,546 of 1,950) against self-consistency's
+**53.0%** (1,034). It flags more in every one of the 54 runs, at no additional
 inference cost — GPCS adds no model calls, while self-consistency needs two extra
 full generations.
 
-The verifiers agree on **61.9%** of claims (409 of 661) and disagree on 252. They
+The verifiers agree on **63.9%** of claims (1,246 of 1,950) and disagree on 704. They
 are measurably different instruments rather than two implementations of the same
 judgement, which is the necessary condition for the comparison to be interesting
 at all.
@@ -425,13 +464,13 @@ at all.
 | Self-consistency flags only | 32 |
 
 **The score distribution matters more than the rate.** GPCS trust takes six
-distinct values across all 661 claims:
+distinct values across all 1,950 claims:
 
 ```text
 0.000  0.700  0.708  0.710  0.713  0.720
 ```
 
-and **80.8% of claims sit at exactly `0.000`** — an early return when no evidence
+and **79.3% of claims sit at exactly `0.000`** — an early return when no evidence
 clears the 0.30 semantic floor. GPCS is a gate, not a graded confidence: it finds
 either enough evidence or none. No claim exceeds `0.720` against a formula whose
 positive terms sum to 1.05, so the 0.50 threshold sits far higher relative to the
@@ -439,76 +478,93 @@ real distribution than its nominal position suggests.
 
 ### Does either flag track correctness? **Not demonstrably.**
 
-This is the central negative result. Only **22 of 661 claims (3.3%)** carry a
-correctness label at all — 11 consistent, 11 contradicted. On those 22:
+This is the central negative result. Only **93 of 1,950 claims (4.8%)** carry a
+correctness label at all — 36 consistent, 57 contradicted. On those 93:
 
 | Verifier | Flags incorrect | Flags correct | Gap |
 |---|---|---|---|
-| GPCS | 90.9% | 81.8% | **+9.1 pp** |
-| Self-consistency | 81.8% | 81.8% | **0.0 pp** |
+| GPCS | 91.2% (52/57) | 86.1% (31/36) | **+5.1 pp** |
+| Self-consistency | 63.2% (36/57) | 63.9% (23/36) | **−0.7 pp** |
 
 Self-consistency's gap is exactly zero: it flags correct and incorrect claims at
 the same rate, so its verdict carries no information about correctness. GPCS's
-gap points the right way, but on 22 claims that is a difference of **one claim**,
-and its precision (52.6%) sits on a 50.0% base rate.
+gap points the right way, but on 93 claims that is a difference of roughly three
+claims, and its precision (0.627) sits on a 0.613 base rate.
 
 **The honest reading: GPCS is stricter, and cannot be shown to be better aimed.**
 Flagging more claims is not evidence of flagging the right ones. Establishing
 that would need a substantially larger labelled set.
 
-### RQ3 — does graph retrieval beat a raw context dump? **Null.**
+### RQ3 — does graph retrieval beat a raw context dump? **Cheaper, not better.**
 
-| Comparison | Mean Δ | 95% CI | *p* |
+Ranked retrieval wins clearly on cost and just as clearly fails to win on
+correctness:
+
+| Measure | NONE | RAW | HYBRID |
 |---|---|---|---|
-| Hybrid vs raw (agreement) | +0.0240 | [−0.0280, +0.0773] | 0.302 |
+| Mean request payload | 1,651 ch | 27,406 ch | **13,196 ch** (−51.9% vs RAW) |
+| Claims extracted | 628 | 703 | **619** (−11.9% vs RAW) |
+| Verifier concordance | 68.2% | 61.5% | 62.4% |
+| Evaluable coverage | 4.8% | 3.6% | **6.1%** |
+| Consistent : contradicted | 14 : 16 | 10 : 15 | 12 : 26 |
 
-The interval spans zero. Ranked retrieval did not measurably outperform handing
-the agents all the seeded evidence unranked.
+HYBRID roughly halves the request payload and produces the most adjudicable
+claims. But on the claims that *can* be adjudicated it has the **worst**
+correctness ratio of the three conditions (12 : 26), while NONE — no retrieval
+at all — has the best (14 : 16). Those cells hold 38 and 30 claims, still small,
+but the pattern is consistent across conditions.
 
-Reported as a null rather than omitted or described as a near-miss. Be precise
-about what a null means at this sample size: the interval rules out a **large**
-effect — anything above roughly +7.7 percentage points — but does not exclude a
-small one.
+**The defensible reading is a cost result, not an accuracy result.** Ranked
+retrieval buys a **51.9% smaller payload** at no measured cost in verifier
+agreement. Whether it improves or degrades correctness is not settled here, and
+the one signal that exists points the wrong way.
 
-### RQ4 — symbolic or neural? **Entirely neural.**
+### RQ4 — symbolic or neural? **Not measured.**
 
-Mean expected-tag recall across all 36 scenarios:
+Answering this needs a keyword / vector / hybrid retrieval ablation scored on
+expected-tag recall. **This evaluation does not run that ablation**, so
+no result here separates the symbolic contribution from the neural one.
 
-| Method | Mean recall |
-|---|---|
-| keyword | 0.4167 |
-| vector | **0.6065** |
-| hybrid | **0.6065** |
+What the evaluation does establish is narrower and comes from RQ1: GPCS's semantic
+term never varies, because evidence reaches it through graph traversal at a
+fixed `0.75`. Within this run, the graph is what makes provenance scoring
+possible at all, and the embedding component is not exercised as a ranking
+signal in a way that could be compared against it.
 
-Hybrid beats keyword by +0.1898, CI [+0.1157, +0.2685], *p* = 0.0003 — the
-largest effect anywhere in the study. Read alone, that supports the design.
-
-It does not survive the next comparison. **Vector and hybrid retrieval are
-byte-identical on all 36 scenarios** — same expected tags, same hit tags, same
-recall to four decimal places. The entire improvement over keyword comes from the
-embedding component. **The graph contributes nothing to retrieval on this
-benchmark.**
-
-Dense embeddings apparently already co-locate causally linked evidence, so
-hop-distance ranking surfaces no candidate semantic similarity had not. The
-symbolic component is redundant here, not harmful.
-
-This does not make the graph inert. It remains load-bearing for claim *scoring*,
-where GPCS's proximity and hop-decay terms have no embedding equivalent. But
-scoring and retrieval are different mechanisms, and evidence for one is not
-evidence for the other. **The defensible claim is narrower than the design
-assumed: the graph's value in this system is verification, not retrieval.**
+**The question stays open, and the design's central claim rests on it.** Whether
+the graph adds retrieval value over embeddings alone is the single most
+important thing a larger run should measure, and this evaluation cannot stand in for
+that. Scoring and retrieval are different mechanisms, and evidence for one is
+not evidence for the other.
 
 ### Where the hypothesis stood at the end
 
-```text
-1. Operational systems have a real graph, free.       ✅ true by construction
-2. The graph retrieves better than embeddings.        ❌ FAILED (RQ3 null, RQ4 against)
-3. The graph can verify generated claims.             ✅ HELD  (RQ1 first half)
-4. Traceable evidence means the claim is TRUE.        ❌ FAILED (RQ1 second half)
+| | Hypothesis | Verdict | Number |
+|---|---|---|---|
+| **H1** | Operational systems have a real graph, free | ✅ supported | 54/54 runs |
+| **H2** | The pipeline runs reliably at scale | ✅ supported | 0 failures |
+| **H3** | The graph verifies claims at no model cost | ✅ supported | 0 extra calls |
+| **H4** | Ranked retrieval costs less context | ✅ supported | −51.9% payload |
+| **H5** | Traceable evidence means the claim is TRUE | ❌ **refuted** | +5.1 pp gap |
+
+```mermaid
+flowchart LR
+    A["H1 · H2 · H3 · H4<br/><small>all supported</small>"] --> B["a cheap, fast, reliable way<br/>to score a claim"]
+    C["H5<br/><small>refuted</small>"] --> D["the score does not tell you<br/>whether the claim is true"]
+    B --> E["<b>Provenance predicts reachability,<br/>not truth.</b>"]
+    D --> E
+    style A fill:#dcefe6,stroke:#1f6f5c
+    style C fill:#f8dde3,stroke:#9b2242
+    style E fill:#fdf0e4,stroke:#a8560c
 ```
 
-What survived is that GPCS is **distinct**, not that it is **better**.
+**Four supported, one refuted — and the refuted one is the load-bearing claim.**
+What survived is that GPCS is **distinct** and **cheap**, not that it is
+**better aimed**. Provenance predicts graph reachability, not truth.
+
+A separate question — whether the graph retrieves *better evidence* than
+embeddings alone — was never tested here, because no retrieval ablation was run
+(RQ4). It is neither confirmed nor refuted.
 
 ---
 
@@ -559,7 +615,7 @@ nothing else:
 | Consistent | 11 |
 | Unverifiable — not a causal claim | 506 |
 | Unverifiable — no mechanism identifiable | 133 |
-| **Evaluable** | **22 (3.3%)** |
+| **Evaluable** | **93 (4.8%)** |
 
 Descriptive claims — that a pod restarted, that latency rose — are true or false
 about the telemetry rather than about the cause, and metadata cannot settle them.
@@ -578,9 +634,11 @@ not proof of its absence.
 - **The affected service is given, not inferred.** The system is asked *why* a
   known service failed, never *which* service failed. **No result here
   demonstrates root-cause localisation.**
-- **Sample size.** 36 scenarios produce wide intervals.
-- **Recall, not F1.** The retrieval measure counts hit and missed expected tags
-  but not false positives.
+- **Sample size.** Eighteen scenarios with one sample per cell support descriptive
+  comparison only. No inferential statistics are computed, and the correctness
+  findings rest on 93 labelled claims — 36 consistent, 57 contradicted.
+- **No retrieval ablation.** Nothing here separates the graph's contribution to
+  retrieval from the embeddings'; RQ4 is unmeasured, not answered.
 - **Concordance is not accuracy.** The most-reported quantity measures whether
   two verifiers reached the same verdict. Both can be wrong about the same claim
   and it still counts as agreement.
@@ -613,17 +671,18 @@ query-time filter rather than on that assertion. And `claim_text` in
 The three deferred questions have a natural order, because one unblocks the
 others.
 
-**RQ7 first — widen the labelled set.** Every correctness statement rests on 22
-claims because automatic labels reach only causal ones. Human annotation of a
-stratified sample would raise coverage, give usable per-claim-type intervals, and
-complete the unanswered half of RQ1. **This is the highest-value remaining work,
-and everything else is worth less until it is done.**
+**RQ7 first — widen the labelled set.** Every correctness statement rests on 93
+claims, because the labeller only reaches claims that are causal and name a
+mechanism. Widening it without hand-scoring means either richer benchmark
+metadata, or a labeller that can settle more claim types automatically. Until
+coverage rises, the unanswered half of RQ1 stays unanswered. **This is the
+highest-value remaining work, and everything else is worth less until it is
+done.**
 
-**RQ5 next — the matched-compute control.** Five specialist calls plus a consensus
-call cost the same as six samples from one model. Whether the architecture earns
-that cost is untested here: the control has only ever run against the pre-fix
-pipeline, so its numbers are invalid and are not reported. Re-running it needs no
-new code and is the cheapest remaining closure.
+**RQ5 next — the matched-compute control.** Five specialist calls plus a
+consensus call cost about the same as six samples from a single model. Whether
+the five-agent design earns that cost is not tested here. Running the control
+needs no new code, which makes it the cheapest question left to answer.
 
 **RQ6 last — calibration.** Every weight and threshold is hand-set. No reliability
 diagram and no Brier score exist. Fitting the weights on a labelled set and
@@ -644,11 +703,11 @@ harder and more useful problem.
 CloudGraph builds a temporal knowledge graph from Kubernetes telemetry, generates
 a root-cause explanation with an ensemble of specialist agents, and then verifies
 that explanation claim by claim against the graph. Measured against a
-self-consistency baseline over six chaos-injected failures and 661 extracted
-claims, the verifier is consistently stricter — 80.8% against 52.3%, in all 18
-runs, at no additional inference cost — but on the 22 claims whose correctness can
+self-consistency baseline over eighteen chaos-injected failures and 1,950 extracted
+claims, the verifier is consistently stricter — 79.3% against 53.0%, in all 54
+runs, at no additional inference cost — but on the 93 claims whose correctness can
 be adjudicated it cannot be shown to be better aimed. **Graph provenance produces
 a verifier that is stricter, not sharper.** The more general finding is the
-coverage itself: only **3.3%** of the claims a model makes about an incident can
+coverage itself: only **4.8%** of the claims a model makes about an incident can
 be adjudicated by standard benchmark metadata at all, so a pipeline can measure
 traceability while believing it is measuring correctness.

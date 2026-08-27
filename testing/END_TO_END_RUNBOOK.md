@@ -256,10 +256,10 @@ REPORT_TOTAL_SCENARIOS=1 REPORT_BATCH_SIZE=1 NEO4J_PASSWORD=<password> \
 Check the summary: `Claims scored:` should be **> 0**. If everything comes
 back excluded, stop and diagnose before running the full benchmark.
 
-Full run — the shipped result used 6 batches of 6 for 36 scenarios. This
-takes a long time (the published run made 1,974 agent LLM calls: 36
-scenarios × 3 context conditions × up to 3 self-consistency samples × 5
-specialists + 1 consensus each). Consider `tmux`/`screen` so it survives an SSH disconnect:
+Full run — the shipped result is an 18-scenario evaluation (54 runs, 1,057 LLM
+calls: 18 scenarios × 3 context conditions × up to 3 self-consistency samples ×
+5 specialists + 1 consensus each). It takes a long time; consider
+`tmux`/`screen` so it survives an SSH disconnect:
 
 ```bash
 NEO4J_PASSWORD=<password> testing/report/run_report_batched.sh http://localhost:8080

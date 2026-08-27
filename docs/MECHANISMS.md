@@ -42,7 +42,7 @@ flowchart TD
     style J fill:#fdf0e4,stroke:#a8560c
 ```
 
-**GPCS and self-consistency are what the 36-scenario evaluation measures.**
+**GPCS and self-consistency are what the 18-scenario evaluation measures.**
 GCP runs in the product path (`app/main.py`) and is not tested by any reported
 number.
 
@@ -181,7 +181,7 @@ metrics and logs; it holds no node asserting *"the cause was CPU exhaustion."*
 
 ### 1.4 What this means in practice
 
-Across 661 claims the **median trust is 0.000**, and no claim exceeds 0.713
+Across 1,950 claims the **median trust is 0.000**, and no claim exceeds 0.720
 even though the positive terms sum to 1.05. GPCS is not grading finely — for
 most claims it finds nothing at all, and the 0.50 threshold sits far higher
 relative to the real distribution than its nominal position suggests.
@@ -423,7 +423,7 @@ flowchart LR
     F --> G["concordance<br/>NOT accuracy"]
 
     H["Held-out ground truth<br/>injected fault"] --> I["label each claim<br/>consistent / contradicted / unverifiable"]
-    I --> J["evaluable subset only<br/>3.3% across 6 scenarios"]
+    I --> J["evaluable subset only<br/>4.8% across 18 scenarios"]
     D --> J
     E --> J
     J --> K["does the flag rate DIFFER<br/>between correct and incorrect?"]
@@ -439,24 +439,27 @@ fair.
 ### The result
 
 ```text
-GPCS            80.8% unsupported
-self-consistency 52.3% unsupported
-Δ +0.1185  95% CI [+0.0729, +0.1632]  p < 0.0001
+GPCS            79.3% unsupported  (1546/1950)
+self-consistency 53.0% unsupported  (1034/1950)
 ```
 
-GPCS is decisively **stricter**. Then on the 22 claims that can be adjudicated:
+GPCS is decisively **stricter**. Then on the 93 claims that can be adjudicated
+(36 correct, 57 incorrect):
 
-| Verifier | Flags incorrect | Flags correct | Gap |
-|---|---|---|---|
-| GPCS | 60.4% | 61.2% | **−0.8 pp** |
-| Self-consistency | 72.6% | 73.5% | **−0.8 pp** |
+| Verifier | Flags incorrect | Flags correct | Gap | Precision |
+|---|---|---|---|---|
+| GPCS | 91.2% (52/57) | 86.1% (31/36) | **+5.1 pp** | 0.627 |
+| Self-consistency | 63.2% (36/57) | 63.9% (23/36) | **−0.7 pp** | 0.610 |
 
-Both flag true and false claims at the same rate, and both post precision
-**0.681** on a set that is **68.4%** incorrect — exactly the score for flagging
-everything.
+Self-consistency flags true and false claims at essentially the same rate — its
+gap is negative. GPCS leans the right way by 5.1 pp, roughly three claims, and
+its precision of 0.627 is within noise of the **0.613** a verifier scores by
+flagging everything.
 
-**GPCS is stricter, not sharper.** Being rejected by it carries no measurable
-information about whether a claim is true.
+**GPCS is stricter, not sharper.** Rejection by it carries no measurable
+information about whether a claim is true. No inferential test is reported: one
+sample per cell does not support one, and run-to-run variance on an identical
+configuration reached 25.7 pp.
 
 ---
 

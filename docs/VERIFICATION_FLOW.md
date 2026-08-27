@@ -1,8 +1,9 @@
 # CloudGraph verification flow
 
-One scenario — `rcaeval-01`, CPU exhaustion on `checkoutservice`, condition
-`hybrid` — drawn end to end. All values are from the live trace in
-`/tmp/cloudgraph-trace-v2.log`.
+One scenario — `rcaeval-03`, CPU exhaustion on `ts-order-service`, condition
+`hybrid` — drawn end to end. All values are from the checked-in trace
+[`experiment-1-benchmark/traces/rcaeval-03-TRACE_HYBRID.md`](../experiment-1-benchmark/traces/rcaeval-03-TRACE_HYBRID.md)
+and [`results/claims.csv`](../experiment-1-benchmark/results/claims.csv).
 
 ---
 
@@ -22,15 +23,15 @@ sequenceDiagram
 
     rect rgb(238, 244, 238)
     Note over H,Q: SEED — 5.05s, no LLM
-    H->>N: 31 nodes (26 Log, 1 Metric, 5 entities)
-    H->>Q: 28 vectors (384-dim, cosine)
+    H->>N: entities + 26 telemetry symptom lines
+    H->>Q: 384-dim vectors (cosine)
     H->>Q: isolation assert → PASSED
     end
 
     rect rgb(238, 242, 248)
     Note over H,Q: RETRIEVE — 0.06s, no LLM
     H->>Q: hybrid search
-    Q-->>H: 5 items, top score 0.6499
+    Q-->>H: 5 items, top score 0.5689
     end
 
     rect rgb(252, 244, 236)
@@ -55,7 +56,7 @@ sequenceDiagram
     rect rgb(248, 240, 246)
     Note over H,L: EXTRACT — once per generation
     H->>L: split diagnosis into atomic claims
-    L-->>H: 31 typed claims
+    L-->>H: 35 typed claims
     end
 
     rect rgb(240, 240, 244)
@@ -77,17 +78,25 @@ sequenceDiagram
 | **Total** | **18** |
 
 Note that **verification costs zero LLM calls**. Generation takes ~270 s;
-scoring all 31 claims takes 0.11 s.
+scoring all 35 claims takes 0.11 s.
 
 ---
 
 ## 2. GPCS — "can I find proof?"
 
+> **The worked example below is illustrative, not observed.** In Experiment 1 the
+> `semantic` term never varies: evidence reaches GPCS through graph traversal,
+> which assigns a fixed `0.75` within two hops (`0.6` beyond) rather than a
+> measured cosine similarity. Only eight distinct trust scores occur across all 1,950
+> claims — `0.000`, `0.700`, `0.703`, `0.705`, `0.708`, `0.710`, `0.713`,
+> `0.720` — and `0.000` accounts for 1,546 of them. Read the formula as scoring **graph reachability**,
+> not semantic provenance. See the root [README](../README.md#results).
+
 For each claim, independently:
 
 ```mermaid
 flowchart TD
-    A["Claim: 'Pod checkoutservice is a<br/>noisy neighbor on node-worker-01'"] --> B[Extract named entities]
+    A["Claim: 'Pod ts-order-service is a<br/>noisy neighbor on node-worker-01'"] --> B[Extract named entities]
     B --> C["Search Qdrant (semantic)<br/>+ Neo4j (graph paths)"]
     C --> D{"Any evidence scoring<br/>above the 0.30 floor?"}
 
@@ -115,8 +124,8 @@ tell "closest available match" from "no real match".
 provenance is not adjacency. Conflating them once gave full graph credit to
 29.5% of claims and floored every score near 0.485.
 
-**Result for this scenario: 29 of 38 unsupported (76.3%).** Only six distinct
-trust scores occurred across all 31 claims — `0.000`, `0.703`, `0.713`, `0.720`.
+**Result for this scenario: 25 of 35 unsupported (71.4%).** Only three distinct
+trust scores occurred across all 35 claims — `0.000`, `0.708`, `0.710`.
 A claim either matches evidence a hop away, or finds nothing at all.
 
 ---
@@ -129,7 +138,7 @@ flowchart TD
     A --> B2["Generation 2"]
     A --> B3["Generation 3"]
 
-    B1 --> C1["31 claims"]
+    B1 --> C1["35 claims"]
     B2 --> C2["claims"]
     B3 --> C3["claims"]
 
@@ -160,7 +169,7 @@ With only two other generations, recurrence can only ever be `0.0`, `0.5` or
 So it measures **stability**, not truth — a confidently wrong model is wrong all
 three times and gets marked *supported*.
 
-**Result for this scenario: 15 of 31 unsupported (48.4%).**
+**Result for this scenario: 20 of 35 unsupported (57.1%).**
 
 ---
 
@@ -168,21 +177,21 @@ three times and gets marked *supported*.
 
 ```mermaid
 flowchart LR
-    A["31 claims<br/>from ONE extraction"] --> B["GPCS<br/>graph evidence"]
+    A["35 claims<br/>from ONE extraction"] --> B["GPCS<br/>graph evidence"]
     A --> C["Self-consistency<br/>model repetition"]
 
-    B --> D["29 unsupported<br/>76.3%"]
-    C --> E["15 unsupported<br/>48.4%"]
+    B --> D["25 unsupported<br/>71.4%"]
+    C --> E["20 unsupported<br/>57.1%"]
 
     D --> F["Compare<br/>claim by claim"]
     E --> F
 
-    F --> G["both supported: 6"]
-    F --> H["both unsupported: 13"]
-    F --> I["GPCS only flagged: 10"]
-    F --> J["SC only flagged: 2"]
+    F --> G["both supported: 7"]
+    F --> H["both unsupported: 17"]
+    F --> I["GPCS only flagged: 8"]
+    F --> J["SC only flagged: 3"]
 
-    G --> K["Agreement 19/31 = 61.3%"]
+    G --> K["Agreement 24/35 = 68.6%"]
     H --> K
 
     style D fill:#f8dde3,stroke:#9b2242
@@ -195,7 +204,7 @@ Both verifiers score **the same claims**, from **the same extraction**, from
 **the same generation**. Only the mechanism differs — which is what makes the
 comparison fair.
 
-The **10 claims GPCS alone rejects** are the strictness gap made visible.
+The **8 claims GPCS alone rejects** are the strictness gap made visible.
 
 > Agreement here is **concordance**, never accuracy. Both verifiers can be wrong
 > about the same claim and it still counts on the diagonal.
@@ -206,15 +215,15 @@ The **10 claims GPCS alone rejects** are the strictness gap made visible.
 
 ```mermaid
 flowchart TD
-    A["31 claims"] --> B{"Is the claim causal AND<br/>does it name a mechanism?"}
-    B -->|"No — 30 claims"| C["unverifiable<br/>EXCLUDED"]
-    B -->|"Yes — 1 claim"| D{"Compare to the injected fault<br/>cpu_exhaustion on checkoutservice"}
+    A["35 claims"] --> B{"Is the claim causal AND<br/>does it name a mechanism?"}
+    B -->|"No — 33 claims"| C["unverifiable<br/>EXCLUDED"]
+    B -->|"Yes — 2 claims"| D{"Compare to the injected fault<br/>cpu_exhaustion on ts-order-service"}
 
     D -->|"names the real mechanism"| E["consistent"]
     D -->|"names a different mechanism"| F["contradicted"]
     D -->|"blames a different service"| F
 
-    E --> G["Evaluable subset:<br/>1 of 31 = 3.2%"]
+    E --> G["Evaluable subset:<br/>2 of 35 = 5.7%"]
     F --> G
     G --> H["Too small to conclude<br/>anything from one scenario"]
 
@@ -222,25 +231,28 @@ flowchart TD
     style H fill:#fdf0e4,stroke:#a8560c
 ```
 
-**30 of 31 claims cannot be judged.** The benchmark metadata settles causal
-claims that name a mechanism, and nothing else. *"CPU rose from 0.4289 to
-18.29"* is descriptive — true about the telemetry, silent about the cause.
+**33 of 35 claims cannot be judged.** The benchmark metadata settles causal
+claims that name a mechanism, and nothing else. *"CPU mean jumped from 5.289 to
+37.52"* is descriptive — true about the telemetry, silent about the cause.
 
-Across all 6 scenarios this comes to **22 of 661 claims — 3.3%**.
+Across all 18 scenarios this comes to **93 of 1,950 claims — 4.8%**.
 
-### And on that 3.3%
+### And on that 4.8%
 
-| Verifier | Flags **incorrect** | Flags **correct** | Gap |
-|---|---|---|---|
-| GPCS | 60.4% | 61.2% | **−0.8 pp** |
-| Self-consistency | 72.6% | 73.5% | **−0.8 pp** |
+That subset splits **36 correct, 57 incorrect**.
 
-Both flag true and false claims at **the same rate**. Being rejected by either
-verifier tells you essentially nothing about whether the claim is correct.
+| Verifier | Flags **incorrect** | Flags **correct** | Gap | Precision |
+|---|---|---|---|---|
+| GPCS | 91.2% (52/57) | 86.1% (31/36) | **+5.1 pp** | 0.627 |
+| Self-consistency | 63.2% (36/57) | 63.9% (23/36) | **−0.7 pp** | 0.610 |
 
-Both also post a precision of exactly **0.681** on a set that is **68.4%
-incorrect** — which is precisely the score a verifier that flagged *everything*
-would achieve. The precision is class balance, not discrimination.
+Self-consistency's gap is **negative** — it flags correct claims marginally more
+often than incorrect ones. GPCS leans the right way by 5.1 pp, roughly three
+claims out of 93.
+
+A verifier that flagged *everything* would score **0.613** precision on this
+set. GPCS's 0.627 and self-consistency's 0.610 are both at that floor: what
+looks like precision here is class balance, not discrimination.
 
 ---
 
@@ -248,9 +260,9 @@ would achieve. The precision is class balance, not discrimination.
 
 ```mermaid
 flowchart LR
-    A["GPCS flags MORE<br/>80.8% vs 52.3%"] --> B["STRICTER"]
-    C["Gap between correct<br/>and incorrect claims:<br/>-0.8 pp"] --> D["NOT SHARPER"]
-    B --> E["Being rejected by GPCS<br/>carries no information<br/>about whether a claim is true"]
+    A["GPCS flags MORE<br/>79.3% vs 53.0%"] --> B["STRICTER"]
+    C["Gap between correct<br/>and incorrect claims:<br/>+5.1 pp on 93 claims"] --> D["NOT SHARPER"]
+    B --> E["Being rejected by GPCS<br/>carries no measurable information<br/>about whether a claim is true"]
     D --> E
 
     style B fill:#eef1f5,stroke:#5a6270

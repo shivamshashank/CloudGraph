@@ -1,9 +1,8 @@
 # CloudGraph documentation
 
-**v1 is complete.** The system is built, deployed and evaluated; the results
-in [`../experiment-1-benchmark/`](../experiment-1-benchmark/) are final. Remaining work is scoped to
-v2 and listed in `project/ROADMAP.md` and the
-[v2 section of the root README](../README.md).
+The system is built, deployed and evaluated. Results live in
+[`../experiment-1-benchmark/`](../experiment-1-benchmark/). Open questions are
+listed in [`../research/RESEARCH_GAPS.md`](../research/RESEARCH_GAPS.md).
 
 Every document here is marked with what it describes: **built** (implemented
 and, where relevant, exercised by the evaluation), or **planned** (design
@@ -47,9 +46,9 @@ Documentation of the evaluation lives with the data it describes, not here:
 
 | Location | Contains |
 |---|---|
-| [`../experiment-1-benchmark/FINDINGS.html`](../experiment-1-benchmark/results/EXPERIMENT_FINAL_RESULTS.md) | Eight findings with their evidential status, statistics and figures |
-| [`../experiment-1-benchmark/README.md`](../experiment-1-benchmark/README.md) | Benchmark, results, integrity guarantees, known limitations |
-| [`../experiment-1-benchmark/DATA_PROVENANCE.md`](../experiment-1-benchmark/README.md) | Where the data came from, how cases were selected and derived |
+| [`../experiment-1-benchmark/results/EXPERIMENT_FINAL_RESULTS.md`](../experiment-1-benchmark/results/EXPERIMENT_FINAL_RESULTS.md) | Eight findings with their evidential status, statistics and figures |
+| [`../experiment-1-benchmark/results/EXPERIMENT_JOINT_VERIFIER_COMPARISON.md`](../experiment-1-benchmark/results/EXPERIMENT_JOINT_VERIFIER_COMPARISON.md) | GPCS and self-consistency scored side by side on the same claims |
+| [`../experiment-1-benchmark/README.md`](../experiment-1-benchmark/README.md) | Benchmark, scenarios, data provenance, integrity guarantees, known limitations |
 | [`../research/`](../research/) | Research questions, gaps, contribution analysis, experiment plan |
 
 ## Product scope vs evaluated scope
@@ -63,7 +62,7 @@ working adapter behind `routers/telemetry.py` and `routers/webhooks.py`, and
 
 The **evaluation** used a narrower slice: metrics and logs only, seeded from
 RCAEval RE2 cases. Traces, webhook events and live Kubernetes discovery were
-not exercised by any of the 36 scenarios. `current-architecture.svg` shows
+not exercised by any of the 18 scenarios. `current-architecture.svg` shows
 that narrower path, which is the one every published number came from.
 
 So a figure showing Tempo or Git is describing the product, not overclaiming
@@ -89,15 +88,3 @@ demonstrates root-cause service localisation.
 | [`04-multi-agent-workflow.svg`](architecture/figures/04-multi-agent-workflow.svg) | Five specialists into static consensus |
 | [`05-graphrag-pipeline.svg`](architecture/figures/05-graphrag-pipeline.svg) | Retrieval over the incident graph |
 | [`knowledge-graph-schema.png`](architecture/figures/knowledge-graph-schema.png) | Node and relationship types |
-
-Removed in the 2026-08-11 documentation pass, because they depicted
-components that were never built (AWS/EKS/RDS/S3, seven agents including
-trace/RCA/recommendation roles, cross-agent collaboration, Slack/PagerDuty/
-Jira integrations, a continuous-learning loop, and multi-cluster
-federation): high-level-architecture.png, multi-agent-workflow.png,
-graphrag-pipeline.png, graphrag-investigation-pipeline.png,
-aws-deployment.png, logical-architecture.png,
-continuous-live-data-flow.png, 06-multi-cluster-architecture.svg,
-07-end-to-end-pipeline.svg (its final stage was a continuous-learning loop
-feeding back into the graph), and an unreferenced cluster screenshot. Git
-history retains them.
