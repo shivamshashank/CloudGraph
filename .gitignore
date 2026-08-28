@@ -13,37 +13,6 @@ Thumbs.db
 *.env
 .env.*
 
-# Crash logs
-crash.log
-crash.*.log
-
-# Research run LLM logs (real request/response dumps, can reach tens of MB —
-# see experiments/README.md; the CSVs/summary/README stay tracked)
-experiments/results/logs/
-
-# Per-batch run output. Batching is operational only (the report job holds
-# its state in memory, so a crash costs one batch rather than the run), and
-# every batch is concatenated into experiments/results/ by
-# scripts/merge_reports.py — including the full LLM request log, so the
-# audit trail survives here without tracking each batch twice.
-experiments/batches/
-
-# Derived from claims.csv by scripts/label_claim_correctness.py in seconds;
-# tracking it would duplicate every claim a second time for no extra
-# evidence. correctness_labels.md (the actual result) IS tracked.
-experiments/results/claims_labelled.csv
-
-# The uncompressed audit trail — merge_reports.py writes the .gz, which is
-# what stays in the repo.
-experiments/results/requests_log.jsonl
-
-# Raw RCAEval parquet downloads (~45MB for a 25-case subset, and it is
-# third-party data with its own upstream home). Regenerate on demand with
-# scripts/build_rcaeval_dataset.py; the derived scenario JSON it produces
-# (app/demo/rcaeval_dataset_generated.json) IS tracked, so the benchmark
-# stays reproducible without vendoring the source corpus.
-experiments/rcaeval_data/
-
 # =============================================================================
 # Go test artifacts
 # =============================================================================
@@ -106,11 +75,3 @@ node_modules/
 yarn.lock
 package-lock.json
 yarn.lock
-
-# =============================================================================
-# Understand-Anything
-# =============================================================================
-# Generated codebase knowledge graph and its scratch dirs. Derived entirely
-# from the tracked source, so it is rebuildable and does not belong in git.
-.ua/
-.understand-anything/

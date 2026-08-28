@@ -72,6 +72,13 @@ Reading order in each cell: cpu · mem · disk · delay · loss · socket.
 reaches the model. It is retained because the failure is itself a finding about
 benchmark construction, not because it measures pipeline quality.
 
+## Archived dataset
+
+The full contents of this directory — 54 run logs, `results/`, `traces/`, the 18
+scenario definitions and the analysis scripts — are archived on Zenodo at
+[10.5281/zenodo.22142635](https://doi.org/10.5281/zenodo.22142635).
+The archived `claims.csv` is byte-identical to the one here.
+
 ## Layout
 
 ```text

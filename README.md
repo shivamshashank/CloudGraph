@@ -580,11 +580,37 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) ·
 
 MIT — see [`LICENSE`](LICENSE).
 
+### Citing this work
+
+The evaluation dataset — all 54 run logs, `claims.csv`, the 18 scenario
+definitions and the analysis scripts — is archived on Zenodo:
+
+> Shashank, S. (2026). *CloudGraph: Evaluation Dataset for Graph-Grounded
+> Verification of LLM-Generated Root Cause Analysis in Kubernetes* (v1)
+> [Data set]. Zenodo. [10.5281/zenodo.22142635](https://doi.org/10.5281/zenodo.22142635)
+
+```bibtex
+@misc{cloudgraphdata,
+  author    = {Shashank, Shivam},
+  title     = {CloudGraph: Evaluation Dataset for Graph-Grounded Verification
+               of LLM-Generated Root Cause Analysis in Kubernetes},
+  year      = {2026},
+  publisher = {Zenodo},
+  version   = {v1},
+  doi       = {10.5281/zenodo.22142635}
+}
+```
+
+The archived `claims.csv` is byte-identical to
+[`experiment-1-benchmark/results/claims.csv`](experiment-1-benchmark/results/claims.csv)
+in this repository, so every figure below can be reproduced from either.
+
 ### Upstream corpus
 
 The benchmark corpus is **RCAEval** (MIT), Zenodo DOI
 [10.5281/zenodo.14590730](https://doi.org/10.5281/zenodo.14590730), arXiv
-[2412.17015](https://arxiv.org/abs/2412.17015).
+[2412.17015](https://arxiv.org/abs/2412.17015). This dataset is a derivative of
+it and inherits its MIT terms.
 
 ## 👤 Author
 

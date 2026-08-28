@@ -319,7 +319,8 @@ self-consistency calls that **supported**.
 
 **RCAEval RE2** — a published benchmark of chaos-injected failures in real,
 running microservice systems. MIT licensed, archived at
-`10.5281/zenodo.14590730`.
+`10.5281/zenodo.14590730`. The derived evaluation dataset produced by this work
+is archived separately at `10.5281/zenodo.22142635`.
 
 It was chosen over a hand-authored incident set for a decisive reason: an earlier
 version of this project used a hand-written benchmark whose incident descriptions
