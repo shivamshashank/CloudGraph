@@ -295,11 +295,11 @@ cd ~/CloudGraph
 testing/verify/run_verification.sh
 ```
 
-Runs the research module test suite, then re-runs
-`scripts/paired_bootstrap.py` (significance tests) and
-`scripts/make_figures.py` (the 3 figures) against whatever's now in
-`experiment-1-benchmark/results/` — confirms every number/figure actually
-regenerates from the saved data, not just that the report ran. See
+Runs the research module test suite, then rebuilds `claims.csv` from the 54
+raw run logs and regenerates the three figures from it, diffing both against
+the committed copies. It confirms every number and figure actually regenerates
+from the raw evidence — not merely that the report ran once. Exit code 1 means
+a published artefact has drifted from the logs it derives from. See
 `experiment-1-benchmark/README.md` for what the results actually say.
 
 **Not run by this step** (needs its own real LLM calls against a live

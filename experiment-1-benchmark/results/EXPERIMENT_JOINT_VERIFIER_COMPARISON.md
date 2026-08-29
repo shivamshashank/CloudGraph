@@ -69,6 +69,14 @@ Concordance 1246/1950 = **63.9%**.
 
 Pooled: **93/1950 = 4.8%** adjudicable.
 
+## Where the two verifiers diverge
+
+![GPCS and self-consistency flag rates for correct vs incorrect claims](figures/fig-discrimination.png)
+
+*GPCS flags more claims than self-consistency at every condition, but neither
+separates correct claims from incorrect ones. Being stricter is not the same as
+being sharper.*
+
 ## What the joint filter buys
 
 Requiring **both** verifiers to accept keeps **308** of 1950 claims

@@ -420,9 +420,10 @@ asks a genuinely different research question from the published work
 graph-grounded verification behave differently from self-consistency?"*), and
 it is **not citable as it stands**:
 
-- **No statistical treatment** — bare point estimates, no confidence intervals,
-  no significance tests, while every published result uses scenario-clustered
-  bootstrap CIs.
+- **No statistical treatment** — bare point estimates with no measure of
+  spread. The published results are reported the same way, as counts and rates
+  with no inferential statistics, but they carry an explicit statement of that
+  limitation and this ladder does not.
 - **Compute is confounded with architecture** — each rung adds LLM calls, so a
   gain cannot be attributed to the layer rather than the extra tokens. The
   **matched-compute control** is the correct instrument.

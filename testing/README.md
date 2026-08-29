@@ -43,12 +43,14 @@ answer different questions and run on different timescales:
 
 - **`verify/`** — confirms the *analysis* layer over already-collected
   data is reproducible, not just that it ran once:
-  - `run_verification.sh` — re-runs the research module test suite,
-    `scripts/paired_bootstrap.py`, and `scripts/make_figures.py` against
-    the current `experiment-1-benchmark/results/`, and reports whether everything
-    regenerates cleanly — the project's honesty guardrail that every
-    figure/table must be regenerable by re-running a script, made concrete
-    and checkable.
+  - `run_verification.sh` — runs the research module test suite, rebuilds
+    `claims.csv` from the raw run logs with
+    `services/api/scripts/build_claims_csv.py`, regenerates the figures with
+    `experiment-1-benchmark/scripts/make_figures.py`, and diffs both against
+    the committed copies. Any difference is a hard failure: it means a
+    published artefact no longer follows from the evidence it rests on. This
+    is the project's honesty guardrail — that every figure and table must be
+    regenerable by re-running a script — made concrete and checkable.
 
 `intensive/`, the local-checkout `report/` path, and `verify/` all expect
 the full stack (Neo4j, Qdrant, investigation-engine, agent-orchestrator,

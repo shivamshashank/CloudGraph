@@ -149,7 +149,7 @@ that Experiment 1 deliberately bypasses — it demonstrates, and measures nothin
 
 ## 📊 Results & Key Findings
 
-Every number below is derived from the 18 run logs across 6 benchmark scenarios (`rcaeval-03` through `rcaeval-18`). Full analysis is detailed in [`experiment-1-benchmark/results/EXPERIMENT_FINAL_RESULTS.md`](experiment-1-benchmark/results/EXPERIMENT_FINAL_RESULTS.md).
+Every number below is derived from the 54 run logs across 18 benchmark scenarios. Full analysis is detailed in [`experiment-1-benchmark/results/EXPERIMENT_FINAL_RESULTS.md`](experiment-1-benchmark/results/EXPERIMENT_FINAL_RESULTS.md).
 
 ### 1. Retrieval Condition Breakdown (`NONE` vs `RAW` vs `HYBRID`)
 
@@ -164,7 +164,27 @@ Every number below is derived from the 18 run logs across 6 benchmark scenarios 
 
 ---
 
-### 2. Research Questions (RQ) Support Matrix
+### 2. Does either verifier track correctness?
+
+![GPCS and self-consistency flag rates for correct versus incorrect claims](experiment-1-benchmark/results/figures/fig-discrimination.png)
+
+**Figure 1 — Neither verifier separates correct claims from incorrect ones.**
+A verifier that worked would show a tall orange bar beside a short blue one.
+GPCS flags incorrect claims 5.1 pp more often than correct ones (about three
+claims); self-consistency flags them 0.7 pp *less* often. Counts appear beneath
+each percentage — the 93 adjudicable claims split 36 correct / 57 incorrect.
+
+![Distribution of GPCS trust scores across all 1,950 claims](experiment-1-benchmark/results/figures/fig-trust-distribution.png)
+
+**Figure 2 — The trust score is a gate, not a graded confidence.** Across 1,950
+claims it takes only eight distinct values. 1,546 sit at exactly `0.000`, and
+**nothing at all falls between 0.000 and 0.700**; the 404 non-zero scores occupy
+a band 0.020 wide. This is the mechanism behind Figure 1 — a threshold cannot be
+tuned on a distribution with this shape.
+
+---
+
+### 3. Research Questions (RQ) Support Matrix
 
 The project has **one** research-question register, RQ1-RQ7, defined in
 [`docs/PROJECT_EXPLAINED.md`](docs/PROJECT_EXPLAINED.md). Every verdict below
@@ -191,7 +211,7 @@ and requiring both verifiers to accept keeps just **308 of 1,950 claims — an
 
 ---
 
-### 3. The five hypotheses
+### 4. The five hypotheses
 
 The project rests on five claims. **Four are supported; one is refuted** — and
 the refuted one is the claim the whole design was built on.
@@ -465,7 +485,7 @@ services/
   ui/                    Static HTML/CSS/vanilla-JS (no framework, no build)
 deployments/helm/        Helm chart — API, agents, UI, Neo4j, Qdrant, OTel, RBAC
 graph/schema.cypher      Node labels, constraints, indexes
-experiment-1-benchmark/  Experiment 1 — the evaluation. 18 run logs, 9 traces,
+experiment-1-benchmark/  Experiment 1 — the evaluation. 54 run logs, 10 traces,
                          results, claims.csv. Seeded RCAEval data; no live cluster.
 experiment-2-live-demo/  Experiment 2 — end-to-end demonstration on a real
                          Kubernetes cluster. No results, no statistics.
@@ -549,7 +569,7 @@ go build ./... && go test ./...
 
 | Limitation | Consequence |
 |---|---|
-| **Six scenarios, one sample per cell** | Results are counts and rates. No inferential statistics are reported, and the N1 null is underpowered. |
+| **Eighteen scenarios, one sample per cell** | Results are counts and rates. No inferential statistics are reported, and the N1 null is underpowered. |
 | **4.8% adjudicable coverage** | Verifier comparisons rest on 93 labelled claims. GPCS can be shown *stricter*, not better *aimed*. |
 | **GPCS resolution** | Trust takes eight distinct values, 79.3% of them exactly `0.000`. It is a gate, not a continuous confidence. |
 | **Nothing is calibrated** | GPCS thresholds (0.30 floor, 0.50 cut) and GCP edge weights are hand-set defaults. No reliability diagrams or Brier scores. |
@@ -587,7 +607,7 @@ definitions and the analysis scripts — is archived on Zenodo:
 
 > Shashank, S. (2026). *CloudGraph: Evaluation Dataset for Graph-Grounded
 > Verification of LLM-Generated Root Cause Analysis in Kubernetes* (v1)
-> [Data set]. Zenodo. [10.5281/zenodo.22142635](https://doi.org/10.5281/zenodo.22142635)
+> [Data set]. Zenodo. [10.5281/zenodo.22142635](https://zenodo.org/records/22142635)
 
 ```bibtex
 @misc{cloudgraphdata,

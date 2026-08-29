@@ -58,6 +58,13 @@ correctness number in this document rests on the 93 that can.
 
 ## Per-run data
 
+![GPCS flag rate for every scenario-condition cell](figures/fig-scenario-heatmap.png)
+
+*Flag rates run from 19% to 97%, and no retrieval condition is systematically
+darker than another — most variation is between scenarios, not between
+conditions. Individual cells should not be read on their own: see the variance
+note below.*
+
 | Scenario | System | Fault | Cond | Claims | GPCS unsup | SC unsup | Agree | Eval |
 |---|---|---|---|---:|---:|---:|---:|---:|
 | `rcaeval-03` | Train Ticket | cpu | NONE | 38 | 29 (76.3%) | 27 (71.1%) | 30 (78.9%) | 2 |
@@ -169,6 +176,25 @@ it flags correct and incorrect claims at the same rate, so its verdict carries
 no information about truth. GPCS leans the right way by 5.1 pp, but on 93
 claims that is roughly three claims, and its precision is within noise of the
 base rate. **GPCS is stricter, not sharper.**
+
+![GPCS and self-consistency flag rates for correct vs incorrect claims](figures/fig-discrimination.png)
+
+*A verifier that worked would show a tall orange bar beside a short blue one.
+Neither does. Counts appear beneath each percentage; the 93 adjudicable claims
+split 36 correct / 57 incorrect.*
+
+### Why the trust score cannot discriminate
+
+Across 1,950 claims the GPCS trust score takes only **eight distinct values**,
+and 79.3% of claims sit at exactly `0.000` — an early return taken when no
+retrieved evidence clears the 0.30 relevance floor, before any term of the
+formula is computed.
+
+![Distribution of GPCS trust scores across 1,950 claims](figures/fig-trust-distribution.png)
+
+*Nothing at all falls between 0.000 and 0.700, and the 404 non-zero scores
+occupy a band 0.020 wide. GPCS is a gate, not a graded confidence: a threshold
+cannot be tuned on a distribution with this shape.*
 
 ## The five hypotheses
 

@@ -1,5 +1,9 @@
 # Experiment 1 — RCAEval evaluation
 
+[Repository](https://github.com/shivamshashank/CloudGraph) ·
+[Experiment 2](https://github.com/shivamshashank/CloudGraph/tree/main/experiment-2-live-demo) ·
+[Archived dataset](https://zenodo.org/records/22142635)
+
 Eighteen RCAEval RE2 scenarios × three context conditions = **54 runs, 1,950
 claims, zero fallbacks**. Run against a local OrbStack Kubernetes deployment.
 
@@ -76,7 +80,7 @@ benchmark construction, not because it measures pipeline quality.
 
 The full contents of this directory — 54 run logs, `results/`, `traces/`, the 18
 scenario definitions and the analysis scripts — are archived on Zenodo at
-[10.5281/zenodo.22142635](https://doi.org/10.5281/zenodo.22142635).
+[10.5281/zenodo.22142635](https://zenodo.org/records/22142635).
 The archived `claims.csv` is byte-identical to the one here.
 
 ## Layout
@@ -203,6 +207,26 @@ Labelling follows the pre-registered policy in
 recorded deviations.
 
 ## Headline results
+
+![GPCS flag rate for every scenario-condition cell](results/figures/fig-scenario-heatmap.png)
+
+**Figure 1 — Flag rate per scenario-condition cell.** The spread runs 19% to
+97%, and no retrieval condition is systematically darker than another: most
+variation is between scenarios, not between conditions. Individual cells should
+not be read alone — repeating one cell on an unchanged configuration moves
+verifier concordance by up to 25.7 pp.
+
+![GPCS and self-consistency flag rates for correct versus incorrect claims](results/figures/fig-discrimination.png)
+
+**Figure 2 — Neither verifier tracks correctness.** Flag rates for correct and
+incorrect claims are within noise of each other for both verifiers. GPCS is
+stricter, not sharper.
+
+![Distribution of GPCS trust scores across all 1,950 claims](results/figures/fig-trust-distribution.png)
+
+**Figure 3 — The trust score takes only eight distinct values.** 79.3% of claims
+score exactly `0.000`; the rest fall in a band 0.020 wide. Figures regenerate
+from `claims.csv` via [`scripts/make_figures.py`](scripts/make_figures.py).
 
 | | `NONE` | `RAW` | `HYBRID` |
 |---|---:|---:|---:|

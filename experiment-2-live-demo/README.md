@@ -1,5 +1,9 @@
 # Experiment 2 — live-cluster demonstration
 
+[Repository](https://github.com/shivamshashank/CloudGraph) ·
+[Experiment 1](https://github.com/shivamshashank/CloudGraph/tree/main/experiment-1-benchmark) ·
+[Archived dataset](https://zenodo.org/records/22142635)
+
 **This directory demonstrates that the pipeline runs end to end on a real
 Kubernetes cluster. It produces no results and measures nothing.**
 
