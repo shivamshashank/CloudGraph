@@ -205,7 +205,7 @@ def run_hybrid_search(
                 # retrieve() returns list[dict], not a {"nodes": [...]} envelope;
                 # .get() on a list raises AttributeError.
                 graph_context = graph_traversal_retriever.retrieve(
-                    record.get("id"), depth=2
+                    record.get("id"), depth=2, scenario_id=scenario_id
                 )
                 for item in graph_context:
                     graph_hits.append(

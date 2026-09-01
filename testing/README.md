@@ -75,5 +75,5 @@ NEO4J_PASSWORD=<password> testing/report/run_report_batched.sh   # local-checkou
 testing/report/run_report_batched.sh --full                       # local-checkout, old single-shot behavior
 
 # --- verify/ ---
-testing/verify/run_verification.sh   # tests pass + significance tests/figures regenerate cleanly
+testing/verify/run_verification.sh   # tests pass + claims.csv/figures regenerate from the raw logs
 ```

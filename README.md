@@ -38,7 +38,7 @@ It is *"can we tell whether it made that up?"*
 
 <br />
 
-**Experiment 1** · 18 RCAEval RE2 scenarios × 3 conditions · 54 runs · 1,950 claims · 129 tests
+**Experiment 1** · 18 RCAEval RE2 scenarios × 3 conditions · 54 runs · 1,950 claims · 135 tests
 
 </div>
 
@@ -95,7 +95,7 @@ this way.
 |---|---|
 | **Evaluation** | 18 RCAEval RE2 scenarios × 3 retrieval conditions · 54 runs · 1,950 claims |
 | **Adjudicable** | 93 of 1,950 claims (4.8%) |
-| **Tests** | 129 |
+| **Tests** | 135 |
 | **Deployment** | Kubernetes via Helm — verified on kubeadm and OrbStack |
 
 ---
@@ -560,7 +560,7 @@ cd services/api && .venv/bin/python -m pytest tests/ -q -n auto
 go build ./... && go test ./...
 ```
 
-129 Python tests plus the Go CLI suite. CI runs both, alongside pre-commit
+135 Python tests plus the Go CLI suite. CI runs both, alongside pre-commit
 (ruff, black, flake8, pylint, markdownlint, shellcheck, gitleaks).
 
 ---

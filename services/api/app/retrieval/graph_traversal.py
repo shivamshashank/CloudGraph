@@ -33,9 +33,18 @@ class GraphTraversalRetriever:
         *,
         depth: int = 2,
         limit: int = 50,
+        scenario_id: str | None = None,
         **kwargs,
     ) -> list[dict[str, Any]]:
-        """Retrieve multi-hop evidence neighborhood starting from a seed ID."""
+        """Retrieve multi-hop evidence neighborhood starting from a seed ID.
+
+        ``scenario_id`` scopes the traversal to one benchmark scenario: the
+        seed and every node on the returned path must carry that id, so a path
+        cannot route through another scenario's evidence. ``None`` disables the
+        predicate and leaves behaviour identical to an unscoped traversal,
+        which is what a live cluster needs -- discovered nodes carry no
+        ``scenario_id``.
+        """
         start_time = kwargs.get("start_time")
         end_time = kwargs.get("end_time")
         if not MIN_DEPTH <= depth <= MAX_DEPTH:
@@ -50,6 +59,7 @@ class GraphTraversalRetriever:
         query = f"""
         MATCH (seed)
         WHERE (seed:Incident OR seed:Pod OR seed:Deployment OR seed:Node)
+          AND ($scenario_id IS NULL OR seed.scenario_id = $scenario_id)
           AND (
             elementId(seed) = $seed_id
             OR seed.id = $seed_id
@@ -82,6 +92,9 @@ class GraphTraversalRetriever:
              ) AS window_end
         MATCH path = (seed)-[:{RELATIONSHIP_TYPES}*1..{depth}]-(context)
         WHERE context <> seed
+          AND all(path_node IN nodes(path) WHERE
+            $scenario_id IS NULL OR path_node.scenario_id = $scenario_id
+          )
           AND all(path_node IN nodes(path) WHERE
             NOT (
               path_node:Log OR path_node:Metric OR path_node:Trace OR
@@ -121,6 +134,7 @@ class GraphTraversalRetriever:
                 "end_time": end_time,
                 "window_seconds": self.default_window_seconds,
                 "limit": limit,
+                "scenario_id": scenario_id,
             },
         )
         return [self._normalize(row) for row in rows]

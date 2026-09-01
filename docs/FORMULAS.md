@@ -66,7 +66,8 @@ Trust_Score = (0.45 * Vector_Sim) + (0.35 * Graph_Prox) + (0.25 * Source_Reliabi
 Where:
 Graph_Prox         = 1 / (1 + Min_Hop_Distance)
 Penalty            = 0.15 * (Min_Hop_Distance * 0.05)
-Source_Reliability = Metric (0.95), Log (0.85), Topology (0.80), Commit (0.70)
+Source_Reliability = Pod / Service / Deployment / Incident (0.90), Metric (0.85),
+                     Log (0.80), Node (0.75), anything unlisted (0.60)
 
 Decision Rule: If Trust_Score >= 0.50 -> SUPPORTED (False), else -> UNSUPPORTED (True)
 ```
@@ -81,7 +82,7 @@ $$\text{gpcs\_unsupported}(c_i) = \begin{cases} \text{False (SUPPORTED)} & \text
 
 * `Vector_Sim`: Maximum cosine similarity match in Qdrant across all retrieved evidence vectors for claim $c_i$.
 * `Graph_Prox`: Shortest graph path distance in Neo4j between the claim entity (e.g., `checkoutservice`) and evidence node.
-* `Source_Reliability`: Fixed system reliability weights: Prometheus Metric (`0.95`), Loki Log (`0.85`), Topology (`0.80`), Commit (`0.70`).
+* `Source_Reliability`: Fixed weights by evidence-node type, from `SOURCE_RELIABILITY` in [`services/api/app/research/gpcs.py`](../services/api/app/research/gpcs.py): `Pod`, `Service`, `Deployment`, `Incident` (`0.90`), `Metric` (`0.85`), `Log` (`0.80`), `Node` (`0.75`). Any type not in that table scores `0.60`.
 * `Penalty`: Hop-distance penalty ($0.15 \times \text{hop} \times 0.05$) preventing multi-hop hallucination leaps.
 
 ### Step-by-Step Worked Example
